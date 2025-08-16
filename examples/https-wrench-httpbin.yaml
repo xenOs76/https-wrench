@@ -1,0 +1,22 @@
+---
+verbose: true
+requests:
+  - name: httpBinOrg
+    # transportOverrideUrl: https://httpbin.org:443
+
+    userAgent: httpbin-requests-ua
+
+    requestHeaders:
+      - key: x-api-key
+        value: aaa-bbb-ccc
+      - key: x-custom-header
+        value: custom-header-value
+
+    printResponseBody: true
+
+    hosts:
+      - name: httpbin.org
+        uriList:
+          - /headers
+          - /ip
+          - /user-agent

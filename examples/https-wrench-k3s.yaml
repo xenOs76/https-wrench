@@ -1,0 +1,53 @@
+---
+debug: false
+verbose: true
+requests:
+  - name: k3sOs76ViaCaddyDnsDirect
+    # transportOverrideUrl: https://flux.home.arpa
+    # printResponseBody: true
+    #
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Server
+
+    hosts:
+      - name: httpbingo.k3s.os76.xyz
+
+  - name: k3sOs76ViaIstioDnsOverride
+    transportOverrideUrl: https://rpi502.home.arpa:30443
+    # printResponseBody: true
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Server
+
+    userAgent: https-alt-user-agent
+    requestHeaders:
+      - key: x-api-key
+        value: aaa-bbb-ccc
+
+    hosts:
+      - name: httpbingo.k3s.os76.xyz
+        uriList:
+          - /headers
+          - /status/404
+          - /status/503
+
+  - name: k3sOs76ViaNginxDnsOverride
+    transportOverrideUrl: https://argo.home.arpa
+    # printResponseBody: true
+
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Server
+
+    hosts:
+      - name: httpbingo.k3s.os76.xyz
+        uriList:
+          - /headers
+
+  - name: k3sOs76NoLbShouldFail
+    transportOverrideUrl: https://rpi501.home.arpa
+    hosts:
+      - name: httpbingo.k3s.os76.xyz
+        uriList:
+          - /headers

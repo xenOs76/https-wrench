@@ -1,0 +1,6 @@
+dist 
+examples 
+.direnv
+.envrc
+*sh
+*nix

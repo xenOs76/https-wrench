@@ -1,0 +1,6 @@
+FROM scratch
+
+COPY https-wrench /
+
+ENTRYPOINT ["./https-wrench"]
+

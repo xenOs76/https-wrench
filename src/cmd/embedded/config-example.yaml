@@ -1,0 +1,29 @@
+---
+debug: false
+verbose: true
+requests:
+  - name: httpBunCom
+    transportOverrideUrl: https://cat.httpbun.com:443
+    userAgent: wrench-httpbun-ua
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+      - key: x-api-key
+        value: api-value
+
+    printResponseBody: true
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - X-Powered-By
+      - Via
+      - Content-Type
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /headers
+          - /ip
+          - /status/302
+          - /status/404
+          - /status/503
