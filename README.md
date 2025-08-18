@@ -7,7 +7,7 @@
 </p>
 
 **HTTPS Wrench** is a Golang CLI program to make HTTPS requests based on a YAML configuration file.   
-**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool for mechanics of the WWW.  
+**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool for mechanics of the World Wide Web.  
 `https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, Cloudfront distibution.   
 
 ## How to use
