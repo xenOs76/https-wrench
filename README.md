@@ -7,7 +7,7 @@
 </p>
 
 **HTTPS Wrench** is a Golang CLI program to make HTTPS requests based on a YAML configuration file.   
-**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool for WWW mechanics.  
+**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool for mechanics of the WWW.  
 `https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, Cloudfront distibution.   
 
 ## How to use
@@ -129,3 +129,62 @@ Install `https-wrench`:
 ```bash
 brew install --casks https-wrench
 ```
+
+### Nix/NUR
+
+Nix users can use the following Nur repository to access `https-wrench`: [https://github.com/xenOs76/nur-packages](https://github.com/xenOs76/nur-packages).  
+The repository is not listed yet in the general [Nix User Repository](https://github.com/nix-community/NUR) so the following methods can be used to install the package.  
+
+Set a Nix channel: 
+```bash
+nix-channel --add https://github.com/xenos76/nur-packages/archive/main.tar.gz nur-os76
+nix-channel --update
+```
+
+and add the package to a Nix shell:  
+```bash
+nix-shell -p '(import <nur-os76> { pkgs = import <nixpkgs> {}; }).https-wrench'
+```
+
+Or use a `flake.nix` like the following to achieve a similar result:  
+```nix
+{
+  description = "Flake to fetch https-wrench from xenos76's NUR repo";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nur-os76.url = "github:xenos76/nur-packages";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nur-os76,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+
+        https-wrench = pkgs.callPackage (nur-os76 + "/pkgs/https-wrench") { };
+      in
+      {
+        packages.default = https-wrench;
+
+        devShells.default = pkgs.mkShell {
+          packages = [
+            https-wrench
+            pkgs.hello
+          ];
+        };
+      }
+    );
+}
+```
+
+NixOS users could use a [flake like this](https://raw.githubusercontent.com/xenOs76/nixos-configs/refs/heads/main/flake.nix) to fetch the package.  
