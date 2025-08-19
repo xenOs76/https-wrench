@@ -102,7 +102,21 @@ Or like this, if you customize one of the files in the ![examples](./examples/ht
 
 Release binaries and DEB, RPM, APK packages can be downloaded from the [repo's releases section](https://github.com/xenOs76/https-wrench/releases).  
 Binaries and packages are built for Linux and MacOS, `amd64` and `arm64`.   
-No APT and YUM repositories yet, sorry.  
+
+### APT
+
+Configure the repo the following way:
+```bash
+echo "deb [trusted=yes] https://repo.os76.xyz/apt stable main" | sudo tee /etc/apt/sources.list.d/os76.list
+```
+then: 
+```bash
+apt-get update && apt-get install https-wrench
+```
+
+### YUM
+
+TBD
 
 ### Docker image
 
