@@ -116,7 +116,19 @@ apt-get update && apt-get install https-wrench
 
 ### YUM
 
-TBD
+Configure the repo the following way:
+```bash
+echo '[os76]
+name=OS76 Yum Repo
+baseurl=https://repo.os76.xyz/yum/$basearch/
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0' | sudo tee /etc/yum.repos.d/os76.repo
+```
+then: 
+```bash
+yum install https-wrench
+```
 
 ### Docker image
 
