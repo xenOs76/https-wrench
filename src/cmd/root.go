@@ -95,11 +95,16 @@ func initConfig() {
 		viper.SetConfigName(".https-wrench")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	}
+
+	_, err := os.Stat(viper.ConfigFileUsed())
+	if err != nil {
+		fmt.Printf("Config file not found: %s\n", viper.ConfigFileUsed())
 	}
 }
 
