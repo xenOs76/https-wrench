@@ -21,6 +21,14 @@ import (
 )
 
 var httpUserAgent string = "https-wrench-request"
+var httpClientTimeout time.Duration = 30
+var httpClientKeepalive time.Duration = 30
+
+var transportMaxIdleConns int = 100
+var transportIdleConnTimeout time.Duration = 30
+var transportTLSHandshakeTimeout time.Duration = 30
+var transportResponseHeaderTimeout time.Duration = 30
+var transportExpectContinueTimeout time.Duration = 1
 
 var requestsCmd = &cobra.Command{
 	Use:   "requests",
@@ -186,15 +194,21 @@ func getUrlsFromHost(h Host) []string {
 func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, error) {
 
 	var transportAddress string
+	clientTimeout := httpClientTimeout * time.Second
+
+	if r.ClientTimeout > 0 {
+		clientTimeout = r.ClientTimeout
+	}
 
 	if len(r.TransportOverrideUrl) > 0 {
 
 		transport := &http.Transport{
 			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
+			MaxIdleConns:          transportMaxIdleConns,
+			IdleConnTimeout:       transportIdleConnTimeout * time.Second,
+			TLSHandshakeTimeout:   transportTLSHandshakeTimeout * time.Second,
+			ResponseHeaderTimeout: transportResponseHeaderTimeout * time.Second,
+			ExpectContinueTimeout: transportExpectContinueTimeout * time.Second,
 		}
 
 		overrideURL, err := url.Parse(r.TransportOverrideUrl)
@@ -209,8 +223,8 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		}
 
 		dialer := &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+			Timeout:   clientTimeout * time.Second,
+			KeepAlive: httpClientKeepalive * time.Second,
 		}
 
 		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
@@ -225,13 +239,13 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 
 		return &http.Client{
 			Transport: transport,
-			Timeout:   60 * time.Second,
+			Timeout:   clientTimeout * time.Second,
 		}, transportAddress, nil
 
 	}
 
 	return &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: clientTimeout * time.Second,
 	}, transportAddress, nil
 }
 

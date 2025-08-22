@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 type (
@@ -33,6 +34,7 @@ type RequestConfig struct {
 	RequestHeaders        []RequestHeader `mapstructure:"requestHeaders"`
 	ResponseHeadersFilter []string        `mapstructure:"responseHeadersFilter"`
 	Hosts                 []Host          `mapstructure:"hosts"`
+	ClientTimeout         time.Duration   `mapstructure:"clientTimeout"`
 }
 
 type ResponseData struct {
