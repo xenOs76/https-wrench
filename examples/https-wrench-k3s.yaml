@@ -1,11 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
 ---
 debug: false
 verbose: true
 requests:
   - name: k3sOs76ViaCaddyDnsDirect
-    # transportOverrideUrl: https://flux.home.arpa
-    # printResponseBody: true
-    #
     printResponseHeaders: true
     responseHeadersFilter:
       - Server
@@ -35,7 +34,6 @@ requests:
   - name: k3sOs76ViaNginxDnsOverride
     transportOverrideUrl: https://argo.home.arpa
     # printResponseBody: true
-
     printResponseHeaders: true
     responseHeadersFilter:
       - Server

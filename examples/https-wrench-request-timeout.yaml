@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: Os76RequestDrop
+    clientTimeout: 3
+    hosts:
+      # https://www.haproxy.com/blog/use-haproxy-response-policies-to-stop-threats#3-silent-drop
+      - name: drop.os76.xyz

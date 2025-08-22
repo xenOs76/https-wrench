@@ -1,9 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
 ---
 debug: false
 verbose: true
 requests:
   - name: httpBunCom
     transportOverrideUrl: https://cat.httpbun.com:443
+    clientTimeout: 3
     userAgent: wrench-httpbun-ua
 
     requestHeaders:
@@ -23,7 +26,6 @@ requests:
       - name: httpbun.com
         uriList:
           - /headers
-          - /ip
           - /status/302
           - /status/404
           - /status/503
