@@ -1,0 +1,120 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "$ref": "#/definitions/HttpsWrenchConfiguration",
+    "definitions": {
+        "HttpsWrenchConfiguration": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "debug": {
+                    "type": "boolean"
+                },
+                "verbose": {
+                    "type": "boolean"
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Request"
+                    }
+                }
+            },
+            "required": [
+                "debug",
+                "requests",
+                "verbose"
+            ],
+            "title": "HttpsWrenchConfiguration"
+        },
+        "Request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "transportOverrideUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ],
+                    "pattern": "^https://"
+                },
+                "clientTimeout": {
+                    "type": "number"
+                },
+                "printResponseBody": {
+                    "type": "boolean"
+                },
+                "printResponseHeaders": {
+                    "type": "boolean"
+                },
+                "responseHeadersFilter": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Z]"
+                    }
+                },
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Host"
+                    }
+                },
+                "userAgent": {
+                    "type": "string"
+                },
+                "requestHeaders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/RequestHeader"
+                    }
+                }
+            },
+            "required": [
+                "hosts",
+                "name"
+            ],
+            "title": "Request"
+        },
+        "Host": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "uriList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^/"
+                    }
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "title": "Host"
+        },
+        "RequestHeader": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "key",
+                "value"
+            ],
+            "title": "RequestHeader"
+        }
+    }
+}
