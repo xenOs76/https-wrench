@@ -8,7 +8,9 @@ env_files:
   gitea_token: ~/nope
   github_token: ~/nope
 release:
-  gitea:
+  disable: false
+  skip_upload: false
+  github:
     owner: xenos76
     name: https-wrench
 before:
