@@ -49,11 +49,15 @@ archives:
       - LICENSE
 
 nfpms:
-  - maintainer: 'xeno@os76.xyz'
+  - maintainer: Zeno Belli <xeno@os76.xyz>
+    vendor: xenos76 on Github
+    homepage: https://github.com/xenOs76/https-wrench
+    description: https-wrench, a tool to make HTTPS requests based on a YAML configuration file.
     formats:
       - apk
       - deb
       - rpm
+    release: "1"
 
 dockers:
   - image_templates:
