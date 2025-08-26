@@ -4,16 +4,19 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gookit/goutil/dump"
@@ -21,6 +24,8 @@ import (
 )
 
 var httpUserAgent string = "https-wrench-request"
+var httpClientDefaultMethod = "GET"
+var httpClientDefaultRequestBody []byte
 var httpClientTimeout time.Duration = 30
 var httpClientKeepalive time.Duration = 30
 
@@ -252,6 +257,16 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 func handleRequests(r RequestConfig) ([]ResponseData, error) {
 
 	var respDataList []ResponseData
+	clientMethod := httpClientDefaultMethod
+	requestBodyReader := bytes.NewReader(httpClientDefaultRequestBody)
+
+	if len(r.RequestMethod) > 0 {
+		clientMethod = strings.ToUpper(r.RequestMethod)
+	}
+
+	if len(r.RequestBody) > 0 {
+		requestBodyReader = bytes.NewReader([]byte(r.RequestBody))
+	}
 
 	for _, host := range r.Hosts {
 
@@ -264,7 +279,7 @@ func handleRequests(r RequestConfig) ([]ResponseData, error) {
 
 		for _, reqUrl := range urlList {
 
-			req, err := http.NewRequest("GET", reqUrl, nil)
+			req, err := http.NewRequest(clientMethod, reqUrl, requestBodyReader)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create request: %w", err)
 			}
@@ -286,6 +301,15 @@ func handleRequests(r RequestConfig) ([]ResponseData, error) {
 				Url:                   reqUrl,
 			}
 
+			if r.RequestDebug {
+				reqDump, err := httputil.DumpRequestOut(req, true)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("Requesting url: %s\n", reqUrl)
+				fmt.Printf("Request dump:\n%s\n", string(reqDump))
+			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				rd.Error = err
@@ -297,6 +321,15 @@ func handleRequests(r RequestConfig) ([]ResponseData, error) {
 					fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
 				}
 			}()
+
+			if r.ResponseDebug {
+				respDump, err := httputil.DumpResponse(resp, true)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("Requested url: %s\n", reqUrl)
+				fmt.Printf("Response dump:\n%s\n", string(respDump))
+			}
 
 			rd.Response = resp
 

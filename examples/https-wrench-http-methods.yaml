@@ -1,0 +1,164 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: httpBunGetDefault
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /get?method=DefaultGet
+
+  - name: httpBunGetDeclared
+    requestMethod: GET
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /get?clientMethod=GET
+
+  - name: httpBunPost
+    requestMethod: POST
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /post
+
+  - name: httpBunPostBodyText
+    requestMethod: POST
+
+    requestHeaders:
+      - key: content-type
+        value: text/plain
+
+    requestBody: "plain requestBody \non a multiline string\n"
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /post
+
+  - name: httpBunPostBodyJson
+    requestMethod: POST
+
+    requestHeaders:
+      - key: content-type
+        value: application/json
+
+    requestBody: '{"a": 1, "b": 2, "c": 3}'
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /post
+
+  - name: httpBunPut
+    requestMethod: PUT
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /put
+
+  - name: httpBunDelete
+    requestMethod: DELETE
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /delete
+
+  - name: httpBunPatch
+    requestMethod: PATCH
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /patch
+
+  - name: reqBinOptions
+    requestMethod: OPTIONS
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+    requestHeaders:
+      - key: Access-Control-Request-Method
+        value: PUT
+      - key: Origin
+        value: https://reqbin.com
+      - key: Access-Control-Request-Headers
+        value: content-type
+
+    hosts:
+      - name: api.reqbin.com
+        uriList:
+          - /api/v1/requests
+
+  - name: httpBunTraceNotAllowed
+    requestMethod: TRACE
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /get
+
+  - name: httpBunTrace
+    requestMethod: TRACE
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: httpbun.com
+        uriList:
+          - /any
+
+  - name: httpBunHead
+    requestMethod: HEAD
+
+    # requestDebug: true
+    # printResponseHeaders: true
+
+    hosts:
+      - name: httpbun.com
+

@@ -48,13 +48,19 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
 		if showVersion {
-			fmt.Print(version)
+			fmt.Println(version)
 			return
 		}
 		if showSampleConfig {
 			fmt.Print(sampleYamlConfig)
 			return
 		}
+
+		_, err := os.Stat(viper.ConfigFileUsed())
+		if err != nil {
+			fmt.Printf("Config file not found: %s\n", viper.ConfigFileUsed())
+		}
+
 	},
 }
 
@@ -102,10 +108,6 @@ func initConfig() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 
-	_, err := os.Stat(viper.ConfigFileUsed())
-	if err != nil {
-		fmt.Printf("Config file not found: %s\n", viper.ConfigFileUsed())
-	}
 }
 
 func LoadConfig() (*Config, error) {

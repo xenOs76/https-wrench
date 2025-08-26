@@ -4,10 +4,18 @@
 debug: false
 verbose: true
 requests:
-  - name: httpBunCom
+  - name: httpBunComGet
+
     transportOverrideUrl: https://cat.httpbun.com:443
     clientTimeout: 3
-    userAgent: wrench-httpbun-ua
+
+    requestDebug: false
+    responseDebug: false
+
+    printResponseBody: true
+    printResponseHeaders: true
+
+    userAgent: wrench-custom-ua
 
     requestHeaders:
       - key: x-custom-header
@@ -15,8 +23,6 @@ requests:
       - key: x-api-key
         value: api-value
 
-    printResponseBody: true
-    printResponseHeaders: true
     responseHeadersFilter:
       - X-Powered-By
       - Via
@@ -29,3 +35,43 @@ requests:
           - /status/302
           - /status/404
           - /status/503
+
+  - name: httpBinGoPost
+
+    userAgent: wrench-request-post
+
+    printResponseBody: true
+    printResponseHeaders: true
+
+    requestHeaders:
+      - key: Content-Type
+        value: text/plain
+
+    requestMethod: POST
+    requestBody: request body via post
+
+    responseHeadersFilter:
+      - Content-Type
+
+    hosts:
+      - name: httpbingo.org
+        uriList:
+          - /post
+
+  - name: httpBinGoHead
+
+    # requestDebug: true
+    # responseDebug: true
+
+    printResponseHeaders: true
+
+    requestHeaders:
+      - key: Content-Type
+        value: text/plain
+
+    requestMethod: HEAD
+
+    hosts:
+      - name: httpbingo.org
+        uriList:
+          - /head

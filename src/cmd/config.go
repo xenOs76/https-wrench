@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"time"
@@ -27,14 +26,18 @@ type RequestHeader struct {
 
 type RequestConfig struct {
 	Name                  string          `mapstructure:"name"`
+	ClientTimeout         time.Duration   `mapstructure:"clientTimeout"`
 	UserAgent             string          `mapstructure:"userAgent"`
+	TransportOverrideUrl  string          `mapstructure:"transportOverrideUrl"`
+	RequestDebug          bool            `mapstructure:"requestDebug"`
+	RequestHeaders        []RequestHeader `mapstructure:"requestHeaders"`
+	RequestMethod         string          `mapstructure:"requestMethod"`
+	RequestBody           string          `mapstructure:"requestBody"`
+	ResponseDebug         bool            `mapstructure:"responseDebug"`
+	ResponseHeadersFilter []string        `mapstructure:"responseHeadersFilter"`
 	PrintResponseBody     bool            `mapstructure:"printResponseBody"`
 	PrintResponseHeaders  bool            `mapstructure:"printResponseHeaders"`
-	TransportOverrideUrl  string          `mapstructure:"transportOverrideUrl"`
-	RequestHeaders        []RequestHeader `mapstructure:"requestHeaders"`
-	ResponseHeadersFilter []string        `mapstructure:"responseHeadersFilter"`
 	Hosts                 []Host          `mapstructure:"hosts"`
-	ClientTimeout         time.Duration   `mapstructure:"clientTimeout"`
 }
 
 type ResponseData struct {
@@ -62,7 +65,7 @@ func (h ResponseHeader) String() string {
 func (u Uri) Parse() bool {
 	matched, err := regexp.Match(`^\/.*`, []byte(u))
 	if err != nil {
-		log.Fatalf("Unable to parse Uri %s", u)
+		return false
 	}
 	return matched
 }

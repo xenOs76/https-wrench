@@ -20,7 +20,6 @@
                 }
             },
             "required": [
-                "debug",
                 "requests",
                 "verbose"
             ],
@@ -44,6 +43,12 @@
                 "clientTimeout": {
                     "type": "number"
                 },
+                "requestDebug": {
+                    "type": "boolean"
+                },
+                "responseDebug": {
+                    "type": "boolean"
+                },
                 "printResponseBody": {
                     "type": "boolean"
                 },
@@ -57,19 +62,26 @@
                         "pattern": "^[A-Z]"
                     }
                 },
-                "hosts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Host"
-                    }
-                },
-                "userAgent": {
+                "requestBody": {
                     "type": "string"
+                },
+                "requestMethod": {
+                    "type": "string",
+                    "pattern": "^(POST|GET|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)$"
                 },
                 "requestHeaders": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/RequestHeader"
+                    }
+                },
+                "userAgent": {
+                    "type": "string"
+                },
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Host"
                     }
                 }
             },
