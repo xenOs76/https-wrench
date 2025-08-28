@@ -50,73 +50,9 @@ var requestsCmd = &cobra.Command{
 			dump.Print(cfg)
 		}
 
-		respDataMap := make(map[string][]ResponseData)
-
-		for _, reqCfg := range cfg.Requests {
-
-			respDataList, err := handleRequests(reqCfg)
-			if err != nil {
-				log.Fatal(err)
-			}
-			respDataMap[reqCfg.Name] = respDataList
-		}
-
-		if cfg.Verbose {
-			for reqName, respDataList := range respDataMap {
-
-				fmt.Print(lgSprintf(styleTitleKey, "Request:"))
-				fmt.Println(lgSprintf(styleTitle, "%s", reqName))
-
-				if respDataList[0].TransportAddress != "" {
-					fmt.Print(lgSprintf(styleItemKey, "Via:"))
-					fmt.Println(lgSprintf(styleVia, "https://%s ", respDataList[0].TransportAddress))
-				}
-				fmt.Println()
-
-				for i := range respDataList {
-
-					respData := respDataList[i]
-
-					fmt.Println(lgSprintf(styleItemKey,
-						"- Url: %s",
-						styleUrl.Render(respData.Url)),
-					)
-
-					fmt.Print(lgSprintf(styleItemKeyP3, "StatusCode: "))
-
-					if respData.Error != nil {
-						fmt.Println(lgSprintf(styleStatusError, "000"))
-						fmt.Println(lgSprintf(
-							styleItemKeyP3,
-							"Error: %s",
-							styleError.Render(respData.Error.Error())),
-						)
-						fmt.Println()
-						break
-					}
-
-					fmt.Println(lgSprintf(styleStatus, "%v", statusCodeParse(respData.Response.StatusCode)))
-
-					if respData.PrintResponseHeaders {
-						headersStr := parseResponseHeaders(respData.Response.Header, respData.ResponseHeadersFilter)
-
-						fmt.Println(lgSprintf(styleItemKeyP3, "Headers: "))
-						fmt.Println(
-							lgSprintf(
-								styleHeaders,
-								"%s",
-								headersStr,
-							),
-						)
-					}
-
-					if respData.PrintResponseBody {
-						fmt.Println(lgSprintf(styleItemKeyP3, "Body:"))
-						fmt.Println(respData.ResponseBody)
-					}
-					fmt.Println()
-				}
-			}
+		_, err = handleRequests(cfg)
+		if err != nil {
+			log.Fatal(err)
 		}
 	},
 }
@@ -254,91 +190,132 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 	}, transportAddress, nil
 }
 
-func handleRequests(r RequestConfig) ([]ResponseData, error) {
+func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 
-	var respDataList []ResponseData
+	respDataMap := make(map[string][]ResponseData)
 	clientMethod := httpClientDefaultMethod
-	requestBodyReader := bytes.NewReader(httpClientDefaultRequestBody)
 
-	if len(r.RequestMethod) > 0 {
-		clientMethod = strings.ToUpper(r.RequestMethod)
-	}
+	for _, r := range cfg.Requests {
 
-	if len(r.RequestBody) > 0 {
-		requestBodyReader = bytes.NewReader([]byte(r.RequestBody))
-	}
+		var respDataList []ResponseData
+		requestBodyReader := bytes.NewReader(httpClientDefaultRequestBody)
 
-	for _, host := range r.Hosts {
-
-		client, transportAddress, err := buildHTTPClient(r, host.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build HTTP client: %w", err)
+		if len(r.RequestMethod) > 0 {
+			clientMethod = strings.ToUpper(r.RequestMethod)
 		}
 
-		urlList := getUrlsFromHost(host)
+		if len(r.RequestBody) > 0 {
+			requestBodyReader = bytes.NewReader([]byte(r.RequestBody))
+		}
 
-		for _, reqUrl := range urlList {
+		if cfg.Verbose {
+			fmt.Print(lgSprintf(styleTitleKey, "Request:"))
+			fmt.Println(lgSprintf(styleTitle, "%s", r.Name))
 
-			req, err := http.NewRequest(clientMethod, reqUrl, requestBodyReader)
+			if r.TransportOverrideUrl != "" {
+				fmt.Print(lgSprintf(styleItemKey, "Via:"))
+				fmt.Println(lgSprintf(styleVia, "%s", r.TransportOverrideUrl))
+			}
+		}
+
+		for _, host := range r.Hosts {
+
+			client, transportAddress, err := buildHTTPClient(r, host.Name)
 			if err != nil {
-				return nil, fmt.Errorf("failed to create request: %w", err)
+				return nil, fmt.Errorf("failed to build HTTP client: %w", err)
 			}
 
-			if len(r.UserAgent) > 0 {
-				httpUserAgent = r.UserAgent
-			}
-			req.Header.Add("User-Agent", httpUserAgent)
+			urlList := getUrlsFromHost(host)
 
-			for _, header := range r.RequestHeaders {
-				req.Header.Add(header.Key, header.Value)
-			}
+			for _, reqUrl := range urlList {
 
-			rd := ResponseData{
-				PrintResponseBody:     r.PrintResponseBody,
-				PrintResponseHeaders:  r.PrintResponseHeaders,
-				ResponseHeadersFilter: r.ResponseHeadersFilter,
-				TransportAddress:      transportAddress,
-				Url:                   reqUrl,
-			}
-
-			if r.RequestDebug {
-				reqDump, err := httputil.DumpRequestOut(req, true)
+				req, err := http.NewRequest(clientMethod, reqUrl, requestBodyReader)
 				if err != nil {
-					log.Fatal(err)
+					return nil, fmt.Errorf("failed to create request: %w", err)
 				}
-				fmt.Printf("Requesting url: %s\n", reqUrl)
-				fmt.Printf("Request dump:\n%s\n", string(reqDump))
-			}
 
-			resp, err := client.Do(req)
-			if err != nil {
-				rd.Error = err
+				if len(r.UserAgent) > 0 {
+					httpUserAgent = r.UserAgent
+				}
+				req.Header.Add("User-Agent", httpUserAgent)
+
+				for _, header := range r.RequestHeaders {
+					req.Header.Add(header.Key, header.Value)
+				}
+
+				rd := ResponseData{
+					PrintResponseBody:         r.PrintResponseBody,
+					PrintResponseHeaders:      r.PrintResponseHeaders,
+					PrintResponseCertificates: r.PrintResponseCertificates,
+					ResponseHeadersFilter:     r.ResponseHeadersFilter,
+					TransportAddress:          transportAddress,
+					Url:                       reqUrl,
+				}
+
+				if r.RequestDebug {
+					reqDump, err := httputil.DumpRequestOut(req, true)
+					if err != nil {
+						log.Fatal(err)
+					}
+					fmt.Printf("Requesting url: %s\n", reqUrl)
+					fmt.Printf("Request dump:\n%s\n", string(reqDump))
+				}
+
+				resp, err := client.Do(req)
+				if err != nil {
+					rd.Error = err
+					respDataList = append(respDataList, rd)
+					if cfg.Verbose {
+						rd.PrintResponseData()
+					}
+					continue
+				}
+				defer func() {
+					if err := resp.Body.Close(); err != nil {
+						fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
+					}
+				}()
+
+				if r.ResponseDebug {
+					respDump, err := httputil.DumpResponse(resp, true)
+					if err != nil {
+						log.Fatal(err)
+					}
+					fmt.Printf("Requested url: %s\n", reqUrl)
+					fmt.Printf("Response dump:\n%s\n", string(respDump))
+					fmt.Println("TLS:")
+					fmt.Printf("Version: %v\n", tlsVersionName(resp.TLS.Version))
+					fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+
+					for i, cert := range resp.TLS.PeerCertificates {
+						fmt.Printf("Certificate %d:\n", i)
+						printCertInfo(cert, 1)
+					}
+
+					// Optionally show verified chains
+					// for i, chain := range resp.TLS.VerifiedChains {
+					// 	fmt.Printf("Verified Chain %d:\n", i)
+					// 	for j, cert := range chain {
+					// 		fmt.Printf(" Cert %d:\n", j)
+					// 		printCertInfo(cert, 2)
+					// 	}
+					// }
+				}
+
+				rd.Response = resp
+
+				if rd.PrintResponseBody {
+					rd.ImportResponseBody()
+				}
 				respDataList = append(respDataList, rd)
-				break
-			}
-			defer func() {
-				if err := resp.Body.Close(); err != nil {
-					fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
+				respDataMap[rd.RequestName] = respDataList
+
+				if cfg.Verbose {
+					rd.PrintResponseData()
 				}
-			}()
-
-			if r.ResponseDebug {
-				respDump, err := httputil.DumpResponse(resp, true)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Printf("Requested url: %s\n", reqUrl)
-				fmt.Printf("Response dump:\n%s\n", string(respDump))
 			}
-
-			rd.Response = resp
-
-			if rd.PrintResponseBody {
-				rd.ImportResponseBody()
-			}
-			respDataList = append(respDataList, rd)
 		}
 	}
 
-	return respDataList, nil
+	return respDataMap, nil
 }

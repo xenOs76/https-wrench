@@ -4,10 +4,11 @@
 debug: false
 verbose: true
 requests:
-  - name: httpBinOrg
-    # transportOverrideUrl: https://httpbin.org:443
+  - name: httpBinGoOrg
+    # transportOverrideUrl: https://httpbingo.org:443
 
-    userAgent: httpbin-requests-ua
+    # responseDebug: true
+    userAgent: httpbingo-requests-ua
 
     requestHeaders:
       - key: x-api-key
@@ -15,10 +16,11 @@ requests:
       - key: x-custom-header
         value: custom-header-value
 
+    printResponseCertificates: true
     printResponseBody: true
 
     hosts:
-      - name: httpbin.org
+      - name: httpbingo.org
         uriList:
           - /headers
           - /ip

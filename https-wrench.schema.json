@@ -55,6 +55,9 @@
                 "printResponseHeaders": {
                     "type": "boolean"
                 },
+                "printResponseCertificates": {
+                    "type": "boolean"
+                },
                 "responseHeadersFilter": {
                     "type": "array",
                     "items": {

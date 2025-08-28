@@ -19,11 +19,22 @@ var (
 
 	styleItemKey = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(flavour.Blue().Hex)).
-			PaddingLeft(1)
+			PaddingLeft(1).Bold(true)
 
 	styleItemKeyP3 = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(flavour.Blue().Hex)).
-			PaddingLeft(3)
+			PaddingLeft(3).Bold(true)
+
+	styleCertKeyP4 = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(flavour.Lavender().Hex)).
+			PaddingLeft(4)
+
+	styleCertKeyP5 = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(flavour.Lavender().Hex)).
+			PaddingLeft(5)
+
+	styleCertValue = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(flavour.Peach().Hex))
 
 	styleVia = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(flavour.Mauve().Hex)).Italic(true).

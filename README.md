@@ -7,8 +7,11 @@
 </p>
 
 **HTTPS Wrench** is a Golang CLI program to make HTTPS requests based on a YAML configuration file.   
-**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool for mechanics of the World Wide Web.  
-`https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, Cloudfront distibution.   
+**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool 
+for mechanics of the World Wide Web.  
+`https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about 
+to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, 
+Cloudfront distribution.   
 
 ## How to use
 
@@ -49,9 +52,18 @@ https-wrench --show-sample-config > sample-wrench.yaml
 debug: false
 verbose: true
 requests:
-  - name: httpBunCom
+  - name: httpBunComGet
+
     transportOverrideUrl: https://cat.httpbun.com:443
-    userAgent: wrench-httpbun-ua
+    clientTimeout: 3
+
+    requestDebug: false
+    responseDebug: false
+
+    printResponseBody: true
+    printResponseHeaders: true
+
+    userAgent: wrench-custom-ua
 
     requestHeaders:
       - key: x-custom-header
@@ -59,8 +71,6 @@ requests:
       - key: x-api-key
         value: api-value
 
-    printResponseBody: true
-    printResponseHeaders: true
     responseHeadersFilter:
       - X-Powered-By
       - Via
@@ -70,11 +80,18 @@ requests:
       - name: httpbun.com
         uriList:
           - /headers
-          - /ip
           - /status/302
           - /status/404
           - /status/503
+
+  - name: httpBunComCerts
+
+    printResponseCertificates: true
+
+    hosts:
+      - name: httpbun.com
 ```
+
 </details>
 
 

@@ -36,42 +36,9 @@ requests:
           - /status/404
           - /status/503
 
-  - name: httpBinGoPost
+  - name: httpBunComCerts
 
-    userAgent: wrench-request-post
-
-    printResponseBody: true
-    printResponseHeaders: true
-
-    requestHeaders:
-      - key: Content-Type
-        value: text/plain
-
-    requestMethod: POST
-    requestBody: request body via post
-
-    responseHeadersFilter:
-      - Content-Type
+    printResponseCertificates: true
 
     hosts:
-      - name: httpbingo.org
-        uriList:
-          - /post
-
-  - name: httpBinGoHead
-
-    # requestDebug: true
-    # responseDebug: true
-
-    printResponseHeaders: true
-
-    requestHeaders:
-      - key: Content-Type
-        value: text/plain
-
-    requestMethod: HEAD
-
-    hosts:
-      - name: httpbingo.org
-        uriList:
-          - /head
+      - name: httpbun.com

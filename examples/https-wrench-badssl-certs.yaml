@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: badsslComErrors
+    responseDebug: true
+    # printResponseBody: true
+    hosts:
+      - name: untrusted-root.badssl.com
+      - name: expired.badssl.com
+      - name: wrong.host.badssl.com
+      - name: incomplete-chain.badssl.com
+
+  - name: badsslComValid
+    responseDebug: true
+    # printResponseBody: true
+    hosts:
+      - name: sha256.badssl.com
+
+      # expired
+      - name: sha384.badssl.com
+
+      # expired
+      - name: sha512.badssl.com
+
+      - name: ecc256.badssl.com
+      - name: ecc384.badssl.com
+      - name: rsa2048.badssl.com
+      - name: rsa4096.badssl.com
