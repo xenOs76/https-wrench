@@ -47,8 +47,6 @@ requests:
         value: application/json
     requestBody: '{"hello":"world"}'
 
-    userAgent: wrench-post-request
-
     hosts:
       - name: httpbun.com
         uriList:

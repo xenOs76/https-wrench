@@ -203,15 +203,16 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 
 			for _, reqUrl := range urlList {
 
+				ua := httpUserAgent
 				req, err := http.NewRequest(clientMethod, reqUrl, requestBodyReader)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create request: %w", err)
 				}
 
 				if len(r.UserAgent) > 0 {
-					httpUserAgent = r.UserAgent
+					ua = r.UserAgent
 				}
-				req.Header.Add("User-Agent", httpUserAgent)
+				req.Header.Add("User-Agent", ua)
 
 				for _, header := range r.RequestHeaders {
 					req.Header.Add(header.Key, header.Value)
