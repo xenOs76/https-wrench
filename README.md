@@ -189,7 +189,7 @@ and add the package to a Nix shell:
 nix-shell -p '(import <nur-os76> { pkgs = import <nixpkgs> {}; }).https-wrench'
 ```
 
-Or use a `flake.nix` like the following to achieve a similar result:  
+Or use a `flake.nix` like the one from the [nix-shell](/examples/nix-shell) example to achieve a similar result:  
 ```nix
 {
   description = "Flake to fetch https-wrench from xenos76's NUR repo";
@@ -200,30 +200,31 @@ Or use a `flake.nix` like the following to achieve a similar result:
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      nur-os76,
-      flake-utils,
-    }:
+  outputs = {
+    self,
+    nixpkgs,
+    nur-os76,
+    flake-utils,
+  }:
     flake-utils.lib.eachDefaultSystem (
-      system:
-      let
+      system: let
         pkgs = import nixpkgs {
           inherit system;
         };
 
-        https-wrench = pkgs.callPackage (nur-os76 + "/pkgs/https-wrench") { };
-      in
-      {
+        https-wrench = pkgs.callPackage (nur-os76 + "/pkgs/https-wrench") {};
+      in {
         packages.default = https-wrench;
 
         devShells.default = pkgs.mkShell {
+          name = "HTTPS-Wrench-Demo";
           packages = [
             https-wrench
-            pkgs.hello
+            pkgs.gum
           ];
+          shellHook = ''
+            gum format --theme tokyo-night -- "# HTTPS-Wrench Nix shell" "**https-wrench** *version*: \`$(https-wrench --version)\`"
+          '';
         };
       }
     );
