@@ -36,9 +36,20 @@ requests:
           - /status/404
           - /status/503
 
-  - name: httpBunComCerts
+  - name: httpBunPostCerts
 
     printResponseCertificates: true
+    printResponseBody: true
+
+    requestMethod: POST
+    requestHeaders:
+      - key: content-type
+        value: application/json
+    requestBody: '{"hello":"world"}'
+
+    userAgent: wrench-post-request
 
     hosts:
       - name: httpbun.com
+        uriList:
+          - /post

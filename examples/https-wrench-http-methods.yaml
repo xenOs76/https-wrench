@@ -57,7 +57,7 @@ requests:
 
     requestBody: "plain requestBody \non a multiline string\n"
     # printResponseHeaders: true
-    # printResponseBody: true
+    printResponseBody: true
 
     hosts:
       - name: httpbun.com
@@ -73,7 +73,7 @@ requests:
 
     requestBody: '{"a": 1, "b": 2, "c": 3}'
     # printResponseHeaders: true
-    # printResponseBody: true
+    printResponseBody: true
 
     hosts:
       - name: httpbun.com
