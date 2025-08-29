@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	catppuccin "github.com/catppuccin/go"
 	"github.com/charmbracelet/lipgloss"
-	"strings"
 )
 
 var (
@@ -76,46 +74,3 @@ var (
 	styleNull    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
 	styleBracket = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 )
-
-func lgSprintf(style lipgloss.Style, pattern string, a ...any) string {
-	str := fmt.Sprintf(pattern, a...)
-	out := style.Render(str)
-	return out
-}
-
-func prettyPrintJson(v any, indent int) string {
-	ind := strings.Repeat("  ", indent)
-	switch val := v.(type) {
-	case map[string]any:
-		var b strings.Builder
-		b.WriteString(styleBracket.Render("{") + "\n")
-		for k, v2 := range val {
-			b.WriteString(ind + "  ")
-			b.WriteString(styleKey.Render(fmt.Sprintf(`"%s"`, k)))
-			b.WriteString(styleBracket.Render(": ") + prettyPrintJson(v2, indent+1))
-			b.WriteString("\n")
-		}
-		b.WriteString(ind + styleBracket.Render("}"))
-		return b.String()
-
-	case []any:
-		var b strings.Builder
-		b.WriteString(styleBracket.Render("[") + "\n")
-		for _, item := range val {
-			b.WriteString(ind + "  " + prettyPrintJson(item, indent+1) + "\n")
-		}
-		b.WriteString(ind + styleBracket.Render("]"))
-		return b.String()
-
-	case string:
-		return styleString.Render(fmt.Sprintf(`"%s"`, val))
-	case float64:
-		return styleNumber.Render(fmt.Sprintf("%v", val))
-	case bool:
-		return styleBool.Render(fmt.Sprintf("%v", val))
-	case nil:
-		return styleNull.Render("null")
-	default:
-		return fmt.Sprintf("%v", val)
-	}
-}
