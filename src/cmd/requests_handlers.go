@@ -120,17 +120,27 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		clientTimeout = r.ClientTimeout
 	}
 
-	if len(r.TransportOverrideUrl) > 0 {
+	tlsClientConfig := &tls.Config{
+		ServerName: serverName,
+	}
 
-		transport := &http.Transport{
-			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          transportMaxIdleConns,
-			IdleConnTimeout:       transportIdleConnTimeout * time.Second,
-			TLSHandshakeTimeout:   transportTLSHandshakeTimeout * time.Second,
-			ResponseHeaderTimeout: transportResponseHeaderTimeout * time.Second,
-			ExpectContinueTimeout: transportExpectContinueTimeout * time.Second,
-			TLSClientConfig:       &tls.Config{ServerName: serverName},
+	if rootCAs != nil {
+		tlsClientConfig = &tls.Config{
+			RootCAs: rootCAs,
 		}
+	}
+
+	transport := &http.Transport{
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          transportMaxIdleConns,
+		IdleConnTimeout:       transportIdleConnTimeout * time.Second,
+		TLSHandshakeTimeout:   transportTLSHandshakeTimeout * time.Second,
+		ResponseHeaderTimeout: transportResponseHeaderTimeout * time.Second,
+		ExpectContinueTimeout: transportExpectContinueTimeout * time.Second,
+		TLSClientConfig:       tlsClientConfig,
+	}
+
+	if len(r.TransportOverrideUrl) > 0 {
 
 		overrideURL, err := url.Parse(r.TransportOverrideUrl)
 		if err != nil {
@@ -156,11 +166,11 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 			Transport: transport,
 			Timeout:   clientTimeout * time.Second,
 		}, transportAddress, nil
-
 	}
 
 	return &http.Client{
-		Timeout: clientTimeout * time.Second,
+		Transport: transport,
+		Timeout:   clientTimeout * time.Second,
 	}, transportAddress, nil
 }
 

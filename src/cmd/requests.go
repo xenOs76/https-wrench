@@ -11,17 +11,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var httpUserAgent string = "https-wrench-request"
-var httpClientDefaultMethod = "GET"
-var httpClientDefaultRequestBody []byte
-var httpClientTimeout time.Duration = 30
-var httpClientKeepalive time.Duration = 30
+var (
+	httpUserAgent                string = "https-wrench-request"
+	httpClientDefaultMethod             = "GET"
+	httpClientDefaultRequestBody []byte
+	httpClientTimeout            time.Duration = 30
+	httpClientKeepalive          time.Duration = 30
 
-var transportMaxIdleConns int = 100
-var transportIdleConnTimeout time.Duration = 30
-var transportTLSHandshakeTimeout time.Duration = 30
-var transportResponseHeaderTimeout time.Duration = 30
-var transportExpectContinueTimeout time.Duration = 1
+	transportMaxIdleConns          int           = 100
+	transportIdleConnTimeout       time.Duration = 30
+	transportTLSHandshakeTimeout   time.Duration = 30
+	transportResponseHeaderTimeout time.Duration = 30
+	transportExpectContinueTimeout time.Duration = 1
+)
 
 var requestsCmd = &cobra.Command{
 	Use:   "requests",
@@ -36,6 +38,14 @@ var requestsCmd = &cobra.Command{
 
 		if cfg.Debug {
 			dump.Print(cfg)
+		}
+
+		if caBundlePath != "" {
+			caCerts, err := getRootCertsFromFile(caBundlePath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			rootCAs = caCerts
 		}
 
 		_, err = handleRequests(cfg)

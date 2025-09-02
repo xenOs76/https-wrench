@@ -22,10 +22,12 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"crypto/x509"
 	_ "embed"
 	"fmt"
-	_ "github.com/breml/rootcerts"
 	"os"
+
+	_ "github.com/breml/rootcerts"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -38,6 +40,8 @@ var (
 
 	//go:embed  embedded/config-example.yaml
 	sampleYamlConfig string
+	caBundlePath     string
+	rootCAs          *x509.CertPool
 )
 
 var rootCmd = &cobra.Command{
@@ -78,24 +82,21 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&showSampleConfig, "show-sample-config", false, "Show a sample YAML configuration")
 
 	rootCmd.PersistentFlags().Bool("version", false, "Display the version")
-	viper.BindPFlag("version", rootCmd.PersistentFlags().Lookup("version"))
+	err := viper.BindPFlag("version", rootCmd.PersistentFlags().Lookup("version"))
+	if err != nil {
+		fmt.Printf("Error binding version flag: %v\n", err)
+	}
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	addCaBundleFlag(requestsCmd)
 }
 
-// initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
-		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".https-wrench" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".https-wrench")
@@ -103,11 +104,9 @@ func initConfig() {
 
 	// viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
-
 }
 
 func LoadConfig() (*Config, error) {
@@ -116,4 +115,12 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("unable to decode into config struct: %s", err)
 	}
 	return &config, nil
+}
+
+func addCaBundleFlag(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", "Path to RootCA bundle (PEM).")
+	err := viper.BindPFlag("ca-bundle", cmd.Flags().Lookup("ca-bundle"))
+	if err != nil {
+		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
+	}
 }
