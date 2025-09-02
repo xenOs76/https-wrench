@@ -11,7 +11,7 @@
 for mechanics of the World Wide Web.  
 `https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about 
 to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, 
-Cloudfront distribution.   
+CloudFront distribution.   
 
 ## How to use
 
