@@ -12,6 +12,9 @@
                 "verbose": {
                     "type": "boolean"
                 },
+                "caBundle": {
+                    "type": "string"
+                },
                 "requests": {
                     "type": "array",
                     "items": {

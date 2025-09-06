@@ -111,9 +111,9 @@
   '';
 
   scripts.create-certs.exec = ''
-    gum format "## creating certs"
     test -f $CAROOT/dhparam || curl https://ssl-config.mozilla.org/ffdhe2048.txt > $CAROOT/dhparam
-    test -d $CAROOT || mkdir -p $CAROOT && mkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 example.com *.example.com
+    test -d $CAROOT || mkdir -p $CAROOT
+    test -d $CAROOT || mkcertmkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 example.com *.example.com
     test -d $CAROOT/full-cert.pem || cat  $CAROOT/cert.pem $CAROOT/rootCA.pem > $CAROOT/full-cert.pem
   '';
 
@@ -155,10 +155,27 @@
     $CMD
   '';
 
+  scripts.test-ca-bundle-yaml.exec = ''
+    gum format "## test request with CA bundle in YAML"
+
+    CA_STRING_TEST_FILE=./tests/https-wrench-tests-ca-bundle-string.yaml
+
+    cat ./examples/https-wrench-tests.yaml > $CA_STRING_TEST_FILE
+
+    echo "caBundle: |" >> $CA_STRING_TEST_FILE
+    while IFS= read -r line; do echo  "  $line" >> $CA_STRING_TEST_FILE ; done < $CAROOT/rootCA.pem
+
+    CMD="./dist/https-wrench requests --config $CA_STRING_TEST_FILE | grep 'StatusCode: 200'"
+
+    echo "Running: $CMD"
+
+    $CMD
+  '';
+
   enterShell = ''
     gum format "# Devenv shell"
     go version
-    test -d $CAROOT || create-certs
+    create-certs
   '';
 
   enterTest = ''
@@ -168,5 +185,6 @@
     test-k3s
     test-unknown-ca
     test-ca-bundle-file
+    test-ca-bundle-yaml
   '';
 }
