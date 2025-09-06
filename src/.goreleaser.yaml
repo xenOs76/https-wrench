@@ -4,9 +4,10 @@
 version: 2
 project_name: https-wrench
 dist: ../dist/
+force_token: github
 env_files:
   gitea_token: ~/nope
-  github_token: ~/nope
+  github_token: ~/config/goreleaser/github_token
 release:
   disable: false
   skip_upload: false

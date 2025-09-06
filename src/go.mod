@@ -7,7 +7,7 @@ require (
 	github.com/catppuccin/go v0.3.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/gookit/goutil v0.7.1
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
 	github.com/spf13/cast v1.9.2 // indirect
-	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
