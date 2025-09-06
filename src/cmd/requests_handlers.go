@@ -179,6 +179,14 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 	respDataMap := make(map[string][]ResponseData)
 	clientMethod := httpClientDefaultMethod
 
+	if len(cfg.CaBundle) > 0 {
+		caCerts, err := getRootCertsFromString(cfg.CaBundle)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load CA bundle: %w", err)
+		}
+		rootCAs = caCerts
+	}
+
 	for _, r := range cfg.Requests {
 
 		var respDataList []ResponseData

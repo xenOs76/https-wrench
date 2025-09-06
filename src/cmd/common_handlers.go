@@ -20,3 +20,16 @@ func getRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
 	}
 	return rootCAs, nil
 }
+
+func getRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+	if caBundleString != "" {
+		if ok := rootCAs.AppendCertsFromPEM([]byte(caBundleString)); !ok {
+			return nil, fmt.Errorf("no valid certs in caBundle config string")
+		}
+	}
+	return rootCAs, nil
+}

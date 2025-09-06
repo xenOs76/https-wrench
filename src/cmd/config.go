@@ -53,5 +53,6 @@ type ResponseData struct {
 type Config struct {
 	Debug    bool            `mapstructure:"debug"`
 	Verbose  bool            `mapstructure:"verbose"`
+	CaBundle string          `mapstructure:"caBundle"`
 	Requests []RequestConfig `mapstructure:"requests"`
 }

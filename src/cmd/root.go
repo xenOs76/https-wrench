@@ -118,7 +118,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func addCaBundleFlag(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", "Path to RootCA bundle (PEM).")
+	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", "Path to PEM CA bundle file")
 	err := viper.BindPFlag("ca-bundle", cmd.Flags().Lookup("ca-bundle"))
 	if err != nil {
 		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
