@@ -21,4 +21,3 @@ WORKDIR /root/
 COPY --from=builder /app/https-wrench .
 
 ENTRYPOINT ["./https-wrench"]
-
