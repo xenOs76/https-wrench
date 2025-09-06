@@ -13,13 +13,15 @@ requests:
       - name: httpbingo.k3s.os76.xyz
 
   - name: k3sOs76ViaIstioDnsOverride
-    transportOverrideUrl: https://rpi502.home.arpa:30443
+    transportOverrideUrl: https://192.168.1.114:30443
+    # requestDebug: true
+    # responseDebug: true
     # printResponseBody: true
     printResponseHeaders: true
     responseHeadersFilter:
       - Server
 
-    userAgent: https-alt-user-agent
+    userAgent: wrench-transport-override
     requestHeaders:
       - key: x-api-key
         value: aaa-bbb-ccc
@@ -28,8 +30,8 @@ requests:
       - name: httpbingo.k3s.os76.xyz
         uriList:
           - /headers
-          - /status/404
-          - /status/503
+          # - /status/404
+          # - /status/503
 
   - name: k3sOs76ViaNginxDnsOverride
     transportOverrideUrl: https://argo.home.arpa

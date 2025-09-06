@@ -4,8 +4,8 @@
 debug: false
 verbose: true
 requests:
-  - name: httpBinLocal
-    transportOverrideUrl: https://localhost:8080
+  - name: httpBinLocalNginxDefault
+    transportOverrideUrl: https://localhost:9443
 
     # responseDebug: true
 
@@ -19,3 +19,21 @@ requests:
       - name: localhost
         uriList:
           - /headers
+
+      - name: foo.example.com
+        uriList:
+          - /headers
+
+      - name: test.os76.xyz
+        uriList:
+          - /headers
+
+# - name: httpBinLocalNginxProxyProtocol
+#   transportOverrideUrl: https://localhost:9444
+#   printResponseCertificates: true
+#
+#   hosts:
+#     - name: localhost
+#       uriList:
+#         - /headers
+#
