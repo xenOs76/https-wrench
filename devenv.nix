@@ -182,6 +182,8 @@
 
   enterShell = ''
     gum format "# Devenv shell"
+    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
+    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
     go version
     create-certs
   '';
