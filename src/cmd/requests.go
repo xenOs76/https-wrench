@@ -23,6 +23,10 @@ var (
 	transportTLSHandshakeTimeout   time.Duration = 30
 	transportResponseHeaderTimeout time.Duration = 30
 	transportExpectContinueTimeout time.Duration = 1
+
+	proxyProtoDefaultSrcIPv4 string = "192.0.2.1"
+	proxyProtoDefaultSrcIPv6 string = "2001:db8::1"
+	proxyProtoDefaultSrcPort int    = 54321
 )
 
 var requestsCmd = &cobra.Command{

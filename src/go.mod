@@ -7,6 +7,7 @@ require (
 	github.com/catppuccin/go v0.3.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/gookit/goutil v0.7.1
+	github.com/pires/go-proxyproto v0.8.1
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
 )
@@ -34,7 +35,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

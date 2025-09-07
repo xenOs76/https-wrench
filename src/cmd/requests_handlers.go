@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	proxyproto "github.com/pires/go-proxyproto"
 	"log"
 	"net"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -111,6 +113,78 @@ func getUrlsFromHost(h Host) []string {
 	return list
 }
 
+func transportAddressFromRequest(r RequestConfig) (string, error) {
+	var addr string
+	overrideURL, err := url.Parse(r.TransportOverrideUrl)
+	if err != nil {
+		return "", err
+	}
+
+	addr = overrideURL.Host
+
+	if match, _ := regexp.MatchString("\\:\\d+$", addr); !match {
+		addr += ":443"
+	}
+
+	return addr, nil
+}
+
+func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto.Header, error) {
+
+	if !r.EnableProxyProtocolV2 {
+		return proxyproto.Header{}, fmt.Errorf("proxy protocol v2 is not enabled for this request")
+	}
+
+	headerScrIP := net.ParseIP(proxyProtoDefaultSrcIPv4)
+	headerScrPort := proxyProtoDefaultSrcPort
+	headerTransportProtocol := proxyproto.TCPv4
+
+	reqUrl, err := url.Parse(serverName)
+	if err != nil {
+		return proxyproto.Header{}, err
+	}
+
+	if len(r.TransportOverrideUrl) > 0 {
+		reqUrl, err = url.Parse(r.TransportOverrideUrl)
+		if err != nil {
+			return proxyproto.Header{}, fmt.Errorf("failed to parse transport override url: %w", err)
+		}
+	}
+
+	reqHostname := reqUrl.Hostname()
+	reqPort := reqUrl.Port()
+
+	if reqPort == "" {
+		reqPort = "443"
+	}
+
+	headerDstPort, err := strconv.Atoi(reqPort)
+	if err != nil {
+		return proxyproto.Header{}, fmt.Errorf("failed to parse transport override port: %w", err)
+	}
+
+	headerDstIPs, err := net.LookupIP(reqHostname)
+	if err != nil {
+		return proxyproto.Header{}, fmt.Errorf("failed to resolve transport override hostname's IPs': %w", err)
+	}
+
+	headerDstIP := net.ParseIP(headerDstIPs[0].String())
+	if headerDstIP.To4() == nil {
+		headerTransportProtocol = proxyproto.TCPv6
+		headerScrIP = net.ParseIP(proxyProtoDefaultSrcIPv6)
+	}
+
+	header := proxyproto.Header{
+		Version:           2,
+		Command:           proxyproto.PROXY,
+		TransportProtocol: headerTransportProtocol,
+		SourceAddr:        &net.TCPAddr{IP: headerScrIP, Port: headerScrPort},
+		DestinationAddr:   &net.TCPAddr{IP: headerDstIP, Port: headerDstPort},
+	}
+
+	return header, nil
+}
+
 func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, error) {
 
 	var transportAddress string
@@ -141,17 +215,11 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 	}
 
 	if len(r.TransportOverrideUrl) > 0 {
-
-		overrideURL, err := url.Parse(r.TransportOverrideUrl)
+		tAddr, err := transportAddressFromRequest(r)
 		if err != nil {
-			panic(err)
+			return nil, "", fmt.Errorf("failed to parse transport override url: %w", err)
 		}
-
-		transportAddress = overrideURL.Host
-
-		if match, _ := regexp.MatchString("\\:\\d+$", transportAddress); !match {
-			transportAddress += ":443"
-		}
+		transportAddress = tAddr
 
 		dialer := &net.Dialer{
 			Timeout:   clientTimeout * time.Second,
@@ -159,13 +227,30 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		}
 
 		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, transportAddress)
-		}
+			conn, err := dialer.DialContext(ctx, network, transportAddress)
+			if err != nil {
+				return nil, err
+			}
 
-		return &http.Client{
-			Transport: transport,
-			Timeout:   clientTimeout * time.Second,
-		}, transportAddress, nil
+			if r.EnableProxyProtocolV2 {
+
+				header := proxyproto.Header{}
+				header, err = proxyProtoHeaderFromRequest(r, serverName)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create proxy header from request: %w", err)
+				}
+
+				if r.RequestDebug {
+					fmt.Printf("Sending PROXY header: %+v\n", header)
+				}
+
+				if _, err := header.WriteTo(conn); err != nil {
+					conn.Close()
+					return nil, fmt.Errorf("failed to write PROXY header: %w", err)
+				}
+			}
+			return conn, err
+		}
 	}
 
 	return &http.Client{

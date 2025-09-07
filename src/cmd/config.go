@@ -25,6 +25,7 @@ type RequestConfig struct {
 	ClientTimeout             time.Duration   `mapstructure:"clientTimeout"`
 	UserAgent                 string          `mapstructure:"userAgent"`
 	TransportOverrideUrl      string          `mapstructure:"transportOverrideUrl"`
+	EnableProxyProtocolV2     bool            `mapstructure:"enableProxyProtocolV2"`
 	RequestDebug              bool            `mapstructure:"requestDebug"`
 	RequestHeaders            []RequestHeader `mapstructure:"requestHeaders"`
 	RequestMethod             string          `mapstructure:"requestMethod"`
