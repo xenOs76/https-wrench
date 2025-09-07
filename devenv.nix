@@ -75,6 +75,8 @@
 
           location / {
               proxy_pass       http://localhost:8080;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-For $remote_addr;
           }
       }
 
@@ -89,6 +91,12 @@
           # http2 on;
           location / {
               proxy_pass       http://localhost:8080;
+              proxy_pass_request_headers on;
+              proxy_set_header Host $host;
+              proxy_set_header X-Proxy-Protocol enabled;
+              proxy_set_header X-Proxy-Protocol-Addr       $proxy_protocol_addr;
+              proxy_set_header X-Proxy-Protocol-Port       $proxy_protocol_port;
+              proxy_set_header X-Forwarded-For $proxy_protocol_addr;
           }
       }
     '';
@@ -113,7 +121,7 @@
   scripts.create-certs.exec = ''
     test -f $CAROOT/dhparam || curl https://ssl-config.mozilla.org/ffdhe2048.txt > $CAROOT/dhparam
     test -d $CAROOT || mkdir -p $CAROOT
-    test -d $CAROOT || mkcertmkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 example.com *.example.com
+    test -d $CAROOT/cert.pem || mkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 example.com *.example.com
     test -d $CAROOT/full-cert.pem || cat  $CAROOT/cert.pem $CAROOT/rootCA.pem > $CAROOT/full-cert.pem
   '';
 

@@ -61,6 +61,9 @@
                 "printResponseCertificates": {
                     "type": "boolean"
                 },
+                "enableProxyProtocolV2": {
+                    "type": "boolean"
+                },
                 "responseHeadersFilter": {
                     "type": "array",
                     "items": {
