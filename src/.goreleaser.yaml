@@ -64,7 +64,7 @@ dockers:
   - image_templates:
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
     use: buildx
-    skip_push: false
+    skip_push: true
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -83,7 +83,7 @@ dockers:
   - image_templates:
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
     use: buildx
-    skip_push: false
+    skip_push: true
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
@@ -104,11 +104,13 @@ docker_manifests:
     image_templates:
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
+    skip_push: true
 
   - name_template: "ghcr.io/xenos76/{{ .ProjectName }}:latest"
     image_templates:
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
+    skip_push: true
 
 homebrew_casks:
   - repository:
