@@ -26,6 +26,7 @@ type RequestConfig struct {
 	UserAgent                 string          `mapstructure:"userAgent"`
 	TransportOverrideUrl      string          `mapstructure:"transportOverrideUrl"`
 	EnableProxyProtocolV2     bool            `mapstructure:"enableProxyProtocolV2"`
+	Insecure                  bool            `mapstructure:"insecure"`
 	RequestDebug              bool            `mapstructure:"requestDebug"`
 	RequestHeaders            []RequestHeader `mapstructure:"requestHeaders"`
 	RequestMethod             string          `mapstructure:"requestMethod"`

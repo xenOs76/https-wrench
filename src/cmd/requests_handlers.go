@@ -204,6 +204,12 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		}
 	}
 
+	if r.Insecure {
+		tlsClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
 	transport := &http.Transport{
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          transportMaxIdleConns,
