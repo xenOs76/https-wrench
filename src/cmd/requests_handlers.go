@@ -135,8 +135,8 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 		return proxyproto.Header{}, fmt.Errorf("proxy protocol v2 is not enabled for this request")
 	}
 
-	headerScrIP := net.ParseIP(proxyProtoDefaultSrcIPv4)
-	headerScrPort := proxyProtoDefaultSrcPort
+	headerSrcIP := net.ParseIP(proxyProtoDefaultSrcIPv4)
+	headerSrcPort := proxyProtoDefaultSrcPort
 	headerTransportProtocol := proxyproto.TCPv4
 
 	reqUrl, err := url.Parse(serverName)
@@ -171,14 +171,14 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	headerDstIP := net.ParseIP(headerDstIPs[0].String())
 	if headerDstIP.To4() == nil {
 		headerTransportProtocol = proxyproto.TCPv6
-		headerScrIP = net.ParseIP(proxyProtoDefaultSrcIPv6)
+		headerSrcIP = net.ParseIP(proxyProtoDefaultSrcIPv6)
 	}
 
 	header := proxyproto.Header{
 		Version:           2,
 		Command:           proxyproto.PROXY,
 		TransportProtocol: headerTransportProtocol,
-		SourceAddr:        &net.TCPAddr{IP: headerScrIP, Port: headerScrPort},
+		SourceAddr:        &net.TCPAddr{IP: headerSrcIP, Port: headerSrcPort},
 		DestinationAddr:   &net.TCPAddr{IP: headerDstIP, Port: headerDstPort},
 	}
 
