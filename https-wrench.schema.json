@@ -1,144 +1,149 @@
 {
-    "$schema": "http://json-schema.org/draft-06/schema#",
-    "$ref": "#/definitions/HttpsWrenchConfiguration",
-    "definitions": {
-        "HttpsWrenchConfiguration": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "debug": {
-                    "type": "boolean"
-                },
-                "verbose": {
-                    "type": "boolean"
-                },
-                "caBundle": {
-                    "type": "string"
-                },
-                "requests": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Request"
-                    }
-                }
-            },
-            "required": [
-                "requests",
-                "verbose"
-            ],
-            "title": "HttpsWrenchConfiguration"
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/HttpsWrenchConfiguration",
+  "definitions": {
+    "HttpsWrenchConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "debug": {
+          "type": "boolean"
         },
-        "Request": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "transportOverrideUrl": {
-                    "type": "string",
-                    "format": "uri",
-                    "qt-uri-protocols": [
-                        "https"
-                    ],
-                    "pattern": "^https://"
-                },
-                "clientTimeout": {
-                    "type": "number"
-                },
-                "requestDebug": {
-                    "type": "boolean"
-                },
-                "responseDebug": {
-                    "type": "boolean"
-                },
-                "printResponseBody": {
-                    "type": "boolean"
-                },
-                "printResponseHeaders": {
-                    "type": "boolean"
-                },
-                "printResponseCertificates": {
-                    "type": "boolean"
-                },
-                "enableProxyProtocolV2": {
-                    "type": "boolean"
-                },
-                "insecure": {
-                    "type": "boolean"
-                },
-                "responseHeadersFilter": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "pattern": "^[A-Z]"
-                    }
-                },
-                "requestBody": {
-                    "type": "string"
-                },
-                "requestMethod": {
-                    "type": "string",
-                    "pattern": "^(POST|GET|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)$"
-                },
-                "requestHeaders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/RequestHeader"
-                    }
-                },
-                "userAgent": {
-                    "type": "string"
-                },
-                "hosts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Host"
-                    }
-                }
-            },
-            "required": [
-                "hosts",
-                "name"
-            ],
-            "title": "Request"
+        "verbose": {
+          "type": "boolean"
         },
-        "Host": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "uriList": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "pattern": "^/"
-                    }
-                }
-            },
-            "required": [
-                "name"
-            ],
-            "title": "Host"
+        "caBundle": {
+          "type": "string"
         },
-        "RequestHeader": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "key",
-                "value"
-            ],
-            "title": "RequestHeader"
+        "requests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Request"
+          }
         }
+      },
+      "required": [
+        "requests",
+        "verbose"
+      ],
+      "title": "HttpsWrenchConfiguration"
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "transportOverrideUrl": {
+          "type": "string",
+          "format": "uri",
+          "qt-uri-protocols": [
+            "https"
+          ],
+          "pattern": "^https://"
+        },
+        "clientTimeout": {
+          "type": "number"
+        },
+        "requestDebug": {
+          "type": "boolean"
+        },
+        "responseDebug": {
+          "type": "boolean"
+        },
+        "printResponseBody": {
+          "type": "boolean"
+        },
+        "printResponseHeaders": {
+          "type": "boolean"
+        },
+        "printResponseCertificates": {
+          "type": "boolean"
+        },
+        "enableProxyProtocolV2": {
+          "type": "boolean"
+        },
+        "insecure": {
+          "type": "boolean"
+        },
+        "responseHeadersFilter": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]"
+          }
+        },
+        "requestBody": {
+          "type": "string"
+        },
+        "requestMethod": {
+          "type": "string",
+          "pattern": "^(POST|GET|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)$"
+        },
+        "requestHeaders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RequestHeader"
+          }
+        },
+        "userAgent": {
+          "type": "string"
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Host"
+          }
+        }
+      },
+      "required": [
+        "hosts",
+        "name"
+      ],
+      "dependencies": {
+        "enableProxyProtocolV2": [
+          "transportOverrideUrl"
+        ]
+      },
+      "title": "Request"
+    },
+    "Host": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "uriList": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^/"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Host"
+    },
+    "RequestHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "RequestHeader"
     }
+  }
 }
