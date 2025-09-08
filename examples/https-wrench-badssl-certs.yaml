@@ -5,7 +5,7 @@ debug: false
 verbose: true
 requests:
   - name: badsslComErrors
-    responseDebug: true
+    # responseDebug: true
     # printResponseBody: true
     hosts:
       - name: untrusted-root.badssl.com
@@ -14,7 +14,7 @@ requests:
       - name: incomplete-chain.badssl.com
 
   - name: badsslComValid
-    responseDebug: true
+    # responseDebug: true
     # printResponseBody: true
     hosts:
       - name: sha256.badssl.com

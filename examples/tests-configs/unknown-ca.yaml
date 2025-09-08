@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: unknownCA
+    transportOverrideUrl: https://localhost:9443
+    printResponseCertificates: true
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers

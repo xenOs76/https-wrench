@@ -136,48 +136,62 @@
 
   scripts.test-sample-config.exec = ''
     gum format "## test request with sample config"
-
     ./dist/https-wrench requests --config ./src/cmd/embedded/config-example.yaml
   '';
 
   scripts.test-k3s.exec = ''
     gum format "## test request against local k3s"
-
     ./dist/https-wrench requests --config ./examples/https-wrench-k3s.yaml
+  '';
+
+  scripts.test-timeout.exec = ''
+    gum format "## test request timeout"
+    ./dist/https-wrench requests --config ./examples/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
   '';
 
   scripts.test-unknown-ca.exec = ''
     gum format "## test request with unknown CA"
 
     set +o pipefail
-    ./dist/https-wrench requests --config ./examples/https-wrench-tests.yaml | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
+    ./dist/https-wrench requests --config ./examples/tests-configs/unknown-ca.yaml | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
   '';
 
-  scripts.test-ca-bundle-file.exec = ''
+  scripts.test-insecure.exec = ''
+    gum format "## test insecure skip verify"
+    ./dist/https-wrench requests --config ./examples/tests-configs/insecure.yaml | grep 'StatusCode: 200'
+  '';
+
+  scripts.test-ca-bundle-file-success.exec = ''
     gum format "## test request with CA bundle file"
+    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-200.yaml --ca-bundle ./tests/certs/rootCA.pem | grep "StatusCode: 200"
+  '';
 
-    CMD='./dist/https-wrench requests --config ./examples/https-wrench-tests.yaml  --ca-bundle ./tests/certs/rootCA.pem | grep "StatusCode: 200"'
+  scripts.test-ca-bundle-file-wrong-servername.exec = ''
+    gum format "## test request with CA bundle file and wrong host name / servername"
+    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle ./tests/certs/rootCA.pem | grep 'tls: failed to verify certificate: x509'
+  '';
 
-    echo "Running: $CMD"
+  scripts.test-proxy-protocol-ipv4.exec = ''
+    gum format "## test proxy protocol IPv4"
+    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle ./tests/certs/rootCA.pem | grep '192.0.2.1'
+  '';
 
-    $CMD
+  scripts.test-proxy-protocol-ipv6.exec = ''
+    gum format "## test proxy protocol IPv6"
+    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle ./tests/certs/rootCA.pem | grep '2001:db8::1'
   '';
 
   scripts.test-ca-bundle-yaml.exec = ''
     gum format "## test request with CA bundle in YAML"
 
-    CA_STRING_TEST_FILE=./tests/https-wrench-tests-ca-bundle-string.yaml
+    CA_BUNDLE_YAML_TEST_FILE=./tests/https-wrench-tests-ca-bundle-string.yaml
 
-    cat ./examples/https-wrench-tests.yaml > $CA_STRING_TEST_FILE
+    cat ./examples/tests-configs/unknown-ca.yaml > $CA_BUNDLE_YAML_TEST_FILE
 
-    echo "caBundle: |" >> $CA_STRING_TEST_FILE
-    while IFS= read -r line; do echo  "  $line" >> $CA_STRING_TEST_FILE ; done < $CAROOT/rootCA.pem
+    echo "caBundle: |" >> $CA_BUNDLE_YAML_TEST_FILE
+    while IFS= read -r line; do echo  "  $line" >> $CA_BUNDLE_YAML_TEST_FILE ; done < $CAROOT/rootCA.pem
 
-    CMD="./dist/https-wrench requests --config $CA_STRING_TEST_FILE | grep 'StatusCode: 200'"
-
-    echo "Running: $CMD"
-
-    $CMD
+    ./dist/https-wrench requests --config $CA_BUNDLE_YAML_TEST_FILE | grep 'StatusCode: 200'
   '';
 
   enterShell = ''
@@ -193,8 +207,13 @@
     build
     test-sample-config
     test-k3s
+    test-timeout
+    test-insecure
     test-unknown-ca
-    test-ca-bundle-file
+    test-ca-bundle-file-success
+    test-ca-bundle-file-wrong-servername
+    test-proxy-protocol-ipv4
+    test-proxy-protocol-ipv6
     test-ca-bundle-yaml
   '';
 }

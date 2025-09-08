@@ -64,6 +64,9 @@
                 "enableProxyProtocolV2": {
                     "type": "boolean"
                 },
+                "insecure": {
+                    "type": "boolean"
+                },
                 "responseHeadersFilter": {
                     "type": "array",
                     "items": {
