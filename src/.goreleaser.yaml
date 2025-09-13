@@ -144,3 +144,4 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^chore:"
