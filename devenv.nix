@@ -161,24 +161,29 @@
     ./dist/https-wrench requests --config ./examples/tests-configs/insecure.yaml | grep 'StatusCode: 200'
   '';
 
+  scripts.test-body-regexp-match.exec = ''
+    gum format "## test body regexp match"
+    ./dist/https-wrench requests --config  ./examples/tests-configs/body-regexp-match.yaml  --ca-bundle $CAROOT/rootCA.pem | grep 'BodyRegexpMatch: true'
+  '';
+
   scripts.test-ca-bundle-file-success.exec = ''
     gum format "## test request with CA bundle file"
-    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-200.yaml --ca-bundle ./tests/certs/rootCA.pem | grep "StatusCode: 200"
+    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem | grep "StatusCode: 200"
   '';
 
   scripts.test-ca-bundle-file-wrong-servername.exec = ''
     gum format "## test request with CA bundle file and wrong host name / servername"
-    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle ./tests/certs/rootCA.pem | grep 'tls: failed to verify certificate: x509'
+    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem | grep 'tls: failed to verify certificate: x509'
   '';
 
   scripts.test-proxy-protocol-ipv4.exec = ''
     gum format "## test proxy protocol IPv4"
-    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle ./tests/certs/rootCA.pem | grep '192.0.2.1'
+    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle $CAROOT/rootCA.pem | grep '192.0.2.1'
   '';
 
   scripts.test-proxy-protocol-ipv6.exec = ''
     gum format "## test proxy protocol IPv6"
-    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle ./tests/certs/rootCA.pem | grep '2001:db8::1'
+    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle $CAROOT/rootCA.pem | grep '2001:db8::1'
   '';
 
   scripts.test-ca-bundle-yaml.exec = ''
@@ -215,5 +220,6 @@
     test-proxy-protocol-ipv4
     test-proxy-protocol-ipv6
     test-ca-bundle-yaml
+    test-body-regexp-match
   '';
 }

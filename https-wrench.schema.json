@@ -52,6 +52,9 @@
         "responseDebug": {
           "type": "boolean"
         },
+        "responseBodyMatchRegexp": {
+          "type": "string"
+        },
         "printResponseBody": {
           "type": "boolean"
         },
