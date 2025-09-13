@@ -33,6 +33,7 @@ type RequestConfig struct {
 	RequestBody               string          `mapstructure:"requestBody"`
 	ResponseDebug             bool            `mapstructure:"responseDebug"`
 	ResponseHeadersFilter     []string        `mapstructure:"responseHeadersFilter"`
+	ResponseBodyMatchRegexp   string          `mapstructure:"responseBodyMatchRegexp"`
 	PrintResponseBody         bool            `mapstructure:"printResponseBody"`
 	PrintResponseHeaders      bool            `mapstructure:"printResponseHeaders"`
 	PrintResponseCertificates bool            `mapstructure:"printResponseCertificates"`
@@ -40,14 +41,11 @@ type RequestConfig struct {
 }
 
 type ResponseData struct {
-	RequestName               string
+	Request                   RequestConfig
 	TransportAddress          string
 	Url                       string
-	PrintResponseBody         bool
-	PrintResponseHeaders      bool
-	PrintResponseCertificates bool
-	ResponseHeadersFilter     []string
 	ResponseBody              string
+	ResponseBodyRegexpMatched bool
 	Response                  *http.Response
 	Error                     error
 }

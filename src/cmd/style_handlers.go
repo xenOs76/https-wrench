@@ -76,6 +76,11 @@ func statusCodeParse(sc int) string {
 }
 
 func (rd *ResponseData) ImportResponseBody() {
+
+	if len(rd.ResponseBody) > 0 {
+		return
+	}
+
 	body, err := io.ReadAll(rd.Response.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
@@ -123,12 +128,12 @@ func (rd ResponseData) PrintResponseData() {
 	} else {
 		fmt.Println(lgSprintf(styleStatus, "%v", statusCodeParse(rd.Response.StatusCode)))
 
-		if rd.PrintResponseCertificates {
+		if rd.Request.PrintResponseCertificates {
 			RenderTlsData(rd.Response)
 		}
 
-		if rd.PrintResponseHeaders {
-			headersStr := parseResponseHeaders(rd.Response.Header, rd.ResponseHeadersFilter)
+		if rd.Request.PrintResponseHeaders {
+			headersStr := parseResponseHeaders(rd.Response.Header, rd.Request.ResponseHeadersFilter)
 
 			fmt.Println(lgSprintf(styleItemKeyP3, "Headers: "))
 			fmt.Println(
@@ -140,7 +145,12 @@ func (rd ResponseData) PrintResponseData() {
 			)
 		}
 
-		if rd.PrintResponseBody {
+		if rd.Request.ResponseBodyMatchRegexp != "" {
+			fmt.Print(lgSprintf(styleItemKeyP3, "BodyRegexpMatch: "))
+			fmt.Println(rd.ResponseBodyRegexpMatched)
+		}
+
+		if rd.Request.PrintResponseBody {
 			fmt.Println(lgSprintf(styleItemKeyP3, "Body:"))
 			fmt.Println(rd.ResponseBody)
 		}

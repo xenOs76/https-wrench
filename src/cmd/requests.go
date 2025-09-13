@@ -52,9 +52,12 @@ var requestsCmd = &cobra.Command{
 			rootCAs = caCerts
 		}
 
-		_, err = handleRequests(cfg)
+		responseMap, err := handleRequests(cfg)
 		if err != nil {
 			log.Fatal(err)
+		}
+		if cfg.Debug {
+			dump.Print(responseMap)
 		}
 	},
 }

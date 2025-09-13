@@ -328,12 +328,9 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				}
 
 				rd := ResponseData{
-					PrintResponseBody:         r.PrintResponseBody,
-					PrintResponseHeaders:      r.PrintResponseHeaders,
-					PrintResponseCertificates: r.PrintResponseCertificates,
-					ResponseHeadersFilter:     r.ResponseHeadersFilter,
-					TransportAddress:          transportAddress,
-					Url:                       reqUrl,
+					Request:          r,
+					TransportAddress: transportAddress,
+					Url:              reqUrl,
 				}
 
 				if r.RequestDebug {
@@ -388,11 +385,23 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 
 				rd.Response = resp
 
-				if rd.PrintResponseBody {
+				if r.ResponseBodyMatchRegexp != "" {
+					rd.ImportResponseBody()
+					re, err := regexp.Compile(r.ResponseBodyMatchRegexp)
+					if err != nil {
+						fmt.Print(fmt.Errorf("unable to compile responseBodyMatchRegexp: %w", err))
+					}
+
+					if re.Match([]byte(rd.ResponseBody)) {
+						rd.ResponseBodyRegexpMatched = true
+					}
+				}
+
+				if rd.Request.PrintResponseBody {
 					rd.ImportResponseBody()
 				}
 				respDataList = append(respDataList, rd)
-				respDataMap[rd.RequestName] = respDataList
+				respDataMap[rd.Request.Name] = respDataList
 
 				if cfg.Verbose {
 					rd.PrintResponseData()
