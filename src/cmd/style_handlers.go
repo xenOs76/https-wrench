@@ -1,15 +1,20 @@
 package cmd
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func lgSprintf(style lipgloss.Style, pattern string, a ...any) string {
@@ -73,6 +78,14 @@ func statusCodeParse(sc int) string {
 	}
 
 	return status
+}
+
+func boolStyle(b bool) string {
+
+	if b {
+		return lgSprintf(styleBoolTrue, "true")
+	}
+	return lgSprintf(styleBoolFalse, "false")
 }
 
 func (rd *ResponseData) ImportResponseBody() {
@@ -161,6 +174,8 @@ func (rd ResponseData) PrintResponseData() {
 func RenderTlsData(r *http.Response) {
 
 	tls := r.TLS
+	sl := styleCertKeyP4.Render
+	sv := styleCertValue.Render
 
 	fmt.Println(lgSprintf(styleItemKeyP3, "TLS:"))
 
@@ -169,29 +184,70 @@ func RenderTlsData(r *http.Response) {
 		return
 	}
 
-	fmt.Println(lgSprintf(styleCertKeyP4, "Version: %s", styleCertValue.Render(tlsVersionName(tls.Version))))
+	t := table.New().Border(lipgloss.HiddenBorder())
+	t.Row(sl("Version"), sv(tlsVersionName(tls.Version)))
+	t.Row(sl("CipherSuite"), sv(cipherSuiteName(tls.CipherSuite)))
+	fmt.Println(t.Render())
+	t.ClearRows()
 
-	fmt.Println(lgSprintf(styleCertKeyP4, "CipherSuite: %v", styleCertValue.Render(cipherSuiteName(tls.CipherSuite))))
+	CertsToTables(tls.PeerCertificates)
 
-	for i, cert := range tls.PeerCertificates {
+}
 
-		fmt.Println(lgSprintf(styleCertKeyP4.Bold(true), "Certificate %v:", i))
-		fmt.Println(lgSprintf(styleCertKeyP5, "Subject: %s", styleCertValue.Render(cert.Subject.String())))
+func CertsToTables(certs []*x509.Certificate) {
 
-		if len(cert.DNSNames) > 0 {
-			dnsnames := "[ "
-			for _, name := range cert.DNSNames {
-				dnsnames += name + " "
-			}
-			dnsnames += "]"
+	sl := styleCertKeyP4.Render
+	sv := styleCertValue.Render
 
-			fmt.Println(lgSprintf(styleCertKeyP5, "DNS Names: %v", styleCertValue.Render(dnsnames)))
-		}
+	for i := range certs {
 
-		fmt.Println(lgSprintf(styleCertKeyP5, "Issuer: %s", styleCertValue.Render(cert.Issuer.String())))
-		fmt.Println(lgSprintf(styleCertKeyP5, "Valid From: %s", styleCertValue.Render(cert.NotBefore.Format(time.RFC1123))))
-		fmt.Println(lgSprintf(styleCertKeyP5, "Valid To: %s", styleCertValue.Render(cert.NotAfter.Format(time.RFC1123))))
+		header := lgSprintf(styleCertKeyP4.Bold(true), "Certificate %d", i)
 
+		t := table.New().Border(lipgloss.HiddenBorder()).Headers(header)
+		t.Row(sl("Subject"), sv(certs[i].Subject.String()))
+		t.Row(sl("DNSNames"), sv("[ "+strings.Join(certs[i].DNSNames, ", ")+" ]"))
+		t.Row(sl("Issuer"), sv(certs[i].Issuer.String()))
+		t.Row(sl("NotBefore"), sv(certs[i].NotBefore.String()))
+		t.Row(sl("NotAfter"), sv(certs[i].NotAfter.String()))
+		t.Row(sl("IsCA"), sv(strconv.FormatBool(certs[i].IsCA)))
+		t.Row(sl("PublicKeyAlgorithm"), sv(certs[i].PublicKeyAlgorithm.String()))
+		t.Row(sl("SignatureAlgorithm"), sv(certs[i].SignatureAlgorithm.String()))
+		t.Row(sl("SerialNumber"), sv(certs[i].SerialNumber.String()))
+		fmt.Println(t.Render())
+		t.ClearRows()
 	}
 
+}
+
+func printKeyInfoStyle(privKey crypto.PrivateKey) {
+
+	sl := styleCertKeyP4.Render
+	sv := styleCertValue.Render
+
+	t := table.New().Border(lipgloss.HiddenBorder())
+
+	switch k := privKey.(type) {
+	case *rsa.PrivateKey:
+
+		t.Row(sl("Type"), sv("RSA"))
+		size := fmt.Sprintf("%d bits", k.N.BitLen())
+		t.Row(sl("Key Size"), sv(size))
+
+	case *ecdsa.PrivateKey:
+
+		t.Row(sl("Type"), sv("ECDSA"))
+		curve := fmt.Sprintf("%s", k.Curve.Params().Name)
+		t.Row(sl("Curve"), sv(curve))
+
+	case ed25519.PrivateKey:
+		t.Row(sl("Type"), sv("Ed25519"))
+		size := fmt.Sprintf("%d bytes", len(k))
+		t.Row(sl("Key Size"), sv(size))
+
+	default:
+		t.Row("Unknown key type")
+	}
+
+	fmt.Println(t.Render())
+	t.ClearRows()
 }

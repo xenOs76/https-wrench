@@ -4,14 +4,20 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"time"
 
+	_ "embed"
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 )
 
 var (
+	//go:embed  embedded/config-example.yaml
+	sampleYamlConfig string
+	showSampleConfig bool
+
 	httpUserAgent                string = "https-wrench-request"
 	httpClientDefaultMethod             = "GET"
 	httpClientDefaultRequestBody []byte
@@ -40,6 +46,11 @@ var requestsCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		if showSampleConfig {
+			fmt.Print(sampleYamlConfig)
+			return
+		}
+
 		if cfg.Debug {
 			dump.Print(cfg)
 		}
@@ -63,5 +74,6 @@ var requestsCmd = &cobra.Command{
 }
 
 func init() {
+	requestsCmd.PersistentFlags().BoolVar(&showSampleConfig, "show-sample-config", false, "Show a sample YAML configuration")
 	rootCmd.AddCommand(requestsCmd)
 }

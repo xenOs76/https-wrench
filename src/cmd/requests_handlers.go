@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	proxyproto "github.com/pires/go-proxyproto"
 	"log"
@@ -54,21 +53,6 @@ func cipherSuiteName(id uint16) string {
 		return fmt.Sprintf("Unknown (0x%x)", id)
 	}
 	return cs
-}
-
-func printCertInfo(cert *x509.Certificate, depth int) {
-	prefix := ""
-	for i := 0; i < depth; i++ {
-		prefix += "  "
-	}
-	fmt.Printf("%sSubject: %s\n", prefix, cert.Subject)
-	fmt.Printf("%sIssuer: %s\n", prefix, cert.Issuer)
-	fmt.Printf("%sValid From: %s\n", prefix, cert.NotBefore.Format(time.RFC1123))
-	fmt.Printf("%sValid To:   %s\n", prefix, cert.NotAfter.Format(time.RFC1123))
-	fmt.Printf("%sDNS Names:  %v\n", prefix, cert.DNSNames)
-	// fmt.Printf("%sEmail:      %v\n", prefix, cert.EmailAddresses)
-	// fmt.Printf("%sIP Addrs:   %v\n", prefix, cert.IPAddresses)
-	fmt.Println()
 }
 
 func parseResponseHeaders(headers http.Header, filter []string) string {
@@ -276,6 +260,12 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 			return nil, fmt.Errorf("failed to load CA bundle: %w", err)
 		}
 		rootCAs = caCerts
+	}
+
+	if cfg.Verbose {
+		fmt.Println()
+		fmt.Println(lgSprintf(styleCmd, "Requests"))
+		fmt.Println()
 	}
 
 	for _, r := range cfg.Requests {
