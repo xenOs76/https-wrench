@@ -21,6 +21,7 @@
     mkcert
     gum
     goreleaser
+    golangci-lint
     curl
     jq
     httpie
@@ -32,6 +33,7 @@
       "flake.nix"
       ".gitignore"
       ".envrc"
+      "src/go.sum"
     ];
     hooks = {
       shellcheck.enable = true;
@@ -48,6 +50,14 @@
   services.nginx = {
     enable = true;
     httpConfig = ''
+
+        default_type  application/octet-stream;
+
+        types {
+            application/x-yaml yaml;
+            text/yaml yaml;
+        }
+
         #
         # Mozilla SSL Configuration Generator
         #
@@ -73,6 +83,9 @@
                 proxy_pass       http://localhost:8080;
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
+            }
+            location /tests/ {
+                alias ${config.env.DEVENV_ROOT}/examples/body-types/;
             }
         }
 
@@ -197,6 +210,11 @@
   scripts.test-requests-insecure.exec = ''
     gum format "## test request insecure skip verify"
     ./dist/https-wrench requests --config ./examples/tests-configs/insecure.yaml | grep 'StatusCode: 200'
+  '';
+
+  scripts.test-requests-syntax-highlight.exec = ''
+    gum format "## test request body syntax highlight"
+    ./dist/https-wrench requests --config  ./examples/tests-configs/body-syntax-highlight.yaml --ca-bundle $CAROOT/rootCA.pem
   '';
 
   scripts.test-requests-body-regexp-match.exec = ''
@@ -365,6 +383,7 @@
     test-requests-k3s
     test-requests-timeout
     test-requests-insecure
+    test-requests-syntax-highlight
     test-requests-unknown-ca
     test-requests-ca-bundle-file-success
     test-requests-ca-bundle-file-wrong-servername

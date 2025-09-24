@@ -1,0 +1,46 @@
+---
+# yaml document beginning
+# comment syntax
+
+name: John Doe
+age: 30
+
+fruits:
+  - Apple
+  - Banana
+  - Cherry
+
+person:
+  name: John Doe
+  age: 30
+  address:
+    street: 123 Main St
+    city: Example City
+
+n1: 1 # integer
+n2: 1.234 # float
+
+s1: 'A Developer' # string
+s2: "A Developer" # string
+s3: A Developer # string
+
+b: false # boolean type
+
+d: 1982-10-14 # date type
+
+nil: null
+
+description: |
+  This is a description
+  that spans multiple lines.
+
+"key with spaces": value
+"key:with:special:characters": value
+
+products:
+  - name: Laptop
+    price: 999.99
+    in_stock: true
+  - name: Mouse
+    price: 25.50
+    in_stock: false

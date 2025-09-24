@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: BodySyntaxHighlight
+    transportOverrideUrl: https://localhost:9443
+    printResponseBody: true
+    hosts:
+      - name: localhost
+        uriList:
+          - /tests/test.yaml
+          - /tests/test.json
+          - /tests/test.xml
+          - /tests/test.css
+          - /tests/test.csv
+          - /tests/test.html
+          - /tests/test.txt

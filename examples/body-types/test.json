@@ -1,0 +1,47 @@
+{
+  "appConfig": {
+    "appName": "MyApp",
+    "version": "1.0.0",
+    "debugMode": true,
+    "supportedLanguages": [
+      "en",
+      "fr",
+      "es"
+    ]
+  },
+  "server": {
+    "host": "localhost",
+    "port": 8080,
+    "useHttps": true,
+    "allowedIPs": [
+      "127.0.0.1",
+      "192.168.1.1"
+    ]
+  },
+  "database": {
+    "type": "mysql",
+    "host": "db.example.com",
+    "port": 3306,
+    "username": "dbuser",
+    "password": "securepassword",
+    "databaseName": "myappdb"
+  },
+  "logging": {
+    "level": "info",
+    "logToFile": true,
+    "logFilePath": "/var/log/myapp.log",
+    "logFormat": "json"
+  },
+  "userPreferences": {
+    "theme": "dark",
+    "notifications": {
+      "email": true,
+      "sms": false,
+      "push": true
+    },
+    "privacySettings": {
+      "trackLocation": false,
+      "shareUsageData": true
+    }
+  }
+}
