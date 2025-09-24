@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -8,56 +9,24 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 func lgSprintf(style lipgloss.Style, pattern string, a ...any) string {
 	str := fmt.Sprintf(pattern, a...)
 	out := style.Render(str)
 	return out
-}
-
-func prettyPrintJson(v any, indent int) string {
-	ind := strings.Repeat("  ", indent)
-	switch val := v.(type) {
-	case map[string]any:
-		var b strings.Builder
-		b.WriteString(styleBracket.Render("{") + "\n")
-		for k, v2 := range val {
-			b.WriteString(ind + "  ")
-			b.WriteString(styleKey.Render(fmt.Sprintf(`"%s"`, k)))
-			b.WriteString(styleBracket.Render(": ") + prettyPrintJson(v2, indent+1))
-			b.WriteString("\n")
-		}
-		b.WriteString(ind + styleBracket.Render("}"))
-		return b.String()
-
-	case []any:
-		var b strings.Builder
-		b.WriteString(styleBracket.Render("[") + "\n")
-		for _, item := range val {
-			b.WriteString(ind + "  " + prettyPrintJson(item, indent+1) + "\n")
-		}
-		b.WriteString(ind + styleBracket.Render("]"))
-		return b.String()
-
-	case string:
-		return styleString.Render(fmt.Sprintf(`"%s"`, val))
-	case float64:
-		return styleNumber.Render(fmt.Sprintf("%v", val))
-	case bool:
-		return styleBool.Render(fmt.Sprintf("%v", val))
-	case nil:
-		return styleNull.Render("null")
-	default:
-		return fmt.Sprintf("%v", val)
-	}
 }
 
 func statusCodeParse(sc int) string {
@@ -81,7 +50,6 @@ func statusCodeParse(sc int) string {
 }
 
 func boolStyle(b bool) string {
-
 	if b {
 		return lgSprintf(styleBoolTrue, "true")
 	}
@@ -89,7 +57,6 @@ func boolStyle(b bool) string {
 }
 
 func (rd *ResponseData) ImportResponseBody() {
-
 	if len(rd.ResponseBody) > 0 {
 		return
 	}
@@ -100,24 +67,66 @@ func (rd *ResponseData) ImportResponseBody() {
 		return
 	}
 
-	if contentTypeHeaders, ok := rd.Response.Header["Content-Type"]; ok {
-		jsonRegexp, _ := regexp.Compile("(?i)application/json")
-
-		for i := range contentTypeHeaders {
-
-			if matched := jsonRegexp.MatchString(contentTypeHeaders[i]); matched {
-
-				var obj map[string]any
-				err := json.Unmarshal([]byte(body), &obj)
-				if err != nil {
-					fmt.Println("Error unmarshalling Json response body:", err)
-				}
-
-				s := prettyPrintJson(obj, 0)
-				rd.ResponseBody = s
-				return
-			}
+	// Early evaluation of regexp match against raw body bytes.
+	// It will fail if evaluated against a syntax highlighted body.
+	if rd.Request.ResponseBodyMatchRegexp != "" {
+		re, err := regexp.Compile(rd.Request.ResponseBodyMatchRegexp)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseBodyMatchRegexp: %w", err))
 		}
+
+		if re.Match(body) {
+			rd.ResponseBodyRegexpMatched = true
+		}
+	}
+
+	contentType := rd.Response.Header.Get("Content-Type")
+
+	htmlRegexp, _ := regexp.Compile("(?i)text/html")
+	if matched := htmlRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("html", string(body))
+		return
+	}
+
+	jsonRegexp, _ := regexp.Compile("(?i)application/json")
+	if matched := jsonRegexp.MatchString(contentType); matched {
+
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, body, "", "  "); err != nil {
+			prettyJSON.WriteString(string(body))
+		}
+		rd.ResponseBody = CodeSyntaxHighlight("json", prettyJSON.String())
+		return
+	}
+
+	csvRegexp, _ := regexp.Compile("(?i)text/csv")
+	if matched := csvRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("csv", string(body))
+		return
+	}
+
+	yamlRegexp, _ := regexp.Compile("(?i)(application|text)/(yaml|x-yaml)")
+	if matched := yamlRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("yaml", string(body))
+		return
+	}
+
+	xmlRegexp, _ := regexp.Compile("(?i)(application|text)/xml")
+	if matched := xmlRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("xml", string(body))
+		return
+	}
+
+	jsRegexp, _ := regexp.Compile("(?i)text/javascript")
+	if matched := jsRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("javascript", string(body))
+		return
+	}
+
+	cssRegexp, _ := regexp.Compile("(?i)text/css")
+	if matched := cssRegexp.MatchString(contentType); matched {
+		rd.ResponseBody = CodeSyntaxHighlight("css", string(body))
+		return
 	}
 	rd.ResponseBody = string(body)
 }
@@ -149,13 +158,7 @@ func (rd ResponseData) PrintResponseData() {
 			headersStr := parseResponseHeaders(rd.Response.Header, rd.Request.ResponseHeadersFilter)
 
 			fmt.Println(lgSprintf(styleItemKeyP3, "Headers: "))
-			fmt.Println(
-				lgSprintf(
-					styleHeaders,
-					"%s",
-					headersStr,
-				),
-			)
+			fmt.Println(headersStr)
 		}
 
 		if rd.Request.ResponseBodyMatchRegexp != "" {
@@ -172,7 +175,6 @@ func (rd ResponseData) PrintResponseData() {
 }
 
 func RenderTlsData(r *http.Response) {
-
 	tls := r.TLS
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
@@ -184,18 +186,16 @@ func RenderTlsData(r *http.Response) {
 		return
 	}
 
-	t := table.New().Border(lipgloss.HiddenBorder())
+	t := table.New().Border(lgDefBorder)
 	t.Row(sl("Version"), sv(tlsVersionName(tls.Version)))
 	t.Row(sl("CipherSuite"), sv(cipherSuiteName(tls.CipherSuite)))
 	fmt.Println(t.Render())
 	t.ClearRows()
 
 	CertsToTables(tls.PeerCertificates)
-
 }
 
 func CertsToTables(certs []*x509.Certificate) {
-
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
 
@@ -203,7 +203,7 @@ func CertsToTables(certs []*x509.Certificate) {
 
 		header := lgSprintf(styleCertKeyP4.Bold(true), "Certificate %d", i)
 
-		t := table.New().Border(lipgloss.HiddenBorder()).Headers(header)
+		t := table.New().Border(lgDefBorder).Headers(header)
 		t.Row(sl("Subject"), sv(certs[i].Subject.String()))
 		t.Row(sl("DNSNames"), sv("[ "+strings.Join(certs[i].DNSNames, ", ")+" ]"))
 		t.Row(sl("Issuer"), sv(certs[i].Issuer.String()))
@@ -216,11 +216,9 @@ func CertsToTables(certs []*x509.Certificate) {
 		fmt.Println(t.Render())
 		t.ClearRows()
 	}
-
 }
 
 func printKeyInfoStyle(privKey crypto.PrivateKey) {
-
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
 
@@ -236,7 +234,7 @@ func printKeyInfoStyle(privKey crypto.PrivateKey) {
 	case *ecdsa.PrivateKey:
 
 		t.Row(sl("Type"), sv("ECDSA"))
-		curve := fmt.Sprintf("%s", k.Curve.Params().Name)
+		curve := k.Curve.Params().Name
 		t.Row(sl("Curve"), sv(curve))
 
 	case ed25519.PrivateKey:
@@ -250,4 +248,40 @@ func printKeyInfoStyle(privKey crypto.PrivateKey) {
 
 	fmt.Println(t.Render())
 	t.ClearRows()
+}
+
+func CodeSyntaxHighlight(lang, code string) string {
+	st := styles.Get(chromaDefStyle)
+	if st == nil {
+		st = styles.Fallback
+	}
+
+	fmttr := formatters.TTY16m
+	if fmttr == nil {
+		fmttr = formatters.Fallback
+	}
+
+	lexer := lexers.Get(lang)
+	if lexer == nil {
+		lexer = lexers.Analyse(code)
+	}
+	if lexer == nil {
+		lexer = lexers.Fallback
+	}
+	lexer = chroma.Coalesce(lexer)
+
+	iter, err := lexer.Tokenise(nil, code)
+	if err != nil {
+		return code
+	}
+
+	var buf bytes.Buffer
+	if err := fmttr.Format(&buf, st, iter); err != nil {
+		return code
+	}
+	out := buf.String()
+	if !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return out
 }

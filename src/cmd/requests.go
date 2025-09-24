@@ -1,6 +1,7 @@
 /*
 Copyright © 2025 Zeno Belli xeno@os76.xyz
 */
+
 package cmd
 
 import (
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	_ "embed"
+
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 )

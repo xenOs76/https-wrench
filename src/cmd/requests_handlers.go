@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	proxyproto "github.com/pires/go-proxyproto"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	proxyproto "github.com/pires/go-proxyproto"
 )
 
 func (h ResponseHeader) String() string {
@@ -58,6 +59,10 @@ func cipherSuiteName(id uint16) string {
 func parseResponseHeaders(headers http.Header, filter []string) string {
 	var outputStr string
 	var outputMap map[string][]string
+
+	sl := styleHeadKeyP3.Render
+	sv := styleHeadValue.Italic(true).Render
+	t := lgTable
 	headersFiltered := make(map[string][]string)
 
 	if len(filter) > 0 {
@@ -72,8 +77,11 @@ func parseResponseHeaders(headers http.Header, filter []string) string {
 	}
 
 	for k, v := range outputMap {
-		outputStr += fmt.Sprintf("%s: %s\n", k, v)
+		values := strings.Join(v, ", ")
+		t.Row(sl(k), sv(values))
 	}
+	outputStr = t.Render()
+	t.ClearRows()
 	return outputStr
 }
 
@@ -114,7 +122,6 @@ func transportAddressFromRequest(r RequestConfig) (string, error) {
 }
 
 func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto.Header, error) {
-
 	if !r.EnableProxyProtocolV2 {
 		return proxyproto.Header{}, fmt.Errorf("proxy protocol v2 is not enabled for this request")
 	}
@@ -170,7 +177,6 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 }
 
 func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, error) {
-
 	var transportAddress string
 	clientTimeout := httpClientTimeout
 
@@ -250,7 +256,6 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 }
 
 func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
-
 	respDataMap := make(map[string][]ResponseData)
 	clientMethod := httpClientDefaultMethod
 
@@ -377,14 +382,6 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 
 				if r.ResponseBodyMatchRegexp != "" {
 					rd.ImportResponseBody()
-					re, err := regexp.Compile(r.ResponseBodyMatchRegexp)
-					if err != nil {
-						fmt.Print(fmt.Errorf("unable to compile responseBodyMatchRegexp: %w", err))
-					}
-
-					if re.Match([]byte(rd.ResponseBody)) {
-						rd.ResponseBodyRegexpMatched = true
-					}
 				}
 
 				if rd.Request.PrintResponseBody {

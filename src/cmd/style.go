@@ -3,9 +3,17 @@ package cmd
 import (
 	catppuccin "github.com/catppuccin/go"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 var (
+	glamourDefStyle = "tokyo-night"
+	chromaDefStyle  = "dracula"
+
+	// lgDefBorder = lipgloss.NormalBorder()
+	lgDefBorder = lipgloss.HiddenBorder()
+	lgTable     = table.New().Border(lgDefBorder)
+
 	flavour = catppuccin.Frappe
 
 	catBase     = lipgloss.Color(flavour.Base().Hex)
@@ -37,6 +45,17 @@ var (
 	styleItemKeyP3 = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(catBlue)).
 			PaddingLeft(3).Bold(true)
+
+	styleHeadKeyP3 = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(catFlamingo)).
+			PaddingLeft(3)
+
+	styleHeadValue = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(catSapphire))
+
+	styleCertKeyP3 = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(catLavander)).
+			PaddingLeft(3)
 
 	styleCertKeyP4 = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(catLavander)).
@@ -82,11 +101,4 @@ var (
 
 	styleBoolTrue  = lipgloss.NewStyle().Foreground(catTeal)
 	styleBoolFalse = lipgloss.NewStyle().Foreground(catRed)
-
-	styleKey     = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true)
-	styleString  = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	styleNumber  = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	styleBool    = lipgloss.NewStyle().Foreground(lipgloss.Color("170"))
-	styleNull    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
-	styleBracket = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 )
