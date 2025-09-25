@@ -7,6 +7,7 @@ require (
 	github.com/breml/rootcerts v0.3.1
 	github.com/catppuccin/go v0.3.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
+	github.com/dustin/go-humanize v1.0.1
 	github.com/gookit/goutil v0.7.1
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/spf13/cobra v1.10.1
