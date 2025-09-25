@@ -38,7 +38,7 @@
     hooks = {
       shellcheck.enable = true;
       end-of-file-fixer.enable = true;
-      detect-aws-credentials.enable = false;
+      detect-aws-credentials.enable = true;
       detect-private-keys.enable = true;
       ripsecrets.enable = true;
       commitizen.enable = true;

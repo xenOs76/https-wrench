@@ -28,6 +28,7 @@ var (
 	catRed      = lipgloss.Color(flavour.Red().Hex)
 	catPink     = lipgloss.Color(flavour.Pink().Hex)
 	catTeal     = lipgloss.Color(flavour.Teal().Hex)
+	lgRed       = lipgloss.Color("#FF0000")
 
 	styleCmd = lipgloss.NewStyle().Foreground(catBase).Background(catBlue).Bold(true).PaddingLeft(1).PaddingRight(1)
 
@@ -100,5 +101,7 @@ var (
 			Foreground(lipgloss.Color(catTeal))
 
 	styleBoolTrue  = lipgloss.NewStyle().Foreground(catTeal)
-	styleBoolFalse = lipgloss.NewStyle().Foreground(catRed)
+	styleBoolFalse = lipgloss.NewStyle().Foreground(catYellow)
+	styleWarn      = lipgloss.NewStyle().Foreground(catYellow)
+	styleCrit      = lipgloss.NewStyle().Foreground(lgRed)
 )

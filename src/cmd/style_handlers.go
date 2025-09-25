@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
@@ -21,6 +22,7 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/dustin/go-humanize"
 )
 
 func lgSprintf(style lipgloss.Style, pattern string, a ...any) string {
@@ -140,7 +142,7 @@ func (rd ResponseData) PrintResponseData() {
 	fmt.Print(lgSprintf(styleItemKeyP3, "StatusCode: "))
 
 	if rd.Error != nil {
-		fmt.Println(lgSprintf(styleStatusError, "000"))
+		fmt.Println(lgSprintf(styleStatusError, "0"))
 		fmt.Println(lgSprintf(
 			styleItemKeyP3,
 			"Error: %s",
@@ -203,16 +205,39 @@ func CertsToTables(certs []*x509.Certificate) {
 
 		header := lgSprintf(styleCertKeyP4.Bold(true), "Certificate %d", i)
 
+		subject := certs[i].Subject.String()
+		dnsNames := "[" + strings.Join(certs[i].DNSNames, ", ") + "]"
+		issuer := certs[i].Issuer.String()
+
+		notBefore := certs[i].NotBefore
+		notAfter := certs[i].NotAfter
+		expiration := humanize.Time(notAfter)
+		daysUntilExpiration := time.Until(notAfter).Hours() / 24
+
+		expStyle := sv
+		if (0 < daysUntilExpiration) && (daysUntilExpiration < certinfoCertExpWarnDays) {
+			expStyle = styleWarn.Render
+		}
+		if daysUntilExpiration <= 0 {
+			expStyle = styleCrit.Render
+		}
+
+		isCA := strconv.FormatBool(certs[i].IsCA)
+		publicKeyAlgorithm := certs[i].PublicKeyAlgorithm.String()
+		signatureAlgorithm := certs[i].SignatureAlgorithm.String()
+		serialNumber := certs[i].SerialNumber.String()
+
 		t := table.New().Border(lgDefBorder).Headers(header)
-		t.Row(sl("Subject"), sv(certs[i].Subject.String()))
-		t.Row(sl("DNSNames"), sv("[ "+strings.Join(certs[i].DNSNames, ", ")+" ]"))
-		t.Row(sl("Issuer"), sv(certs[i].Issuer.String()))
-		t.Row(sl("NotBefore"), sv(certs[i].NotBefore.String()))
-		t.Row(sl("NotAfter"), sv(certs[i].NotAfter.String()))
-		t.Row(sl("IsCA"), sv(strconv.FormatBool(certs[i].IsCA)))
-		t.Row(sl("PublicKeyAlgorithm"), sv(certs[i].PublicKeyAlgorithm.String()))
-		t.Row(sl("SignatureAlgorithm"), sv(certs[i].SignatureAlgorithm.String()))
-		t.Row(sl("SerialNumber"), sv(certs[i].SerialNumber.String()))
+		t.Row(sl("Subject"), sv(subject))
+		t.Row(sl("DNSNames"), sv(dnsNames))
+		t.Row(sl("Issuer"), sv(issuer))
+		t.Row(sl("NotBefore"), sv(notBefore.String()))
+		t.Row(sl("NotAfter"), expStyle(notAfter.String()))
+		t.Row(sl("Expiration"), expStyle(expiration))
+		t.Row(sl("IsCA"), sv(isCA))
+		t.Row(sl("PublicKeyAlgorithm"), sv(publicKeyAlgorithm))
+		t.Row(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
+		t.Row(sl("SerialNumber"), sv(serialNumber))
 		fmt.Println(t.Render())
 		t.ClearRows()
 	}
@@ -221,18 +246,15 @@ func CertsToTables(certs []*x509.Certificate) {
 func printKeyInfoStyle(privKey crypto.PrivateKey) {
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
-
 	t := table.New().Border(lipgloss.HiddenBorder())
 
 	switch k := privKey.(type) {
 	case *rsa.PrivateKey:
-
 		t.Row(sl("Type"), sv("RSA"))
 		size := fmt.Sprintf("%d bits", k.N.BitLen())
 		t.Row(sl("Key Size"), sv(size))
 
 	case *ecdsa.PrivateKey:
-
 		t.Row(sl("Type"), sv("ECDSA"))
 		curve := k.Curve.Params().Name
 		t.Row(sl("Curve"), sv(curve))
