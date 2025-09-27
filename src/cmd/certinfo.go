@@ -36,17 +36,33 @@ type CertinfoConfig struct {
 }
 
 var (
-	certsBundle   []*x509.Certificate
-	privKey       any
-	tlsEndpoint   string
-	tlsServerName string
-	tlsInsecure   bool
+	certsBundle        []*x509.Certificate
+	privKey            any
+	tlsEndpoint        string
+	tlsServerName      string
+	tlsInsecure        bool
+	privateKeyPwEnvVar string = "CERTINFO_PKEY_PW"
 )
 
 var certinfoCmd = &cobra.Command{
 	Use:   "certinfo",
 	Short: "Show info about PEM certificates and keys",
-	Long:  "Show info about PEM certificates and keys",
+	Long: `Show info about PEM certificates and keys.
+Can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a private key matches any of the certificates.
+The certificates can be verified against the system root CAs or a custom CA bundle file. The validation can be skipped.
+If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW environment variable or will be prompted on stdin.
+Examples:
+  certinfo --tls-endpoint example.com:443
+  certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
+  certinfo --cert-bundle ./bundle.pem
+  certinfo --key-file ./key.pem
+  certinfo --tls-endpoint example.com:443 --key-file ./key.pem
+  certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
+  certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
+  certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
+  certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
+  certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 		certinfoCfg := CertinfoConfig{TlsInsecure: tlsInsecure, TlsServerName: tlsServerName}
 

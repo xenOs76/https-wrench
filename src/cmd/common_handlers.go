@@ -9,7 +9,11 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
+
+	"github.com/youmark/pkcs8"
+	"golang.org/x/term"
 )
 
 func printCertInfo(cert *x509.Certificate, depth int) {
@@ -160,7 +164,10 @@ func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 	return certs, nil
 }
 
-// Read an unecrypted private key from file.
+// Read a private key from file.
+//
+// If the key is encrypted look for a passphrase in the environment variable matching the value of
+// privateKeyPwEnvVar, otherwise prompt for it on stdin.
 //
 // Evaluated key forms are:
 //
@@ -170,9 +177,37 @@ func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 //
 // * EC private key in SEC 1, ASN.1 DER (encoded in PEM blocks of type "EC PRIVATE KEY")
 func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
+	pkcs8Encrypted := false
+	pkcs1Encrypted := false
+	pkeyEnvPw := os.Getenv(privateKeyPwEnvVar)
+	pass := []byte{}
+
 	keyPEM, err := os.ReadFile(keyFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading key file: %v", err)
+	}
+
+	pkcs8EncRE := regexp.MustCompile(`\sENCRYPTED\sPRIVATE\sKEY`)
+	if pkcs8EncRE.Match(keyPEM) {
+		pkcs8Encrypted = true
+	}
+
+	pkcs1EncRE := regexp.MustCompile(`4,ENCRYPTED`)
+	if pkcs1EncRE.Match(keyPEM) {
+		pkcs1Encrypted = true
+	}
+
+	if (pkeyEnvPw != "") && (pkcs1Encrypted || pkcs8Encrypted) {
+		pass = []byte(pkeyEnvPw)
+	}
+
+	if (pkeyEnvPw == "") && (pkcs1Encrypted || pkcs8Encrypted) {
+		fmt.Print("Private key is encrypted, please enter passphrase:")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return nil, fmt.Errorf("error reading passphrase: %v", err)
+		}
+		pass = pw
 	}
 
 	keyBlock, _ := pem.Decode(keyPEM)
@@ -180,17 +215,33 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to decode PEM private key from %s", keyFilePath)
 	}
 
+	var pkcs8PrivKey interface{}
+	if pkcs8Encrypted {
+		pkcs8PrivKey, err = pkcs8.ParsePKCS8PrivateKey(keyBlock.Bytes, pass)
+		if err != nil {
+			return nil, fmt.Errorf("error decrypting PKCS8 private key: %v", err)
+		}
+		return pkcs8PrivKey, nil
+	}
+
+	var keyDER []byte
+	if pkcs1Encrypted {
+		keyDER, err = x509.DecryptPEMBlock(keyBlock, pass)
+		if err != nil {
+			return nil, fmt.Errorf("error decrypting PKCS1 private key: %v", err)
+		}
+		keyBlock.Bytes = keyDER
+	}
+
 	pkcs8Key, PKCS8err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if PKCS8err == nil {
 		return pkcs8Key, nil
 	}
-	err = PKCS8err
 
 	rsaKey, PKCS1err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
 	if PKCS1err == nil {
 		return rsaKey, nil
 	}
-	err = PKCS1err
 
 	ecKey, ECerr := x509.ParseECPrivateKey(keyBlock.Bytes)
 	if ECerr == nil {
