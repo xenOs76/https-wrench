@@ -10,6 +10,7 @@
     CAROOT = "tests/certs";
     ED25519_DIR = "tests/certs/ed25519_cert";
     ECDSA_DIR = "tests/certs/ecdsa-cert";
+    KEY_TEST_PW = "testpassword";
     CGO_ENABLE = "0";
     OS76_DOCKER_REGISTRY = "registry.0.os76.xyz";
     OS76_DOCKER_USER = "xeno";
@@ -161,10 +162,12 @@
     test -f $CAROOT/full-cert.pem || cat  $CAROOT/cert.pem $CAROOT/rootCA.pem > $CAROOT/full-cert.pem
     test -f $CAROOT/rsa-private_traditional.key || openssl rsa -in $CAROOT/key.pem -traditional -out $CAROOT/rsa-private_traditional.key
     test -f $CAROOT/private.ec.key || openssl ecparam -name prime256v1 -genkey -noout -out $CAROOT/private.ec.key
+    test -f $CAROOT/encrypted.rsa.key || openssl genrsa -aes128 -passout pass:$KEY_TEST_PW -out $CAROOT/encrypted.rsa.key 4096
 
     # ECDSA_DIR=$CAROOT/ecdsa-cert
     test -d $ECDSA_DIR || mkdir $ECDSA_DIR
     test -f $ECDSA_DIR/ecdsa.key || openssl ecparam -name prime256v1 -genkey -noout -out $ECDSA_DIR/ecdsa.key
+    test -f $ECDSA_DIR/encrypted.ecdsa.key || openssl ec -in $ECDSA_DIR/ecdsa.key -out $ECDSA_DIR/encrypted.ecdsa.key -aes256 -passout pass:$KEY_TEST_PW
     test -f $ECDSA_DIR/ecdsa.crt || openssl req -new -x509 -key $ECDSA_DIR/ecdsa.key -days 825 -out $ECDSA_DIR/ecdsa.crt \
         -subj "/CN=example.com/O=Example Org" \
         -addext "subjectAltName=DNS:example.com,DNS:alt.example.com,IP:10.0.0.5"
@@ -172,6 +175,7 @@
     # ED25519_DIR=$CAROOT/ed25519_cert
     test -d $ED25519_DIR || mkdir $ED25519_DIR
     test -f $ED25519_DIR/ed25519.key || openssl genpkey -algorithm Ed25519 -out $ED25519_DIR/ed25519.key
+    test -f $ED25519_DIR/encrypted.ed25519.key || openssl pkey -in $ED25519_DIR/ed25519.key -out $ED25519_DIR/encrypted.ed25519.key -aes256 -passout pass:$KEY_TEST_PW
     test -f $ED25519_DIR/ed25519.crt || openssl req -new -x509 -key $ED25519_DIR/ed25519.key -days 365 -out $ED25519_DIR/ed25519.crt \
     -subj "/CN=example.com/O=Example Org" -addext "subjectAltName=DNS:example.com,IP:127.0.0.1"
   '';
@@ -254,6 +258,70 @@
 
     ./dist/https-wrench requests --config $CA_BUNDLE_YAML_TEST_FILE | grep 'StatusCode: 200'
   '';
+
+  scripts.test-certinfo-encrypted-rsa-key.exec = ''
+    gum format "## test certinfo load encrypted RSA key using env var"
+    export CERTINFO_PKEY_PW=$KEY_TEST_PW
+    set +o pipefail
+    ./dist/https-wrench certinfo --key-file $CAROOT/encrypted.rsa.key | grep 'RSA'
+  '';
+
+  scripts.test-certinfo-encrypted-ecdsa-key.exec = ''
+    gum format "## test certinfo load encrypted ECDSA key using env var"
+    export CERTINFO_PKEY_PW=$KEY_TEST_PW
+    set +o pipefail
+    ./dist/https-wrench certinfo --key-file $ECDSA_DIR/encrypted.ecdsa.key | grep 'ECDSA'
+  '';
+
+  scripts.test-certinfo-encrypted-ed25519-key.exec = ''
+    gum format "## test certinfo load encrypted ED25519 key using env var"
+    export CERTINFO_PKEY_PW=$KEY_TEST_PW
+    set +o pipefail
+    ./dist/https-wrench certinfo --key-file $ED25519_DIR/encrypted.ed25519.key | grep 'Ed25519'
+  '';
+
+  scripts.test-certinfo-encrypted-key-cleanup-env.exec = ''
+    unset CERTINFO_PKEY_PW
+  '';
+
+  scripts.test-certinfo-encrypted-rsa-key-expect = {
+    exec = ''
+      send -- "test certinfo load encrypted RSA key\n"
+      spawn ./dist/https-wrench certinfo --key-file ${config.env.CAROOT}/encrypted.rsa.key
+      expect "Private key is encrypted, please enter passphrase:"
+      send -- "${config.env.KEY_TEST_PW}\r"
+      expect "RSA"
+      send -- "Key decrypted successfully\r"
+      expect eof
+    '';
+    package = pkgs.expect;
+  };
+
+  scripts.test-certinfo-encrypted-ecdsa-key-expect = {
+    exec = ''
+      send -- "test certinfo load encrypted ECDSA key\n"
+      spawn ./dist/https-wrench certinfo --key-file ${config.env.ECDSA_DIR}/encrypted.ecdsa.key
+      expect "Private key is encrypted, please enter passphrase:"
+      send -- "${config.env.KEY_TEST_PW}\r"
+      expect "ECDSA"
+      send -- "Key decrypted successfully\r"
+      expect eof
+    '';
+    package = pkgs.expect;
+  };
+
+  scripts.test-certinfo-encrypted-ed25519-key-expect = {
+    exec = ''
+      send -- "test certinfo load encrypted ED25519 key\n"
+      spawn ./dist/https-wrench certinfo --key-file ${config.env.ED25519_DIR}/encrypted.ed25519.key
+      expect "Private key is encrypted, please enter passphrase:"
+      send -- "${config.env.KEY_TEST_PW}\r"
+      expect "Ed25519"
+      send -- "Key decrypted successfully\r"
+      expect eof
+    '';
+    package = pkgs.expect;
+  };
 
   scripts.test-certinfo-pkcs1-rsa-key.exec = ''
     gum format "## test certinfo load PKCS1 RSA key"
@@ -392,6 +460,13 @@
     test-requests-ca-bundle-yaml
     test-requests-body-regexp-match
 
+    test-certinfo-encrypted-rsa-key
+    test-certinfo-encrypted-ecdsa-key
+    test-certinfo-encrypted-ed25519-key
+    test-certinfo-encrypted-key-cleanup-env
+    test-certinfo-encrypted-rsa-key-expect
+    test-certinfo-encrypted-ecdsa-key-expect
+    test-certinfo-encrypted-ed25519-key-expect
     test-certinfo-pkcs1-ec-key
     test-certinfo-pkcs1-rsa-key
     test-certinfo-pkcs8-rsa-key
