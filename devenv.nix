@@ -46,7 +46,7 @@
     };
   };
 
-  languages.go.enable = true;
+  # languages.go.enable = true;
 
   services.nginx = {
     enable = true;
@@ -231,6 +231,11 @@
     ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem | grep "StatusCode: 200"
   '';
 
+  scripts.test-requests-valid-cert-wrong-ca-bundle.exec = ''
+    gum format "## test request with valid cert and wrong CA bundle file"
+    ./dist/https-wrench requests --config ./examples/tests-configs/repo-os76.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
+  '';
+
   scripts.test-requests-ca-bundle-file-wrong-servername.exec = ''
     gum format "## test request with CA bundle file and wrong host name / servername"
     ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem | grep 'tls: failed to verify certificate: x509'
@@ -383,6 +388,12 @@
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443
   '';
 
+  scripts.test-certinfo-tlsendpoint-wrong-ca-file.exec = ''
+    gum format "## test certinfo tlsEnpoint with wrong CA file"
+    set +o pipefail
+    ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443 --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
+  '';
+
   scripts.test-certinfo-tlsendpoint-servername.exec = ''
     gum format "## test certinfo tlsEnpoint servername"
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443 --tls-servername www.os76.xyz
@@ -455,6 +466,7 @@
     test-requests-unknown-ca
     test-requests-ca-bundle-file-success
     test-requests-ca-bundle-file-wrong-servername
+    test-requests-valid-cert-wrong-ca-bundle
     test-requests-proxy-protocol-ipv4
     test-requests-proxy-protocol-ipv6
     test-requests-ca-bundle-yaml
@@ -476,6 +488,7 @@
     test-certinfo-ed25519-cert
     test-certinfo-ecdsa-cert
     test-certinfo-tlsendpoint
+    test-certinfo-tlsendpoint-wrong-ca-file
     test-certinfo-tlsendpoint-servername
     test-certinfo-tlsendpoint-timeout
     test-certinfo-tlsendpoint-malformed
