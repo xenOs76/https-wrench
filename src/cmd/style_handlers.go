@@ -6,6 +6,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -200,17 +202,18 @@ func RenderTlsData(r *http.Response) {
 func CertsToTables(certs []*x509.Certificate) {
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
+	svn := styleCertValueNotice.Render
 
 	for i := range certs {
-
 		header := lgSprintf(styleCertKeyP4.Bold(true), "Certificate %d", i)
+		cert := certs[i]
 
-		subject := certs[i].Subject.String()
-		dnsNames := "[" + strings.Join(certs[i].DNSNames, ", ") + "]"
-		issuer := certs[i].Issuer.String()
+		subject := cert.Subject.String()
+		dnsNames := "[" + strings.Join(cert.DNSNames, ", ") + "]"
+		issuer := cert.Issuer.String()
 
-		notBefore := certs[i].NotBefore
-		notAfter := certs[i].NotAfter
+		notBefore := cert.NotBefore
+		notAfter := cert.NotAfter
 		expiration := humanize.Time(notAfter)
 		daysUntilExpiration := time.Until(notAfter).Hours() / 24
 
@@ -222,10 +225,14 @@ func CertsToTables(certs []*x509.Certificate) {
 			expStyle = styleCrit.Render
 		}
 
-		isCA := strconv.FormatBool(certs[i].IsCA)
-		publicKeyAlgorithm := certs[i].PublicKeyAlgorithm.String()
-		signatureAlgorithm := certs[i].SignatureAlgorithm.String()
-		serialNumber := certs[i].SerialNumber.String()
+		isCA := strconv.FormatBool(cert.IsCA)
+		publicKeyAlgorithm := cert.PublicKeyAlgorithm.String()
+		authorityKeyID := fmt.Sprintf("%x", cert.AuthorityKeyId)
+		subjectKeyID := fmt.Sprintf("%x", cert.SubjectKeyId)
+		signatureAlgorithm := cert.SignatureAlgorithm.String()
+		fingerprintSha256 := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+		fingerprintSha1 := fmt.Sprintf("%x", sha1.Sum(cert.Raw))
+		serialNumber := cert.SerialNumber.String()
 
 		t := table.New().Border(lgDefBorder).Headers(header)
 		t.Row(sl("Subject"), sv(subject))
@@ -234,9 +241,13 @@ func CertsToTables(certs []*x509.Certificate) {
 		t.Row(sl("NotBefore"), sv(notBefore.String()))
 		t.Row(sl("NotAfter"), expStyle(notAfter.String()))
 		t.Row(sl("Expiration"), expStyle(expiration))
-		t.Row(sl("IsCA"), sv(isCA))
+		t.Row(sl("IsCA"), svn(isCA))
+		t.Row(sl("AuthorityKeyId"), svn(authorityKeyID))
+		t.Row(sl("SubjectKeyId"), svn(subjectKeyID))
 		t.Row(sl("PublicKeyAlgorithm"), sv(publicKeyAlgorithm))
 		t.Row(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
+		t.Row(sl("Fingerprint SHA-256"), sv(fingerprintSha256))
+		t.Row(sl("Fingerprint SHA-1"), sv(fingerprintSha1))
 		t.Row(sl("SerialNumber"), sv(serialNumber))
 		fmt.Println(t.Render())
 		t.ClearRows()

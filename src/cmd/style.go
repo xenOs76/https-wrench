@@ -69,6 +69,9 @@ var (
 	styleCertValue = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(catPeach))
 
+	styleCertValueNotice = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(catMauve))
+
 	styleVia = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(catMauve)).Italic(true).
 			PaddingLeft(1)

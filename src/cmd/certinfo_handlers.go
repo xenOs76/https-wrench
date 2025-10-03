@@ -70,6 +70,12 @@ func (c *CertinfoConfig) PrintData() {
 	if len(caBundlePath) > 0 {
 		fmt.Println(lgSprintf(ks, "CA Certificates"))
 		fmt.Println(lgSprintf(sl.PaddingTop(1).PaddingBottom(1), "CA Certificates file: %v", sv.Render(caBundlePath)))
+		rootCerts, err := getCertsFromBundle(caBundlePath)
+		if err != nil {
+			fmt.Printf("unable for read Root certificates from %s: %s", caBundlePath, err)
+			return
+		}
+		CertsToTables(rootCerts)
 	}
 }
 
