@@ -108,37 +108,31 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 }
 
 func getRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
+	rootCAPool := x509.NewCertPool()
 	certsFromFile, err := os.ReadFile(caBundlePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read CA bundle file: %v", err)
+		return nil, fmt.Errorf("failed to read CA bundle file: %w", err)
 	}
-	if ok := rootCAs.AppendCertsFromPEM(certsFromFile); !ok {
+	if ok := rootCAPool.AppendCertsFromPEM(certsFromFile); !ok {
 		fmt.Println("Certs from file not appended, using system certs only")
 	}
-	return rootCAs, nil
+	return rootCAPool, nil
 }
 
 func getRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
+	rootCAPool := x509.NewCertPool()
 	if caBundleString != "" {
-		if ok := rootCAs.AppendCertsFromPEM([]byte(caBundleString)); !ok {
+		if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
 			return nil, fmt.Errorf("no valid certs in caBundle config string")
 		}
 	}
-	return rootCAs, nil
+	return rootCAPool, nil
 }
 
 func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 	certPEM, err := os.ReadFile(certBundlePath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading certificate file: %s", err)
+		return nil, fmt.Errorf("error reading certificate file: %w", err)
 	}
 
 	var certs []*x509.Certificate
@@ -154,7 +148,7 @@ func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 		}
 		c, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing certificate: %v", err)
+			return nil, fmt.Errorf("error parsing certificate: %w", err)
 		}
 		certs = append(certs, c)
 	}

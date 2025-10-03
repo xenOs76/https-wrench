@@ -25,10 +25,11 @@ import (
 	"crypto/x509"
 	_ "embed"
 	"fmt"
+	"os"
+
 	_ "github.com/breml/rootcerts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var (
@@ -55,7 +56,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("Config file not found: %s\n", viper.ConfigFileUsed())
 		}
-
 	},
 }
 
@@ -113,7 +113,8 @@ func LoadConfig() (*Config, error) {
 }
 
 func addCaBundleFlag(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", "Path to PEM CA bundle file")
+	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", `Path to bundle file with CA certificates 
+to use for validation`)
 	err := viper.BindPFlag("ca-bundle", cmd.Flags().Lookup("ca-bundle"))
 	if err != nil {
 		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
