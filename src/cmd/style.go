@@ -30,78 +30,79 @@ var (
 	catTeal     = lipgloss.Color(flavour.Teal().Hex)
 	lgRed       = lipgloss.Color("#FF0000")
 
-	styleCmd = lipgloss.NewStyle().Foreground(catBase).Background(catBlue).Bold(true).PaddingLeft(1).PaddingRight(1)
+	styleCmd = lipgloss.NewStyle().Foreground(catBase).Background(catBlue).
+			Bold(true).PaddingLeft(1).PaddingRight(1)
 
 	styleTitleKey = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catBlue)).Bold(true)
+			Foreground(catBlue).Bold(true)
 
 	styleTitle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catLavander)).Bold(true).
+			Foreground(catLavander).Bold(true).
 			PaddingLeft(1)
 
 	styleItemKey = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catBlue)).
+			Foreground(catBlue).
 			PaddingLeft(1).Bold(true)
 
 	styleItemKeyP3 = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catBlue)).
+			Foreground(catBlue).
 			PaddingLeft(3).Bold(true)
 
 	styleHeadKeyP3 = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catFlamingo)).
+			Foreground(catFlamingo).
 			PaddingLeft(3)
 
 	styleHeadValue = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catSapphire))
+			Foreground(catSapphire)
 
 	styleCertKeyP3 = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catLavander)).
+			Foreground(catLavander).
 			PaddingLeft(3)
 
 	styleCertKeyP4 = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catLavander)).
+			Foreground(catLavander).
 			PaddingLeft(4)
 
 	styleCertKeyP5 = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catLavander)).
+			Foreground(catLavander).
 			PaddingLeft(5)
 
 	styleCertValue = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catPeach))
+			Foreground(catPeach)
 
 	styleCertValueNotice = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(catMauve))
+				Foreground(catMauve)
 
 	styleVia = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catMauve)).Italic(true).
+			Foreground(catMauve).Italic(true).
 			PaddingLeft(1)
 
-	styleUrl = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catFlamingo)).Bold(true)
+	styleURL = lipgloss.NewStyle().
+			Foreground(catFlamingo).Bold(true)
 
 	styleStatus = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catSapphire))
+			Foreground(catSapphire)
 
 	styleStatus2xx = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catGreen))
+			Foreground(catGreen)
 
 	styleStatus3xx = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catMauve))
+			Foreground(catMauve)
 
 	styleStatus4xx = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catYellow))
+			Foreground(catYellow)
 
 	styleStatus5xx = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catRed))
+			Foreground(catRed)
 
 	styleStatusError = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(catRed))
+				Foreground(catRed)
 
 	styleError = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(catPink)).Italic(true)
+			Foreground(catPink).Italic(true)
 
 	styleHeaders = lipgloss.NewStyle().Italic(true).PaddingLeft(4).
-			Foreground(lipgloss.Color(catTeal))
+			Foreground(catTeal)
 
 	styleBoolTrue  = lipgloss.NewStyle().Foreground(catTeal)
 	styleBoolFalse = lipgloss.NewStyle().Foreground(catYellow)
