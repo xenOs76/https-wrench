@@ -227,21 +227,21 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 		keyBlock.Bytes = keyDER
 	}
 
-	pkcs8Key, PKCS8err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
-	if PKCS8err == nil {
+	pkcs8Key, pkcs8Err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if pkcs8Err == nil {
 		return pkcs8Key, nil
 	}
 
-	rsaKey, PKCS1err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
-	if PKCS1err == nil {
+	rsaKey, pkcs1Err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if pkcs1Err == nil {
 		return rsaKey, nil
 	}
 
-	ecKey, ECerr := x509.ParseECPrivateKey(keyBlock.Bytes)
-	if ECerr == nil {
+	ecKey, ecErr := x509.ParseECPrivateKey(keyBlock.Bytes)
+	if ecErr == nil {
 		return ecKey, nil
 	}
-	err = ECerr
+	err = ecErr
 
 	return nil, fmt.Errorf("error parsing private key: %v", err)
 }
