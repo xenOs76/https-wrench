@@ -45,7 +45,8 @@ var requestsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg, err := LoadConfig()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Print(err)
+			return
 		}
 
 		if showSampleConfig {
@@ -60,14 +61,16 @@ var requestsCmd = &cobra.Command{
 		if caBundlePath != "" {
 			caCerts, err := getRootCertsFromFile(caBundlePath)
 			if err != nil {
-				log.Fatal(err)
+				fmt.Print(err)
+				return
 			}
 			rootCAs = caCerts
 		}
 
 		responseMap, err := handleRequests(cfg)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Print(err)
+			return
 		}
 		if cfg.Debug {
 			dump.Print(responseMap)
