@@ -71,7 +71,7 @@ Examples:
 		caCerts, err := x509.SystemCertPool()
 		if err != nil {
 			fmt.Printf("Error creating system cert pool: %s", err)
-			os.Exit(1)
+			return
 		}
 		certinfoCfg.CACerts = caCerts
 
@@ -79,7 +79,7 @@ Examples:
 			caCerts, err := getRootCertsFromFile(caBundlePath)
 			if err != nil {
 				fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
-				os.Exit(1)
+				return
 			}
 			certinfoCfg.CACerts = caCerts
 		}
@@ -88,7 +88,7 @@ Examples:
 			certsFromBundle, err := getCertsFromBundle(certBundlePath)
 			if err != nil {
 				fmt.Printf("Error importing Certificate bundle from file: %s", err)
-				os.Exit(1)
+				return
 			}
 			certinfoCfg.CertsBundle = certsFromBundle
 		}
@@ -97,7 +97,7 @@ Examples:
 			endpointHost, endpointPort, err := net.SplitHostPort(tlsEndpoint)
 			if err != nil {
 				fmt.Printf("Error parsing TLS endpoint url: %s", err)
-				os.Exit(1)
+				return
 			}
 			certinfoCfg.TLSEndpointHost = endpointHost
 			certinfoCfg.TLSEndpointPort = endpointPort
@@ -108,7 +108,7 @@ Examples:
 			keyFromFile, err := getKeyFromFile(keyFilePath)
 			if err != nil {
 				fmt.Printf("Error importing key from file: %s", err)
-				os.Exit(1)
+				return
 			}
 			certinfoCfg.PrivKey = keyFromFile
 		}

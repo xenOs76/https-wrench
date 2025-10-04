@@ -95,7 +95,7 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "TLS handshake failed: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	defer conn.Close()
 
