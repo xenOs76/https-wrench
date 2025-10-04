@@ -79,6 +79,9 @@ var requestsCmd = &cobra.Command{
 }
 
 func init() {
-	requestsCmd.PersistentFlags().BoolVar(&showSampleConfig, "show-sample-config", false, "Show a sample YAML configuration")
+	requestsCmd.PersistentFlags().BoolVar(&showSampleConfig,
+		"show-sample-config",
+		false,
+		"Show a sample YAML configuration")
 	rootCmd.AddCommand(requestsCmd)
 }
