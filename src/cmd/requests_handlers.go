@@ -130,20 +130,22 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	headerSrcPort := proxyProtoDefaultSrcPort
 	headerTransportProtocol := proxyproto.TCPv4
 
-	reqUrl, err := url.Parse(serverName)
+	reqURL, err := url.Parse(serverName)
 	if err != nil {
 		return proxyproto.Header{}, err
 	}
 
 	if len(r.TransportOverrideURL) > 0 {
-		reqUrl, err = url.Parse(r.TransportOverrideURL)
+		reqURL, err = url.Parse(r.TransportOverrideURL)
 		if err != nil {
-			return proxyproto.Header{}, fmt.Errorf("failed to parse transport override url: %w", err)
+			return proxyproto.Header{}, fmt.Errorf(
+				"failed to parse transport override url: %w",
+				err)
 		}
 	}
 
-	reqHostname := reqUrl.Hostname()
-	reqPort := reqUrl.Port()
+	reqHostname := reqURL.Hostname()
+	reqPort := reqURL.Port()
 
 	if reqPort == "" {
 		reqPort = "443"
