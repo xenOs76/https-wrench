@@ -107,7 +107,7 @@ func initConfig() {
 func LoadConfig() (*Config, error) {
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("unable to decode into config struct: %s", err)
+		return nil, fmt.Errorf("unable to decode into config struct: %w", err)
 	}
 	return &config, nil
 }

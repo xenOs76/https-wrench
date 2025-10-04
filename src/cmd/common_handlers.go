@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -51,10 +52,11 @@ func printKeyInfo(privKey crypto.PrivateKey) {
 	fmt.Println()
 }
 
-// Check if the first Certificate from a slice has been created with the PrivateKey passed as argument
+// Check if the first Certificate from a slice has been created with the
+// PrivateKey passed as argument
 func certsFromPrivateKey(c []*x509.Certificate, key crypto.PrivateKey) (bool, error) {
 	if len(c) == 0 {
-		return false, fmt.Errorf("empty Certificate slice provided")
+		return false, errors.New("empty Certificate slice provided")
 	}
 
 	match := false
@@ -72,7 +74,7 @@ func certsFromPrivateKey(c []*x509.Certificate, key crypto.PrivateKey) (bool, er
 			match = true
 		}
 	default:
-		return false, fmt.Errorf("unsupported public key type in certificate")
+		return false, errors.New("unsupported public key type in certificate")
 	}
 	return match, nil
 }
@@ -102,7 +104,7 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 			match = true
 		}
 	default:
-		return false, fmt.Errorf("unsupported public key type in certificate")
+		return false, errors.New("unsupported public key type in certificate")
 	}
 	return match, nil
 }
@@ -123,7 +125,7 @@ func getRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	rootCAPool := x509.NewCertPool()
 	if caBundleString != "" {
 		if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
-			return nil, fmt.Errorf("no valid certs in caBundle config string")
+			return nil, errors.New("no valid certs in caBundle config string")
 		}
 	}
 	return rootCAPool, nil
@@ -178,7 +180,7 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 
 	keyPEM, err := os.ReadFile(keyFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading key file: %v", err)
+		return nil, fmt.Errorf("error reading key file: %w", err)
 	}
 
 	pkcs8EncRE := regexp.MustCompile(`\sENCRYPTED\sPRIVATE\sKEY`)
@@ -197,9 +199,9 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 
 	if (pkeyEnvPw == "") && (pkcs1Encrypted || pkcs8Encrypted) {
 		fmt.Print("Private key is encrypted, please enter passphrase:")
-		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return nil, fmt.Errorf("error reading passphrase: %v", err)
+		pw, trErr := term.ReadPassword(int(os.Stdin.Fd()))
+		if trErr != nil {
+			return nil, fmt.Errorf("error reading passphrase: %w", trErr)
 		}
 		pass = pw
 	}
@@ -209,11 +211,11 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to decode PEM private key from %s", keyFilePath)
 	}
 
-	var pkcs8PrivKey interface{}
+	var pkcs8PrivKey any
 	if pkcs8Encrypted {
 		pkcs8PrivKey, err = pkcs8.ParsePKCS8PrivateKey(keyBlock.Bytes, pass)
 		if err != nil {
-			return nil, fmt.Errorf("error decrypting PKCS8 private key: %v", err)
+			return nil, fmt.Errorf("error decrypting PKCS8 private key: %w", err)
 		}
 		return pkcs8PrivKey, nil
 	}
@@ -222,7 +224,7 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 	if pkcs1Encrypted {
 		keyDER, err = x509.DecryptPEMBlock(keyBlock, pass)
 		if err != nil {
-			return nil, fmt.Errorf("error decrypting PKCS1 private key: %v", err)
+			return nil, fmt.Errorf("error decrypting PKCS1 private key: %w", err)
 		}
 		keyBlock.Bytes = keyDER
 	}
@@ -243,5 +245,5 @@ func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 	}
 	err = ecErr
 
-	return nil, fmt.Errorf("error parsing private key: %v", err)
+	return nil, fmt.Errorf("error parsing private key: %w", err)
 }

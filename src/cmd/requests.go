@@ -61,9 +61,9 @@ var requestsCmd = &cobra.Command{
 		}
 
 		if caBundlePath != "" {
-			caCerts, err := getRootCertsFromFile(caBundlePath)
-			if err != nil {
-				fmt.Print(err)
+			caCerts, cabErr := getRootCertsFromFile(caBundlePath)
+			if cabErr != nil {
+				fmt.Print(cabErr)
 				return
 			}
 			rootCAs = caCerts

@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -231,8 +230,8 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 			}
 
 			if r.EnableProxyProtocolV2 {
-				header, err := proxyProtoHeaderFromRequest(r, serverName)
-				if err != nil {
+				header, pphErr := proxyProtoHeaderFromRequest(r, serverName)
+				if pphErr != nil {
 					return nil, fmt.Errorf("failed to create proxy header from request: %w", err)
 				}
 
@@ -240,9 +239,9 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 					fmt.Printf("Sending PROXY header: %+v\n", header)
 				}
 
-				if _, err := header.WriteTo(conn); err != nil {
+				if _, hwtErr := header.WriteTo(conn); hwtErr != nil {
 					conn.Close()
-					return nil, fmt.Errorf("failed to write PROXY header: %w", err)
+					return nil, fmt.Errorf("failed to write PROXY header: %w", hwtErr)
 				}
 			}
 			return conn, err
@@ -274,7 +273,6 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 	}
 
 	for _, r := range cfg.Requests {
-
 		var respDataList []ResponseData
 		requestBodyReader := bytes.NewReader(httpClientDefaultRequestBody)
 
@@ -297,7 +295,6 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 		}
 
 		for _, host := range r.Hosts {
-
 			client, transportAddress, err := buildHTTPClient(r, host.Name)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build HTTP client: %w", err)
@@ -329,9 +326,9 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				}
 
 				if r.RequestDebug {
-					reqDump, err := httputil.DumpRequestOut(req, true)
-					if err != nil {
-						log.Fatal(err)
+					reqDump, drErr := httputil.DumpRequestOut(req, true)
+					if drErr != nil {
+						return nil, drErr
 					}
 					fmt.Printf("Requesting url: %s\n", reqUrl)
 					fmt.Printf("Request dump:\n%s\n", string(reqDump))
@@ -355,7 +352,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				if r.ResponseDebug {
 					respDump, err := httputil.DumpResponse(resp, true)
 					if err != nil {
-						log.Fatal(err)
+						return nil, err
 					}
 					fmt.Printf("Requested url: %s\n", reqUrl)
 					fmt.Printf("Response dump:\n%s\n", string(respDump))

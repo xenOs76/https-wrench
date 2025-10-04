@@ -94,7 +94,6 @@ func (rd *ResponseData) ImportResponseBody() {
 
 	jsonRegexp, _ := regexp.Compile("(?i)application/json")
 	if matched := jsonRegexp.MatchString(contentType); matched {
-
 		var prettyJSON bytes.Buffer
 		if err := json.Indent(&prettyJSON, body, "", "  "); err != nil {
 			prettyJSON.WriteString(string(body))
@@ -151,7 +150,9 @@ func (rd ResponseData) PrintResponseData() {
 			styleError.Render(rd.Error.Error())),
 		)
 		fmt.Println()
-	} else {
+	}
+
+	if rd.Error == nil {
 		fmt.Println(lgSprintf(styleStatus, "%v", statusCodeParse(rd.Response.StatusCode)))
 
 		if rd.Request.PrintResponseCertificates {
@@ -186,7 +187,9 @@ func RenderTLSData(r *http.Response) {
 	fmt.Println(lgSprintf(styleItemKeyP3, "TLS:"))
 
 	if tls == nil {
-		fmt.Println(lgSprintf(styleCertKeyP4, "%s", styleError.Render("No TLS connection state available")))
+		fmt.Println(lgSprintf(styleCertKeyP4,
+			"%s",
+			styleError.Render("No TLS connection state available")))
 		return
 	}
 
