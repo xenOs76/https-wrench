@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
-	"os"
 	"time"
 
 	// "github.com/gookit/goutil/dump"
@@ -16,8 +15,8 @@ import (
 )
 
 const (
-	certinfoTLSTimeout      time.Duration = 3
-	certinfoCertExpWarnDays               = 40
+	certinfoTLSTimeout      = 3 * time.Second
+	certinfoCertExpWarnDays = 40
 )
 
 type CertinfoConfig struct {

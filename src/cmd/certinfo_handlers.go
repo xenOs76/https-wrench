@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 	// "github.com/gookit/goutil/dump"
 )
 
@@ -46,7 +45,6 @@ func (c *CertinfoConfig) PrintData() {
 	}
 
 	if len(c.TLSEndpointCerts) > 0 {
-
 		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
 
 		fmt.Println(lgSprintf(ks, "TLSEndpoint Certificates"))
@@ -89,7 +87,7 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
 	dialer := &net.Dialer{
-		Timeout: certinfoTLSTimeout * time.Second,
+		Timeout: certinfoTLSTimeout,
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)

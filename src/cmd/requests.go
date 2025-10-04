@@ -6,13 +6,23 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	_ "embed"
 
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
+)
+
+const (
+	httpClientTimeout   time.Duration = 30 * time.Second
+	httpClientKeepalive time.Duration = 30 * time.Second
+
+	transportMaxIdleConns          int           = 100
+	transportIdleConnTimeout       time.Duration = 30 * time.Second
+	transportTLSHandshakeTimeout   time.Duration = 30 * time.Second
+	transportResponseHeaderTimeout time.Duration = 30 * time.Second
+	transportExpectContinueTimeout time.Duration = 1 * time.Second
 )
 
 var (
@@ -23,14 +33,6 @@ var (
 	httpUserAgent                = "https-wrench-request"
 	httpClientDefaultMethod      = "GET"
 	httpClientDefaultRequestBody []byte
-	httpClientTimeout            time.Duration = 30
-	httpClientKeepalive          time.Duration = 30
-
-	transportMaxIdleConns                        = 100
-	transportIdleConnTimeout       time.Duration = 30
-	transportTLSHandshakeTimeout   time.Duration = 30
-	transportResponseHeaderTimeout time.Duration = 30
-	transportExpectContinueTimeout time.Duration = 1
 
 	proxyProtoDefaultSrcIPv4 = "192.0.2.1"
 	proxyProtoDefaultSrcIPv6 = "2001:db8::1"

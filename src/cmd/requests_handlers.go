@@ -183,7 +183,7 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 	clientTimeout := httpClientTimeout
 
 	if r.ClientTimeout > 0 {
-		clientTimeout = r.ClientTimeout
+		clientTimeout = r.ClientTimeout * time.Second // nolint: durationcheck
 	}
 
 	tlsClientConfig := &tls.Config{
@@ -205,10 +205,10 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 	transport := &http.Transport{
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          transportMaxIdleConns,
-		IdleConnTimeout:       transportIdleConnTimeout * time.Second,
-		TLSHandshakeTimeout:   transportTLSHandshakeTimeout * time.Second,
-		ResponseHeaderTimeout: transportResponseHeaderTimeout * time.Second,
-		ExpectContinueTimeout: transportExpectContinueTimeout * time.Second,
+		IdleConnTimeout:       transportIdleConnTimeout,
+		TLSHandshakeTimeout:   transportTLSHandshakeTimeout,
+		ResponseHeaderTimeout: transportResponseHeaderTimeout,
+		ExpectContinueTimeout: transportExpectContinueTimeout,
 		TLSClientConfig:       tlsClientConfig,
 	}
 
@@ -220,8 +220,8 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		transportAddress = tAddr
 
 		dialer := &net.Dialer{
-			Timeout:   clientTimeout * time.Second,
-			KeepAlive: httpClientKeepalive * time.Second,
+			Timeout:   httpClientTimeout,
+			KeepAlive: httpClientKeepalive,
 		}
 
 		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
@@ -231,9 +231,7 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 			}
 
 			if r.EnableProxyProtocolV2 {
-
-				header := proxyproto.Header{}
-				header, err = proxyProtoHeaderFromRequest(r, serverName)
+				header, err := proxyProtoHeaderFromRequest(r, serverName)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create proxy header from request: %w", err)
 				}
@@ -253,7 +251,7 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 
 	return &http.Client{
 		Transport: transport,
-		Timeout:   clientTimeout * time.Second,
+		Timeout:   clientTimeout,
 	}, transportAddress, nil
 }
 
