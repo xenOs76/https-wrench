@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	certinfoTlsPort         string        = "443"
-	certinfoTlsTimeout      time.Duration = 3
+	certinfoTLSTimeout      time.Duration = 3
 	certinfoCertExpWarnDays               = 40
 )
 
@@ -26,13 +25,13 @@ type CertinfoConfig struct {
 	CertsBundle             []*x509.Certificate
 	CertsBundleFromKey      bool
 	PrivKey                 crypto.PrivateKey
-	TlsEndpointHost         string
-	TlsEndpointPort         string
-	TlsEndpointCerts        []*x509.Certificate
-	TlsEndpointCertsFromKey bool
-	TlsEndpointCertsValid   bool
-	TlsServerName           string
-	TlsInsecure             bool
+	TLSEndpointHost         string
+	TLSEndpointPort         string
+	TLSEndpointCerts        []*x509.Certificate
+	TLSEndpointCertsFromKey bool
+	TLSEndpointCertsValid   bool
+	TLSServerName           string
+	TLSInsecure             bool
 }
 
 var (
@@ -41,7 +40,7 @@ var (
 	tlsEndpoint        string
 	tlsServerName      string
 	tlsInsecure        bool
-	privateKeyPwEnvVar string = "CERTINFO_PKEY_PW"
+	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
 )
 
 var certinfoCmd = &cobra.Command{
@@ -67,7 +66,7 @@ Examples:
   certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		certinfoCfg := CertinfoConfig{TlsInsecure: tlsInsecure, TlsServerName: tlsServerName}
+		certinfoCfg := CertinfoConfig{TLSInsecure: tlsInsecure, TLSServerName: tlsServerName}
 
 		caCerts, err := x509.SystemCertPool()
 		if err != nil {
@@ -100,8 +99,8 @@ Examples:
 				fmt.Printf("Error parsing TLS endpoint url: %s", err)
 				os.Exit(1)
 			}
-			certinfoCfg.TlsEndpointHost = endpointHost
-			certinfoCfg.TlsEndpointPort = endpointPort
+			certinfoCfg.TLSEndpointHost = endpointHost
+			certinfoCfg.TLSEndpointPort = endpointPort
 			certinfoCfg.GetRemoteCerts()
 		}
 

@@ -23,7 +23,7 @@ func (h ResponseHeader) String() string {
 	return string(h)
 }
 
-func (u Uri) Parse() bool {
+func (u URI) Parse() bool {
 	matched, err := regexp.Match(`^\/.*`, []byte(u))
 	if err != nil {
 		return false
@@ -88,13 +88,13 @@ func parseResponseHeaders(headers http.Header, filter []string) string {
 func getUrlsFromHost(h Host) []string {
 	var list []string
 
-	if len(h.UriList) == 0 {
+	if len(h.URIList) == 0 {
 		s := fmt.Sprintf("https://%s", h.Name)
 		list = append(list, s)
 		return list
 	}
 
-	for _, uri := range h.UriList {
+	for _, uri := range h.URIList {
 		if parsed := uri.Parse(); !parsed {
 			fmt.Printf("Invalid uri %s for host %s", uri, h)
 			break
@@ -107,7 +107,7 @@ func getUrlsFromHost(h Host) []string {
 
 func transportAddressFromRequest(r RequestConfig) (string, error) {
 	var addr string
-	overrideURL, err := url.Parse(r.TransportOverrideUrl)
+	overrideURL, err := url.Parse(r.TransportOverrideURL)
 	if err != nil {
 		return "", err
 	}
@@ -135,8 +135,8 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 		return proxyproto.Header{}, err
 	}
 
-	if len(r.TransportOverrideUrl) > 0 {
-		reqUrl, err = url.Parse(r.TransportOverrideUrl)
+	if len(r.TransportOverrideURL) > 0 {
+		reqUrl, err = url.Parse(r.TransportOverrideURL)
 		if err != nil {
 			return proxyproto.Header{}, fmt.Errorf("failed to parse transport override url: %w", err)
 		}
@@ -210,7 +210,7 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		TLSClientConfig:       tlsClientConfig,
 	}
 
-	if len(r.TransportOverrideUrl) > 0 {
+	if len(r.TransportOverrideURL) > 0 {
 		tAddr, err := transportAddressFromRequest(r)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to parse transport override url: %w", err)
@@ -290,9 +290,9 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 			fmt.Print(lgSprintf(styleTitleKey, "Request:"))
 			fmt.Println(lgSprintf(styleTitle, "%s", r.Name))
 
-			if r.TransportOverrideUrl != "" {
+			if r.TransportOverrideURL != "" {
 				fmt.Print(lgSprintf(styleItemKey, "Via:"))
-				fmt.Println(lgSprintf(styleVia, "%s", r.TransportOverrideUrl))
+				fmt.Println(lgSprintf(styleVia, "%s", r.TransportOverrideURL))
 			}
 		}
 
@@ -325,7 +325,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				rd := ResponseData{
 					Request:          r,
 					TransportAddress: transportAddress,
-					Url:              reqUrl,
+					URL:              reqUrl,
 				}
 
 				if r.RequestDebug {

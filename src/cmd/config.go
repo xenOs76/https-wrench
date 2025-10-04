@@ -6,13 +6,13 @@ import (
 )
 
 type (
-	Uri            string
+	URI            string
 	ResponseHeader string
 )
 
 type Host struct {
 	Name    string `mapstructure:"name"`
-	UriList []Uri  `mapstructure:"uriList"`
+	URIList []URI  `mapstructure:"uriList"`
 }
 
 type RequestHeader struct {
@@ -24,7 +24,7 @@ type RequestConfig struct {
 	Name                      string          `mapstructure:"name"`
 	ClientTimeout             time.Duration   `mapstructure:"clientTimeout"`
 	UserAgent                 string          `mapstructure:"userAgent"`
-	TransportOverrideUrl      string          `mapstructure:"transportOverrideUrl"`
+	TransportOverrideURL      string          `mapstructure:"transportOverrideUrl"`
 	EnableProxyProtocolV2     bool            `mapstructure:"enableProxyProtocolV2"`
 	Insecure                  bool            `mapstructure:"insecure"`
 	RequestDebug              bool            `mapstructure:"requestDebug"`
@@ -43,7 +43,7 @@ type RequestConfig struct {
 type ResponseData struct {
 	Request                   RequestConfig
 	TransportAddress          string
-	Url                       string
+	URL                       string
 	ResponseBody              string
 	ResponseBodyRegexpMatched bool
 	Response                  *http.Response

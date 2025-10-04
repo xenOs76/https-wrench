@@ -34,7 +34,7 @@ import (
 
 var (
 	cfgFile        string
-	version        string = "development"
+	version        = "development"
 	caBundlePath   string
 	certBundlePath string
 	keyFilePath    string

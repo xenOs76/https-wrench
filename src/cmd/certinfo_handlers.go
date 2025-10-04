@@ -45,26 +45,26 @@ func (c *CertinfoConfig) PrintData() {
 		CertsToTables(c.CertsBundle)
 	}
 
-	if len(c.TlsEndpointCerts) > 0 {
+	if len(c.TLSEndpointCerts) > 0 {
 
-		endpoint := sv.Render(c.TlsEndpointHost + ":" + c.TlsEndpointPort)
+		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
 
 		fmt.Println(lgSprintf(ks, "TLSEndpoint Certificates"))
 		fmt.Println(lgSprintf(sl.PaddingTop(1), "Endpoint: %v", endpoint))
 
-		if c.TlsServerName != "" {
-			fmt.Println(lgSprintf(sl, "ServerName: %v", sv.Render(c.TlsServerName)))
+		if c.TLSServerName != "" {
+			fmt.Println(lgSprintf(sl, "ServerName: %v", sv.Render(c.TLSServerName)))
 		}
 
 		if c.PrivKey != nil {
-			tlsMatch, err := certMatchPrivateKey(c.TlsEndpointCerts[0], c.PrivKey)
+			tlsMatch, err := certMatchPrivateKey(c.TLSEndpointCerts[0], c.PrivKey)
 			if err != nil {
 				fmt.Print(err)
 			}
 			fmt.Println(lgSprintf(sl, "PrivateKey match: %v", boolStyle(tlsMatch)))
 		}
 
-		CertsToTables(c.TlsEndpointCerts)
+		CertsToTables(c.TLSEndpointCerts)
 	}
 
 	if len(caBundlePath) > 0 {
@@ -80,16 +80,16 @@ func (c *CertinfoConfig) PrintData() {
 }
 
 func (c *CertinfoConfig) GetRemoteCerts() {
-	tlsConfig := &tls.Config{RootCAs: c.CACerts, InsecureSkipVerify: c.TlsInsecure}
+	tlsConfig := &tls.Config{RootCAs: c.CACerts, InsecureSkipVerify: c.TLSInsecure}
 
-	if c.TlsServerName != "" {
-		tlsConfig.ServerName = c.TlsServerName
+	if c.TLSServerName != "" {
+		tlsConfig.ServerName = c.TLSServerName
 	}
 
-	serverAddr := net.JoinHostPort(c.TlsEndpointHost, c.TlsEndpointPort)
+	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
 	dialer := &net.Dialer{
-		Timeout: certinfoTlsTimeout * time.Second,
+		Timeout: certinfoTLSTimeout * time.Second,
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
@@ -100,10 +100,10 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	defer conn.Close()
 
 	cs := conn.ConnectionState()
-	c.TlsEndpointCerts = cs.PeerCertificates
+	c.TLSEndpointCerts = cs.PeerCertificates
 
 	opts := x509.VerifyOptions{
-		DNSName:       c.TlsServerName,
+		DNSName:       c.TLSServerName,
 		Roots:         c.CACerts,
 		Intermediates: x509.NewCertPool(),
 	}
@@ -112,9 +112,9 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 		opts.Intermediates.AddCert(ic)
 	}
 
-	if _, err := c.TlsEndpointCerts[0].Verify(opts); err != nil {
+	if _, err := c.TLSEndpointCerts[0].Verify(opts); err != nil {
 		fmt.Println(err)
 	} else {
-		c.TlsEndpointCertsValid = true
+		c.TLSEndpointCertsValid = true
 	}
 }

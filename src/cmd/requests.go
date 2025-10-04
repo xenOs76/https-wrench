@@ -20,21 +20,21 @@ var (
 	sampleYamlConfig string
 	showSampleConfig bool
 
-	httpUserAgent                string = "https-wrench-request"
-	httpClientDefaultMethod             = "GET"
+	httpUserAgent                = "https-wrench-request"
+	httpClientDefaultMethod      = "GET"
 	httpClientDefaultRequestBody []byte
 	httpClientTimeout            time.Duration = 30
 	httpClientKeepalive          time.Duration = 30
 
-	transportMaxIdleConns          int           = 100
+	transportMaxIdleConns                        = 100
 	transportIdleConnTimeout       time.Duration = 30
 	transportTLSHandshakeTimeout   time.Duration = 30
 	transportResponseHeaderTimeout time.Duration = 30
 	transportExpectContinueTimeout time.Duration = 1
 
-	proxyProtoDefaultSrcIPv4 string = "192.0.2.1"
-	proxyProtoDefaultSrcIPv6 string = "2001:db8::1"
-	proxyProtoDefaultSrcPort int    = 54321
+	proxyProtoDefaultSrcIPv4 = "192.0.2.1"
+	proxyProtoDefaultSrcIPv6 = "2001:db8::1"
+	proxyProtoDefaultSrcPort = 54321
 )
 
 var requestsCmd = &cobra.Command{

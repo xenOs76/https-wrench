@@ -138,7 +138,7 @@ func (rd *ResponseData) ImportResponseBody() {
 func (rd ResponseData) PrintResponseData() {
 	fmt.Println(lgSprintf(styleItemKey,
 		"- Url: %s",
-		styleUrl.Render(rd.Url)),
+		styleURL.Render(rd.URL)),
 	)
 
 	fmt.Print(lgSprintf(styleItemKeyP3, "StatusCode: "))
@@ -155,7 +155,7 @@ func (rd ResponseData) PrintResponseData() {
 		fmt.Println(lgSprintf(styleStatus, "%v", statusCodeParse(rd.Response.StatusCode)))
 
 		if rd.Request.PrintResponseCertificates {
-			RenderTlsData(rd.Response)
+			RenderTLSData(rd.Response)
 		}
 
 		if rd.Request.PrintResponseHeaders {
@@ -178,7 +178,7 @@ func (rd ResponseData) PrintResponseData() {
 	}
 }
 
-func RenderTlsData(r *http.Response) {
+func RenderTLSData(r *http.Response) {
 	tls := r.TLS
 	sl := styleCertKeyP4.Render
 	sv := styleCertValue.Render
