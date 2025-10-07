@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,11 +31,13 @@ import (
 func lgSprintf(style lipgloss.Style, pattern string, a ...any) string {
 	str := fmt.Sprintf(pattern, a...)
 	out := style.Render(str)
+
 	return out
 }
 
 func statusCodeParse(sc int) string {
 	var status string
+
 	statusString := strconv.Itoa(sc)
 
 	switch {
@@ -57,10 +60,11 @@ func boolStyle(b bool) string {
 	if b {
 		return lgSprintf(styleBoolTrue, "true")
 	}
+
 	return lgSprintf(styleBoolFalse, "false")
 }
 
-func (rd *ResponseData) ImportResponseBody() {
+func (rd *responseData) ImportResponseBody() {
 	if len(rd.ResponseBody) > 0 {
 		return
 	}
@@ -68,6 +72,7 @@ func (rd *ResponseData) ImportResponseBody() {
 	body, err := io.ReadAll(rd.Response.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
+
 		return
 	}
 
@@ -89,52 +94,62 @@ func (rd *ResponseData) ImportResponseBody() {
 	htmlRegexp, _ := regexp.Compile("(?i)text/html")
 	if matched := htmlRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("html", string(body))
+
 		return
 	}
 
 	jsonRegexp, _ := regexp.Compile("(?i)application/json")
 	if matched := jsonRegexp.MatchString(contentType); matched {
 		var prettyJSON bytes.Buffer
-		if err := json.Indent(&prettyJSON, body, "", "  "); err != nil {
-			prettyJSON.WriteString(string(body))
+		err := json.Indent(&prettyJSON, body, "", "  ")
+		if err != nil {
+			prettyJSON.Write(body)
 		}
+
 		rd.ResponseBody = CodeSyntaxHighlight("json", prettyJSON.String())
+
 		return
 	}
 
 	csvRegexp, _ := regexp.Compile("(?i)text/csv")
 	if matched := csvRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("csv", string(body))
+
 		return
 	}
 
 	yamlRegexp, _ := regexp.Compile("(?i)(application|text)/(yaml|x-yaml)")
 	if matched := yamlRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("yaml", string(body))
+
 		return
 	}
 
 	xmlRegexp, _ := regexp.Compile("(?i)(application|text)/xml")
 	if matched := xmlRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("xml", string(body))
+
 		return
 	}
 
 	jsRegexp, _ := regexp.Compile("(?i)text/javascript")
 	if matched := jsRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("javascript", string(body))
+
 		return
 	}
 
 	cssRegexp, _ := regexp.Compile("(?i)text/css")
 	if matched := cssRegexp.MatchString(contentType); matched {
 		rd.ResponseBody = CodeSyntaxHighlight("css", string(body))
+
 		return
 	}
+
 	rd.ResponseBody = string(body)
 }
 
-func (rd ResponseData) PrintResponseData() {
+func (rd responseData) PrintResponseData() {
 	fmt.Println(lgSprintf(styleItemKey,
 		"- Url: %s",
 		styleURL.Render(rd.URL)),
@@ -175,6 +190,7 @@ func (rd ResponseData) PrintResponseData() {
 			fmt.Println(lgSprintf(styleItemKeyP3, "Body:"))
 			fmt.Println(rd.ResponseBody)
 		}
+
 		fmt.Println()
 	}
 }
@@ -190,6 +206,7 @@ func RenderTLSData(r *http.Response) {
 		fmt.Println(lgSprintf(styleCertKeyP4,
 			"%s",
 			styleError.Render("No TLS connection state available")))
+
 		return
 	}
 
@@ -224,14 +241,15 @@ func CertsToTables(certs []*x509.Certificate) {
 		if (0 < daysUntilExpiration) && (daysUntilExpiration < certinfoCertExpWarnDays) {
 			expStyle = styleWarn.Render
 		}
+
 		if daysUntilExpiration <= 0 {
 			expStyle = styleCrit.Render
 		}
 
 		isCA := strconv.FormatBool(cert.IsCA)
 		publicKeyAlgorithm := cert.PublicKeyAlgorithm.String()
-		authorityKeyID := fmt.Sprintf("%x", cert.AuthorityKeyId)
-		subjectKeyID := fmt.Sprintf("%x", cert.SubjectKeyId)
+		authorityKeyID := hex.EncodeToString(cert.AuthorityKeyId)
+		subjectKeyID := hex.EncodeToString(cert.SubjectKeyId)
 		signatureAlgorithm := cert.SignatureAlgorithm.String()
 		fingerprintSha256 := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
 		fingerprintSha1 := fmt.Sprintf("%x", sha1.Sum(cert.Raw))
@@ -265,16 +283,19 @@ func printKeyInfoStyle(privKey crypto.PrivateKey) {
 	switch k := privKey.(type) {
 	case *rsa.PrivateKey:
 		t.Row(sl("Type"), sv("RSA"))
+
 		size := fmt.Sprintf("%d bits", k.N.BitLen())
 		t.Row(sl("Key Size"), sv(size))
 
 	case *ecdsa.PrivateKey:
 		t.Row(sl("Type"), sv("ECDSA"))
+
 		curve := k.Curve.Params().Name
 		t.Row(sl("Curve"), sv(curve))
 
 	case ed25519.PrivateKey:
 		t.Row(sl("Type"), sv("Ed25519"))
+
 		size := fmt.Sprintf("%d bytes", len(k))
 		t.Row(sl("Key Size"), sv(size))
 
@@ -301,9 +322,11 @@ func CodeSyntaxHighlight(lang, code string) string {
 	if lexer == nil {
 		lexer = lexers.Analyse(code)
 	}
+
 	if lexer == nil {
 		lexer = lexers.Fallback
 	}
+
 	lexer = chroma.Coalesce(lexer)
 
 	iter, err := lexer.Tokenise(nil, code)
@@ -315,9 +338,11 @@ func CodeSyntaxHighlight(lang, code string) string {
 	if err := fmttr.Format(&buf, st, iter); err != nil {
 		return code
 	}
+
 	out := buf.String()
 	if !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
+
 	return out
 }

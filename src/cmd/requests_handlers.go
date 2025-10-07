@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,15 +19,16 @@ import (
 	proxyproto "github.com/pires/go-proxyproto"
 )
 
-func (h ResponseHeader) String() string {
+func (h responseHeader) String() string {
 	return string(h)
 }
 
-func (u URI) Parse() bool {
+func (u uri) Parse() bool {
 	matched, err := regexp.Match(`^\/.*`, []byte(u))
 	if err != nil {
 		return false
 	}
+
 	return matched
 }
 
@@ -52,11 +54,13 @@ func cipherSuiteName(id uint16) string {
 	if cs == "" {
 		return fmt.Sprintf("Unknown (0x%x)", id)
 	}
+
 	return cs
 }
 
 func parseResponseHeaders(headers http.Header, filter []string) string {
 	var outputStr string
+
 	var outputMap map[string][]string
 
 	sl := styleHeadKeyP3.Render
@@ -70,6 +74,7 @@ func parseResponseHeaders(headers http.Header, filter []string) string {
 				headersFiltered[k] = v
 			}
 		}
+
 		outputMap = headersFiltered
 	} else {
 		outputMap = headers
@@ -79,33 +84,40 @@ func parseResponseHeaders(headers http.Header, filter []string) string {
 		values := strings.Join(v, ", ")
 		t.Row(sl(k), sv(values))
 	}
+
 	outputStr = t.Render()
 	t.ClearRows()
+
 	return outputStr
 }
 
-func getUrlsFromHost(h Host) []string {
+func getUrlsFromHost(h host) []string {
 	var list []string
 
 	if len(h.URIList) == 0 {
-		s := fmt.Sprintf("https://%s", h.Name)
+		s := "https://" + h.Name
 		list = append(list, s)
+
 		return list
 	}
 
 	for _, uri := range h.URIList {
 		if parsed := uri.Parse(); !parsed {
 			fmt.Printf("Invalid uri %s for host %s", uri, h)
+
 			break
 		}
+
 		s := fmt.Sprintf("https://%s%s", h.Name, uri)
 		list = append(list, s)
 	}
+
 	return list
 }
 
-func transportAddressFromRequest(r RequestConfig) (string, error) {
+func transportAddressFromRequest(r requestConfig) (string, error) {
 	var addr string
+
 	overrideURL, err := url.Parse(r.TransportOverrideURL)
 	if err != nil {
 		return "", err
@@ -120,9 +132,9 @@ func transportAddressFromRequest(r RequestConfig) (string, error) {
 	return addr, nil
 }
 
-func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto.Header, error) {
+func proxyProtoHeaderFromRequest(r requestConfig, serverName string) (proxyproto.Header, error) {
 	if !r.EnableProxyProtocolV2 {
-		return proxyproto.Header{}, fmt.Errorf("proxy protocol v2 is not enabled for this request")
+		return proxyproto.Header{}, errors.New("proxy protocol v2 is not enabled for this request")
 	}
 
 	headerSrcIP := net.ParseIP(proxyProtoDefaultSrcIPv4)
@@ -157,7 +169,9 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 
 	headerDstIPs, err := net.LookupIP(reqHostname)
 	if err != nil {
-		return proxyproto.Header{}, fmt.Errorf("failed to resolve transport override hostname's IPs': %w", err)
+		return proxyproto.Header{}, fmt.Errorf(
+			"failed to resolve transport override hostname's IPs': %w",
+			err)
 	}
 
 	headerDstIP := net.ParseIP(headerDstIPs[0].String())
@@ -177,12 +191,13 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	return header, nil
 }
 
-func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, error) {
+func buildHTTPClient(r requestConfig, serverName string) (*http.Client, string, error) {
 	var transportAddress string
+
 	clientTimeout := httpClientTimeout
 
 	if r.ClientTimeout > 0 {
-		clientTimeout = r.ClientTimeout * time.Second // nolint: durationcheck
+		clientTimeout = time.Duration(r.ClientTimeout) * time.Second
 	}
 
 	tlsClientConfig := &tls.Config{
@@ -216,6 +231,7 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to parse transport override url: %w", err)
 		}
+
 		transportAddress = tAddr
 
 		dialer := &net.Dialer{
@@ -241,9 +257,11 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 
 				if _, hwtErr := header.WriteTo(conn); hwtErr != nil {
 					conn.Close()
+
 					return nil, fmt.Errorf("failed to write PROXY header: %w", hwtErr)
 				}
 			}
+
 			return conn, err
 		}
 	}
@@ -254,8 +272,8 @@ func buildHTTPClient(r RequestConfig, serverName string) (*http.Client, string, 
 	}, transportAddress, nil
 }
 
-func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
-	respDataMap := make(map[string][]ResponseData)
+func handleRequests(cfg *Config) (map[string][]responseData, error) {
+	respDataMap := make(map[string][]responseData)
 	clientMethod := httpClientDefaultMethod
 
 	if len(cfg.CaBundle) > 0 {
@@ -263,6 +281,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load CA bundle: %w", err)
 		}
+
 		rootCAs = caCerts
 	}
 
@@ -273,7 +292,8 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 	}
 
 	for _, r := range cfg.Requests {
-		var respDataList []ResponseData
+		var respDataList []responseData
+
 		requestBodyReader := bytes.NewReader(httpClientDefaultRequestBody)
 
 		if len(r.RequestMethod) > 0 {
@@ -303,8 +323,8 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 			urlList := getUrlsFromHost(host)
 
 			for _, reqUrl := range urlList {
-
 				ua := httpUserAgent
+
 				req, err := http.NewRequest(clientMethod, reqUrl, requestBodyReader)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create request: %w", err)
@@ -313,13 +333,14 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				if len(r.UserAgent) > 0 {
 					ua = r.UserAgent
 				}
+
 				req.Header.Add("User-Agent", ua)
 
 				for _, header := range r.RequestHeaders {
 					req.Header.Add(header.Key, header.Value)
 				}
 
-				rd := ResponseData{
+				rd := responseData{
 					Request:          r,
 					TransportAddress: transportAddress,
 					URL:              reqUrl,
@@ -330,6 +351,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 					if drErr != nil {
 						return nil, drErr
 					}
+
 					fmt.Printf("Requesting url: %s\n", reqUrl)
 					fmt.Printf("Request dump:\n%s\n", string(reqDump))
 				}
@@ -338,13 +360,17 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				if err != nil {
 					rd.Error = err
 					respDataList = append(respDataList, rd)
+
 					if cfg.Verbose {
 						rd.PrintResponseData()
 					}
+
 					continue
 				}
+
 				defer func() {
-					if err := resp.Body.Close(); err != nil {
+					err := resp.Body.Close()
+					if err != nil {
 						fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
 					}
 				}()
@@ -354,6 +380,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 					if err != nil {
 						return nil, err
 					}
+
 					fmt.Printf("Requested url: %s\n", reqUrl)
 					fmt.Printf("Response dump:\n%s\n", string(respDump))
 					fmt.Println("TLS:")
@@ -384,6 +411,7 @@ func handleRequests(cfg *Config) (map[string][]ResponseData, error) {
 				if rd.Request.PrintResponseBody {
 					rd.ImportResponseBody()
 				}
+
 				respDataList = append(respDataList, rd)
 				respDataMap[rd.Request.Name] = respDataList
 

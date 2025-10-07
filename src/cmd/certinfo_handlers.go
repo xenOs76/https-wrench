@@ -10,10 +10,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	// "github.com/gookit/goutil/dump"
 )
 
-func (c *CertinfoConfig) PrintData() {
+func (c *certinfoConfig) PrintData() {
 	ks := styleItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
 	sl := styleCertKeyP4.Bold(true)
 	sv := styleCertValue.Bold(false)
@@ -38,6 +37,7 @@ func (c *CertinfoConfig) PrintData() {
 			if err != nil {
 				fmt.Print(err)
 			}
+
 			fmt.Println(lgSprintf(sl, "PrivateKey match: %v", boolStyle(certMatch)))
 		}
 
@@ -59,6 +59,7 @@ func (c *CertinfoConfig) PrintData() {
 			if err != nil {
 				fmt.Print(err)
 			}
+
 			fmt.Println(lgSprintf(sl, "PrivateKey match: %v", boolStyle(tlsMatch)))
 		}
 
@@ -67,17 +68,26 @@ func (c *CertinfoConfig) PrintData() {
 
 	if len(caBundlePath) > 0 {
 		fmt.Println(lgSprintf(ks, "CA Certificates"))
-		fmt.Println(lgSprintf(sl.PaddingTop(1).PaddingBottom(1), "CA Certificates file: %v", sv.Render(caBundlePath)))
+		fmt.Println(
+			lgSprintf(
+				sl.PaddingTop(1).PaddingBottom(1),
+				"CA Certificates file: %v",
+				sv.Render(caBundlePath),
+			),
+		)
+
 		rootCerts, err := getCertsFromBundle(caBundlePath)
 		if err != nil {
 			fmt.Printf("unable for read Root certificates from %s: %s", caBundlePath, err)
+
 			return
 		}
+
 		CertsToTables(rootCerts)
 	}
 }
 
-func (c *CertinfoConfig) GetRemoteCerts() {
+func (c *certinfoConfig) GetRemoteCerts() {
 	tlsConfig := &tls.Config{RootCAs: c.CACerts, InsecureSkipVerify: c.TLSInsecure}
 
 	if c.TLSServerName != "" {
@@ -93,6 +103,7 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "TLS handshake failed: %v\n", err)
+
 		return
 	}
 	defer conn.Close()

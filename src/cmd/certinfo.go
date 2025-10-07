@@ -10,7 +10,6 @@ import (
 	"net"
 	"time"
 
-	// "github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +18,7 @@ const (
 	certinfoCertExpWarnDays = 40
 )
 
-type CertinfoConfig struct {
+type certinfoConfig struct {
 	CACerts                 *x509.CertPool
 	CertsBundle             []*x509.Certificate
 	CertsBundleFromKey      bool
@@ -65,11 +64,12 @@ Examples:
   certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		certinfoCfg := CertinfoConfig{TLSInsecure: tlsInsecure, TLSServerName: tlsServerName}
+		certinfoCfg := certinfoConfig{TLSInsecure: tlsInsecure, TLSServerName: tlsServerName}
 
 		caCerts, err := x509.SystemCertPool()
 		if err != nil {
 			fmt.Printf("Error creating system cert pool: %s", err)
+
 			return
 		}
 		certinfoCfg.CACerts = caCerts
@@ -78,6 +78,7 @@ Examples:
 			caCerts, err := getRootCertsFromFile(caBundlePath)
 			if err != nil {
 				fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
+
 				return
 			}
 			certinfoCfg.CACerts = caCerts
@@ -87,6 +88,7 @@ Examples:
 			certsFromBundle, err := getCertsFromBundle(certBundlePath)
 			if err != nil {
 				fmt.Printf("Error importing Certificate bundle from file: %s", err)
+
 				return
 			}
 			certinfoCfg.CertsBundle = certsFromBundle
@@ -96,6 +98,7 @@ Examples:
 			endpointHost, endpointPort, err := net.SplitHostPort(tlsEndpoint)
 			if err != nil {
 				fmt.Printf("Error parsing TLS endpoint url: %s", err)
+
 				return
 			}
 			certinfoCfg.TLSEndpointHost = endpointHost
@@ -107,6 +110,7 @@ Examples:
 			keyFromFile, err := getKeyFromFile(keyFilePath)
 			if err != nil {
 				fmt.Printf("Error importing key from file: %s", err)
+
 				return
 			}
 			certinfoCfg.PrivKey = keyFromFile
