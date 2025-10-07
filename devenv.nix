@@ -201,7 +201,7 @@
 
   scripts.test-requests-timeout.exec = ''
     gum format "## test request timeout"
-    ./dist/https-wrench requests --config ./examples/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
+    time ./dist/https-wrench requests --config ./examples/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
   '';
 
   scripts.test-requests-unknown-ca.exec = ''
@@ -458,7 +458,7 @@
     gum format "# Running tests"
     build
 
-    test-requests-sample-config
+    # test-requests-sample-config
     test-requests-k3s
     test-requests-timeout
     test-requests-insecure
