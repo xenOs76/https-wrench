@@ -5,38 +5,36 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	_ "embed"
 	"fmt"
 	"time"
-
-	_ "embed"
 
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 )
 
 const (
-	httpClientTimeout   time.Duration = 30 * time.Second
-	httpClientKeepalive time.Duration = 30 * time.Second
+	httpUserAgent                         = "https-wrench-request"
+	httpClientDefaultMethod               = "GET"
+	httpClientTimeout       time.Duration = 30 * time.Second
+	httpClientKeepalive     time.Duration = 30 * time.Second
 
 	transportMaxIdleConns          int           = 100
 	transportIdleConnTimeout       time.Duration = 30 * time.Second
 	transportTLSHandshakeTimeout   time.Duration = 30 * time.Second
 	transportResponseHeaderTimeout time.Duration = 30 * time.Second
 	transportExpectContinueTimeout time.Duration = 1 * time.Second
-)
-
-var (
-	//go:embed  embedded/config-example.yaml
-	sampleYamlConfig string
-	showSampleConfig bool
-
-	httpUserAgent                = "https-wrench-request"
-	httpClientDefaultMethod      = "GET"
-	httpClientDefaultRequestBody []byte
 
 	proxyProtoDefaultSrcIPv4 = "192.0.2.1"
 	proxyProtoDefaultSrcIPv6 = "2001:db8::1"
 	proxyProtoDefaultSrcPort = 54321
+)
+
+var (
+	//go:embed  embedded/config-example.yaml
+	sampleYamlConfig             string
+	showSampleConfig             bool
+	httpClientDefaultRequestBody []byte
 )
 
 var requestsCmd = &cobra.Command{
@@ -48,11 +46,13 @@ var requestsCmd = &cobra.Command{
 		cfg, err := LoadConfig()
 		if err != nil {
 			fmt.Print(err)
+
 			return
 		}
 
 		if showSampleConfig {
 			fmt.Print(sampleYamlConfig)
+
 			return
 		}
 
@@ -64,6 +64,7 @@ var requestsCmd = &cobra.Command{
 			caCerts, cabErr := getRootCertsFromFile(caBundlePath)
 			if cabErr != nil {
 				fmt.Print(cabErr)
+
 				return
 			}
 			rootCAs = caCerts
@@ -72,6 +73,7 @@ var requestsCmd = &cobra.Command{
 		responseMap, err := handleRequests(cfg)
 		if err != nil {
 			fmt.Print(err)
+
 			return
 		}
 		if cfg.Debug {
