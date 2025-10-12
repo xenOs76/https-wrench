@@ -149,13 +149,13 @@
   '';
 
   scripts.build.exec = ''
-
+    set -e
     gum format "## building..."
     test -d dist || mkdir dist
     go get -u
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
-        GO_MODULE_NAME=$(grep module go.mod | awk '{ print $2 }') &&
-        CGO_ENABLED=0 GOOS=linux go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
+        GO_MODULE_NAME=$(go list -m) &&
+        CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
   '';
 
   scripts.goreleaser-test-release.exec = ''
