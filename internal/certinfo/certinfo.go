@@ -90,8 +90,7 @@ func (c *CertinfoConfig) SetTLSEndpoint(e string) error {
 		c.TLSEndpoint = e
 		eHost, ePort, err := net.SplitHostPort(c.TLSEndpoint)
 		if err != nil {
-			fmt.Printf("Error parsing TLS endpoint url: %s", err)
-			return err
+			return fmt.Errorf("invalid TLS endpoint %q: %w", c.TLSEndpoint, err)
 		}
 		c.TLSEndpointHost = eHost
 		c.TLSEndpointPort = ePort
@@ -101,9 +100,7 @@ func (c *CertinfoConfig) SetTLSEndpoint(e string) error {
 }
 
 func (c *CertinfoConfig) SetTLSInsecure(b bool) *CertinfoConfig {
-	if b {
-		c.TLSInsecure = b
-	}
+	c.TLSInsecure = b
 	return c
 }
 

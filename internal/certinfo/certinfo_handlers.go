@@ -96,6 +96,7 @@ func (c *CertinfoConfig) PrintData() {
 	}
 }
 
+// TODO: return an error on fails
 func (c *CertinfoConfig) GetRemoteCerts() {
 	tlsConfig := &tls.Config{RootCAs: c.CACertsPool, InsecureSkipVerify: c.TLSInsecure}
 

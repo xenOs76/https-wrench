@@ -116,6 +116,7 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 	return match, nil
 }
 
+// TODO: add comment explaining why returning an empty pool in case of empty string
 func GetRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
 	rootCAPool := x509.NewCertPool()
 
