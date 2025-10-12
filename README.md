@@ -107,7 +107,7 @@ The output should look like this:
 
 ![HTTPS Wrench - sample output](./assets/img/https-wrench-demo-sample-conf.gif "HTTPS Wrench - sample config output")
 
-Or like this, if you customize one of the files in the ![examples](./assets/examples/https-wrench-k3s.yaml) folder:  
+Or like this, if you customize one of the files in the [examples](./assets/examples/https-wrench-k3s.yaml) folder:  
 
 ![HTTPS Wrench - k3s output](./assets/img/https-wrench-demo-k3s-example.gif "HTTPS Wrench - K3s requests output")
 
