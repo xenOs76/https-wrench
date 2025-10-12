@@ -114,7 +114,7 @@ func initConfig() {
 
 func LoadConfig() (*HTTPSWrenchConfig, error) {
 	config := NewHTTPSWrenchConfig()
-	err := viper.Unmarshal(&config)
+	err := viper.Unmarshal(config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode into config struct: %w", err)
 	}

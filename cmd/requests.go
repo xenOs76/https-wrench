@@ -43,6 +43,7 @@ var requestsCmd = &cobra.Command{
 		requestsCfg, err := requests.NewRequestsConfig()
 		if err != nil {
 			fmt.Print(err)
+			return
 		}
 
 		requestsCfg.SetVerbose(cfg.Verbose).
