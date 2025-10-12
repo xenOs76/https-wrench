@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "https-wrench/cmd"
+import "github.com/xenos76/https-wrench/cmd"
 
 func main() {
 	cmd.Execute()

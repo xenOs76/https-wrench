@@ -3,7 +3,7 @@
 ---
 version: 2
 project_name: https-wrench
-dist: ../dist/
+dist: ./dist/
 force_token: github
 env_files:
   gitea_token: ~/nope
@@ -16,7 +16,6 @@ release:
     name: https-wrench
 before:
   hooks:
-
     # always update to keep CA certs in sync
     - go get -u
 
@@ -78,7 +77,7 @@ dockers:
       - --label=org.opencontainers.image.licenses=MIT
 
     goarch: amd64
-    dockerfile: "../Dockerfile.goreleaser"
+    dockerfile: "../Dockerfile"
 
   - image_templates:
       - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
@@ -97,7 +96,7 @@ dockers:
       - --label=org.opencontainers.image.licenses=MIT
 
     goarch: arm64
-    dockerfile: "../Dockerfile.goreleaser"
+    dockerfile: "../Dockerfile"
 
 docker_manifests:
   - name_template: "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}"

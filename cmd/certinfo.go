@@ -1,44 +1,21 @@
 /*
 Copyright © 2025 Zeno Belli xeno@os76.xyz
 */
+
 package cmd
 
 import (
-	"crypto"
-	"crypto/x509"
 	"fmt"
-	"net"
-	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/xenos76/https-wrench/internal/certinfo"
 )
-
-const (
-	certinfoTLSTimeout      = 3 * time.Second
-	certinfoCertExpWarnDays = 40
-)
-
-type certinfoConfig struct {
-	CACerts                 *x509.CertPool
-	CertsBundle             []*x509.Certificate
-	CertsBundleFromKey      bool
-	PrivKey                 crypto.PrivateKey
-	TLSEndpointHost         string
-	TLSEndpointPort         string
-	TLSEndpointCerts        []*x509.Certificate
-	TLSEndpointCertsFromKey bool
-	TLSEndpointCertsValid   bool
-	TLSServerName           string
-	TLSInsecure             bool
-}
 
 var (
-	certsBundle        []*x509.Certificate
-	privKey            any
-	tlsEndpoint        string
-	tlsServerName      string
-	tlsInsecure        bool
-	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
+	tlsEndpoint   string
+	tlsServerName string
+	tlsInsecure   bool
 )
 
 var certinfoCmd = &cobra.Command{
@@ -64,56 +41,28 @@ Examples:
   certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		certinfoCfg := certinfoConfig{TLSInsecure: tlsInsecure, TLSServerName: tlsServerName}
-
-		caCerts, err := x509.SystemCertPool()
+		certinfoCfg, err := certinfo.NewCertinfoConfig()
 		if err != nil {
-			fmt.Printf("Error creating system cert pool: %s", err)
-
+			fmt.Printf("Error creating new Certinfo config: %s", err)
 			return
 		}
-		certinfoCfg.CACerts = caCerts
 
-		if caBundlePath != "" {
-			caCerts, err := getRootCertsFromFile(caBundlePath)
-			if err != nil {
-				fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
+		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
 
-				return
-			}
-			certinfoCfg.CACerts = caCerts
+		if err := certinfoCfg.SetCaPoolFromFile(viper.GetString("ca-bundle")); err != nil {
+			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
 
-		if certBundlePath != "" {
-			certsFromBundle, err := getCertsFromBundle(certBundlePath)
-			if err != nil {
-				fmt.Printf("Error importing Certificate bundle from file: %s", err)
-
-				return
-			}
-			certinfoCfg.CertsBundle = certsFromBundle
+		if err := certinfoCfg.SetCertsFromFile(viper.GetString("cert-bundle")); err != nil {
+			fmt.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
-		if tlsEndpoint != "" {
-			endpointHost, endpointPort, err := net.SplitHostPort(tlsEndpoint)
-			if err != nil {
-				fmt.Printf("Error parsing TLS endpoint url: %s", err)
-
-				return
-			}
-			certinfoCfg.TLSEndpointHost = endpointHost
-			certinfoCfg.TLSEndpointPort = endpointPort
-			certinfoCfg.GetRemoteCerts()
+		if err := certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
+			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}
 
-		if keyFilePath != "" {
-			keyFromFile, err := getKeyFromFile(keyFilePath)
-			if err != nil {
-				fmt.Printf("Error importing key from file: %s", err)
-
-				return
-			}
-			certinfoCfg.PrivKey = keyFromFile
+		if err := certinfoCfg.SetPrivateKeyFromFile(viper.GetString("key-file")); err != nil {
+			fmt.Printf("Error importing key from file: %s", err)
 		}
 
 		// dump.Print(certinfoCfg)

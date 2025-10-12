@@ -19,14 +19,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
 package cmd
 
 import (
-	"crypto/x509"
-	_ "embed"
 	"fmt"
 	"os"
 
+	// Package rootcerts provides an embedded copy of the Mozilla Included CA Certificate List,
+	// more specifically the PEM of Root Certificates in Mozilla's Root Store with the Websites
+	// (TLS/SSL) Trust Bit Enabled.
+	// If this package is imported anywhere in the program and the crypto/x509 package cannot find
+	// the system certificate pool, it will use this embedded information.
+	// This is particularly useful when building Docker images "FROM scratch".
 	_ "github.com/breml/rootcerts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -38,7 +43,6 @@ var (
 	caBundlePath   string
 	certBundlePath string
 	keyFilePath    string
-	rootCAs        *x509.CertPool
 )
 
 var rootCmd = &cobra.Command{
@@ -108,14 +112,14 @@ func initConfig() {
 	}
 }
 
-func LoadConfig() (*Config, error) {
-	var config Config
+func LoadConfig() (*HTTPSWrenchConfig, error) {
+	config := NewHTTPSWrenchConfig()
 	err := viper.Unmarshal(&config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode into config struct: %w", err)
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 func addCaBundleFlag(cmd *cobra.Command) {

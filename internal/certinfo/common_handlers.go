@@ -1,4 +1,4 @@
-package cmd
+package certinfo
 
 import (
 	"crypto"
@@ -17,7 +17,7 @@ import (
 	"golang.org/x/term"
 )
 
-func printCertInfo(cert *x509.Certificate, depth int) {
+func PrintCertInfo(cert *x509.Certificate, depth int) {
 	prefix := ""
 	for range depth {
 		prefix += "  "
@@ -116,7 +116,7 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 	return match, nil
 }
 
-func getRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
+func GetRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
 	rootCAPool := x509.NewCertPool()
 
 	certsFromFile, err := os.ReadFile(caBundlePath)
@@ -131,7 +131,7 @@ func getRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
 	return rootCAPool, nil
 }
 
-func getRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
+func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	rootCAPool := x509.NewCertPool()
 	if caBundleString != "" {
 		if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
@@ -142,7 +142,7 @@ func getRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	return rootCAPool, nil
 }
 
-func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
+func GetCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 	certPEM, err := os.ReadFile(certBundlePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading certificate file: %w", err)
@@ -192,7 +192,7 @@ func getCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 // * RSA PKCS #1, ASN.1 DER (encoded in PEM blocks of type "RSA PRIVATE KEY")
 //
 // * EC private key in SEC 1, ASN.1 DER (encoded in PEM blocks of type "EC PRIVATE KEY").
-func getKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
+func GetKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 	pkcs8Encrypted := false
 	pkcs1Encrypted := false
 	pkeyEnvPw := os.Getenv(privateKeyPwEnvVar)
