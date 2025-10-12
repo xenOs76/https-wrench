@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - '*'
+      - "*"
 permissions:
   contents: write
 jobs:
@@ -30,12 +30,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.25
+          go-version: 1.24
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          version: '~> 2'
+          version: "~> 2"
           args: release --clean
-          workdir: src
+          workdir: .
         env:
           GITHUB_TOKEN: ${{ secrets.GH_GORELEASER_TOKEN }}
