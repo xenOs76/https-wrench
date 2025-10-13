@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: httpBinLocalNginxDefault
+    transportOverrideUrl: https://localhost:9443
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+    printResponseCertificates: true
+    printResponseBody: true
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers
+
+      - name: test.os76.xyz
+        uriList:
+          - /headers
+
+  - name: httpBinLocalNginxDefaultIpv6
+    transportOverrideUrl: https://[::1]:9443
+    printResponseCertificates: true
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers
+
+  - name: ProxyProtocolIPv4
+    transportOverrideUrl: https://127.0.0.1:9444
+    printResponseCertificates: true
+    printResponseBody: true
+    enableProxyProtocolV2: true
+
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers
+
+  - name: ProxyProtocolIPv6
+    transportOverrideUrl: https://[::1]:9444
+    printResponseCertificates: true
+    printResponseBody: true
+    enableProxyProtocolV2: true
+
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers
+
+  - name: Insecure
+    transportOverrideUrl: https://localhost:9443
+    printResponseCertificates: true
+    printResponseBody: true
+    insecure: true
+
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers

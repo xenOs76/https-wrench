@@ -1,0 +1,144 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+version: 2
+project_name: https-wrench
+dist: ./dist/
+force_token: github
+env_files:
+  gitea_token: ~/nope
+  github_token: ~/nope
+release:
+  disable: false
+  skip_upload: false
+  github:
+    owner: xenos76
+    name: https-wrench
+before:
+  hooks:
+    - go mod download
+    - go mod tidy
+    - go test
+    # - govulncheck -mode source -show verbose .
+    # - rm -rf ../completions
+    # - mkdir ../completions
+    # - sh -c 'go run . completion bash > ../completions/https-wrench.bash'
+    # - sh -c 'go run . completion zsh > ../completions/https-wrench.zsh'
+    # - sh -c 'go run . completion fish > ../completions/https-wrench.fish'
+    # - rm -rf manpages
+    # - mkdir manpages
+    # - sh -c 'go run . man | gzip -c > manpages/https-wrench.1.gz'
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/xenos76/https-wrench/cmd.version={{.Version}}
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_{{- .Version }}_{{- title .Os }}_{{- if eq .Arch "amd64" }}x86_64{{- else if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}{{- with .Arm}}v{{ . }}{{ end }}
+    wrap_in_directory: false
+
+nfpms:
+  - maintainer: Zeno Belli <xeno@os76.xyz>
+    vendor: xenos76 on Github
+    homepage: https://github.com/xenOs76/https-wrench
+    description: https-wrench, a tool to make HTTPS requests based on a YAML configuration file.
+    formats:
+      - apk
+      - deb
+      - rpm
+    release: "1"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
+    use: buildx
+    skip_push: false
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/xenOs76/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/xenOs76/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+    goarch: amd64
+    dockerfile: "Dockerfile"
+
+  - image_templates:
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
+    use: buildx
+    skip_push: false
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/xenOs76/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/xenOs76/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+    goarch: arm64
+    dockerfile: "Dockerfile"
+
+docker_manifests:
+  - name_template: "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
+    skip_push: false
+
+  - name_template: "ghcr.io/xenos76/{{ .ProjectName }}:latest"
+    image_templates:
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-amd64"
+      - "ghcr.io/xenos76/{{ .ProjectName }}:{{ .Tag }}-arm64"
+    skip_push: false
+
+homebrew_casks:
+  - repository:
+      owner: xenos76
+      name: homebrew-tap
+    homepage: https://github.com/xenOs76/https-wrench
+    description: https-wrench
+    license: MIT
+    skip_upload: false
+    # FIXME: Error: xeno/tap/https-wrench: It seems the symlink source ... is not there
+    # completions:
+    #   bash: "completions/https-wrench.bash"
+    #   zsh: "completions/https-wrench.zsh"
+    #   fish: "completions/https-wrench.fish"
+
+nix:
+  - name: https-wrench
+    repository:
+      owner: xenos76
+      name: nur-packages
+    homepage: https://github.com/xenOs76/https-wrench
+    description: https-wrench
+    path: pkgs/https-wrench/default.nix
+    license: mit
+    # extra_install: |-
+    #   installShellCompletion completions/*
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

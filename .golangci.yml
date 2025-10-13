@@ -1,0 +1,53 @@
+---
+version: "2"
+linters:
+  default: standard
+  enable:
+    - dupword
+    - dupl
+    - durationcheck
+    - errorlint
+    - errchkjson
+    - misspell
+    - nestif
+    - iface
+    - unconvert
+    - revive
+    # - wsl_v5
+    - tagliatelle
+  disable:
+    - staticcheck
+    - unused
+    - wsl
+    - err113
+    - depguard
+    - exhaustruct
+
+  settings:
+    revive:
+      enable-all-rules: true
+      severity: warning
+      rules:
+        - name: exported
+          disabled: true
+        - name: line-length-limit
+          severity: warning
+          disabled: false
+          exclude: [""]
+          arguments: [100]
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+        path: _test.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: ProxyProtocolIPv6
+    transportOverrideUrl: https://[::1]:9444
+    printResponseCertificates: true
+    printResponseBody: true
+    enableProxyProtocolV2: true
+
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers

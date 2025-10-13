@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: BodyRegexpMatch
+    transportOverrideUrl: https://localhost:9443
+    responseBodyMatchRegexp: <a\shref="https://github\.com\/\w+\/httpbin"\s.*
+    printResponseBody: false
+    hosts:
+      - name: localhost

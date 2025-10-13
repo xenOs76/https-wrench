@@ -8,6 +8,7 @@
   env = {
     GUM_FORMAT_THEME = "tokyo-night";
     CAROOT = "tests/certs";
+    EXAMPLES = "assets/examples";
     ED25519_DIR = "tests/certs/ed25519_cert";
     ECDSA_DIR = "tests/certs/ecdsa-cert";
     KEY_TEST_PW = "testpassword";
@@ -86,7 +87,7 @@
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
             location /tests/ {
-                alias ${config.env.DEVENV_ROOT}/examples/body-types/;
+                alias ${config.env.DEVENV_ROOT}/${config.env.EXAMPLES}/body-types/;
             }
         }
 
@@ -147,6 +148,16 @@
     gum format "# Devenv shell"
   '';
 
+  scripts.build.exec = ''
+    set -e
+    gum format "## building..."
+    test -d dist || mkdir dist
+    go get -u
+    APP_VERSION=$(git describe --tags || echo '0.0.0') &&
+        GO_MODULE_NAME=$(go list -m) &&
+        CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
+  '';
+
   scripts.goreleaser-test-release.exec = ''
     ${pkgs.goreleaser}/bin/goreleaser release --snapshot --clean
   '';
@@ -180,11 +191,6 @@
     -subj "/CN=example.com/O=Example Org" -addext "subjectAltName=DNS:example.com,IP:127.0.0.1"
   '';
 
-  scripts.build.exec = ''
-    gum format "## building..."
-    ./build.sh
-  '';
-
   scripts.test-curl.exec = ''
     curl "https://localhost:9443/get" -k -v
   '';
@@ -196,59 +202,59 @@
 
   scripts.test-requests-k3s.exec = ''
     gum format "## test request against local k3s"
-    ./dist/https-wrench requests --config ./examples/https-wrench-k3s.yaml
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/https-wrench-k3s.yaml
   '';
 
   scripts.test-requests-timeout.exec = ''
     gum format "## test request timeout"
-    time ./dist/https-wrench requests --config ./examples/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
+    time ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
   '';
 
   scripts.test-requests-unknown-ca.exec = ''
     gum format "## test request with unknown CA"
 
     set +o pipefail
-    ./dist/https-wrench requests --config ./examples/tests-configs/unknown-ca.yaml | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/unknown-ca.yaml | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
   '';
 
   scripts.test-requests-insecure.exec = ''
     gum format "## test request insecure skip verify"
-    ./dist/https-wrench requests --config ./examples/tests-configs/insecure.yaml | grep 'StatusCode: 200'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/insecure.yaml | grep 'StatusCode: 200'
   '';
 
   scripts.test-requests-syntax-highlight.exec = ''
     gum format "## test request body syntax highlight"
-    ./dist/https-wrench requests --config  ./examples/tests-configs/body-syntax-highlight.yaml --ca-bundle $CAROOT/rootCA.pem
+    ./dist/https-wrench requests --config  ./${config.env.EXAMPLES}/tests-configs/body-syntax-highlight.yaml --ca-bundle $CAROOT/rootCA.pem
   '';
 
   scripts.test-requests-body-regexp-match.exec = ''
     gum format "## test request body regexp match"
-    ./dist/https-wrench requests --config  ./examples/tests-configs/body-regexp-match.yaml  --ca-bundle $CAROOT/rootCA.pem | grep 'BodyRegexpMatch: true'
+    ./dist/https-wrench requests --config  ./${config.env.EXAMPLES}/tests-configs/body-regexp-match.yaml  --ca-bundle $CAROOT/rootCA.pem | grep 'BodyRegexpMatch: true'
   '';
 
   scripts.test-requests-ca-bundle-file-success.exec = ''
     gum format "## test request with CA bundle file"
-    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem | grep "StatusCode: 200"
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem | grep "StatusCode: 200"
   '';
 
   scripts.test-requests-valid-cert-wrong-ca-bundle.exec = ''
     gum format "## test request with valid cert and wrong CA bundle file"
-    ./dist/https-wrench requests --config ./examples/tests-configs/repo-os76.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/repo-os76.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
   '';
 
   scripts.test-requests-ca-bundle-file-wrong-servername.exec = ''
     gum format "## test request with CA bundle file and wrong host name / servername"
-    ./dist/https-wrench requests --config ./examples/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem | grep 'tls: failed to verify certificate: x509'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem | grep 'tls: failed to verify certificate: x509'
   '';
 
   scripts.test-requests-proxy-protocol-ipv4.exec = ''
     gum format "## test request proxy protocol IPv4"
-    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle $CAROOT/rootCA.pem | grep '192.0.2.1'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle $CAROOT/rootCA.pem | grep '192.0.2.1'
   '';
 
   scripts.test-requests-proxy-protocol-ipv6.exec = ''
     gum format "## test request proxy protocol IPv6"
-    ./dist/https-wrench requests --config ./examples/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle $CAROOT/rootCA.pem | grep '2001:db8::1'
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle $CAROOT/rootCA.pem | grep '2001:db8::1'
   '';
 
   scripts.test-requests-ca-bundle-yaml.exec = ''
@@ -256,7 +262,7 @@
 
     CA_BUNDLE_YAML_TEST_FILE=./tests/https-wrench-tests-ca-bundle-string.yaml
 
-    cat ./examples/tests-configs/unknown-ca.yaml > $CA_BUNDLE_YAML_TEST_FILE
+    cat ./${config.env.EXAMPLES}/tests-configs/unknown-ca.yaml > $CA_BUNDLE_YAML_TEST_FILE
 
     echo "caBundle: |" >> $CA_BUNDLE_YAML_TEST_FILE
     while IFS= read -r line; do echo  "  $line" >> $CA_BUNDLE_YAML_TEST_FILE ; done < $CAROOT/rootCA.pem

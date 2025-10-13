@@ -1,6 +1,6 @@
 <h1>HTTPS Wrench</h1>
 <p align="center">
-    <img width="450" alt="HTTPS Wrench Logo" src="./img/https-wrench-logo.jpg" /><br />
+    <img width="450" alt="HTTPS Wrench Logo" src="./assets/img/https-wrench-logo.jpg" /><br />
 </p>
 <p align="center">
     <i>HTTPS Wrench, a wrench not to bench</i>
@@ -105,11 +105,11 @@ https-wrench --config sample-wrench.yaml requests
 
 The output should look like this:  
 
-![HTTPS Wrench - sample output](./img/https-wrench-demo-sample-conf.gif "HTTPS Wrench - sample config output")
+![HTTPS Wrench - sample output](./assets/img/https-wrench-demo-sample-conf.gif "HTTPS Wrench - sample config output")
 
-Or like this, if you customize one of the files in the ![examples](./examples/https-wrench-k3s.yaml) folder:  
+Or like this, if you customize one of the files in the [examples](./assets/examples/https-wrench-k3s.yaml) folder:  
 
-![HTTPS Wrench - k3s output](./img/https-wrench-demo-k3s-example.gif "HTTPS Wrench - K3s requests output")
+![HTTPS Wrench - k3s output](./assets/img/https-wrench-demo-k3s-example.gif "HTTPS Wrench - K3s requests output")
 
 </details>
 
@@ -189,7 +189,7 @@ and add the package to a Nix shell:
 nix-shell -p '(import <nur-os76> { pkgs = import <nixpkgs> {}; }).https-wrench'
 ```
 
-Or use a `flake.nix` like the one from the [nix-shell](/examples/nix-shell) example to achieve a similar result:  
+Or use a `flake.nix` like the one from the [nix-shell](/assets/examples/nix-shell) example to achieve a similar result:  
 ```nix
 {
   description = "Flake to fetch https-wrench from xenos76's NUR repo";
