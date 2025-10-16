@@ -79,7 +79,8 @@ func PrintKeyInfoStyle(privKey crypto.PrivateKey) {
 		t.Row(sl("Key Size"), sv(size))
 
 	default:
-		t.Row("Unknown key type")
+		unknMsg := fmt.Sprintf("Unknown key type: %T", k)
+		t.Row(sv(unknMsg))
 	}
 
 	fmt.Println(t.Render())
