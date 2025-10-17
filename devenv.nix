@@ -35,7 +35,7 @@
       "flake.nix"
       ".gitignore"
       ".envrc"
-      "src/go.sum"
+      "internal/certinfo/common_handlers.go"
     ];
     hooks = {
       shellcheck.enable = true;
@@ -172,6 +172,9 @@
     test -f $CAROOT/cert.pem || mkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 ::1 example.com *.example.com
     test -f $CAROOT/full-cert.pem || cat  $CAROOT/cert.pem $CAROOT/rootCA.pem > $CAROOT/full-cert.pem
     test -f $CAROOT/rsa-private_traditional.key || openssl rsa -in $CAROOT/key.pem -traditional -out $CAROOT/rsa-private_traditional.key
+
+    test -f $CAROOT/rsa-private_traditional_encrypted.key ||  openssl rsa -passout pass:$KEY_TEST_PW -in $CAROOT/rsa-private_traditional.key -out $CAROOT/rsa-private_traditional_encrypted.key -aes256
+
     test -f $CAROOT/private.ec.key || openssl ecparam -name prime256v1 -genkey -noout -out $CAROOT/private.ec.key
     test -f $CAROOT/encrypted.rsa.key || openssl genrsa -aes128 -passout pass:$KEY_TEST_PW -out $CAROOT/encrypted.rsa.key 4096
 
@@ -452,17 +455,8 @@
     ./dist/https-wrench certinfo --tls-endpoint localhost:9445 --tls-insecure --tls-servername example.com --key-file $ED25519_DIR/ed25519.key | grep 'PrivateKey match: true'
   '';
 
-  enterShell = ''
-    gum format "# Devenv shell"
-    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
-    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
-    go version
-    create-certs
-  '';
-
-  enterTest = ''
-    gum format "# Running tests"
-    build
+  scripts.run-requests-tests.exec = ''
+    gum format "## Requests tests"
 
     # test-requests-sample-config
     test-requests-k3s
@@ -477,6 +471,27 @@
     test-requests-proxy-protocol-ipv6
     test-requests-ca-bundle-yaml
     test-requests-body-regexp-match
+  '';
+
+  scripts.run-certinfo-tlsendpoint-tests.exec = ''
+    gum format "## Certinfo tls-endpoint tests"
+
+    test-certinfo-tlsendpoint
+    test-certinfo-tlsendpoint-wrong-ca-file
+    test-certinfo-tlsendpoint-servername
+    test-certinfo-tlsendpoint-timeout
+    test-certinfo-tlsendpoint-malformed
+    test-certinfo-tlsendpoint-insecure
+    test-certinfo-tlsendpoint-ca-bundle
+    test-certinfo-tlsendpoint-ca-bundle-ipv4
+    test-certinfo-tlsendpoint-ca-bundle-ipv6
+    test-certinfo-tlsendpoint-rsa-key-cert
+    test-certinfo-tlsendpoint-ecdsa-key-cert
+    test-certinfo-tlsendpoint-ed25519-key-cert
+  '';
+
+  scripts.run-certinfo-priv-key-tests.exec = ''
+    gum format "## Certinfo private key tests"
 
     test-certinfo-encrypted-rsa-key
     test-certinfo-encrypted-ecdsa-key
@@ -490,20 +505,31 @@
     test-certinfo-pkcs8-rsa-key
     test-certinfo-pkcs1-ec-key
     test-certinfo-pkcs8-ecdsa-key
+  '';
+
+  scripts.run-certinfo-cert-tests.exec = ''
+    gum format "## Certinfo certificate tests"
+
     test-certinfo-rsa-cert
     test-certinfo-ed25519-cert
     test-certinfo-ecdsa-cert
-    test-certinfo-tlsendpoint
-    test-certinfo-tlsendpoint-wrong-ca-file
-    test-certinfo-tlsendpoint-servername
-    test-certinfo-tlsendpoint-timeout
-    test-certinfo-tlsendpoint-malformed
-    test-certinfo-tlsendpoint-insecure
-    test-certinfo-tlsendpoint-ca-bundle
-    test-certinfo-tlsendpoint-ca-bundle-ipv4
-    test-certinfo-tlsendpoint-ca-bundle-ipv6
-    test-certinfo-tlsendpoint-rsa-key-cert
-    test-certinfo-tlsendpoint-ecdsa-key-cert
-    test-certinfo-tlsendpoint-ed25519-key-cert
+  '';
+
+  enterShell = ''
+    gum format "# Devenv shell"
+    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
+    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
+    go version
+    create-certs
+  '';
+
+  enterTest = ''
+    gum format "# Running tests"
+    build
+
+    run-requests-tests
+    run-certinfo-priv-key-tests
+    run-certinfo-cert-tests
+    run-certinfo-tlsendpoint-tests
   '';
 }

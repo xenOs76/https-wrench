@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/youmark/pkcs8"
@@ -181,95 +180,120 @@ func GetCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 	return certs, nil
 }
 
-// Read a private key from file.
-//
-// If the key is encrypted look for a passphrase in the environment variable matching the value of
-// privateKeyPwEnvVar, otherwise prompt for it on stdin.
-//
-// Evaluated key forms are:
-//
-// * PKCS #8, ASN.1 DER (encoded in PEM blocks of type "PRIVATE KEY")
-//
-// * RSA PKCS #1, ASN.1 DER (encoded in PEM blocks of type "RSA PRIVATE KEY")
-//
-// * EC private key in SEC 1, ASN.1 DER (encoded in PEM blocks of type "EC PRIVATE KEY").
-func GetKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
-	pkcs8Encrypted := false
-	pkcs1Encrypted := false
-	pkeyEnvPw := os.Getenv(privateKeyPwEnvVar)
-	pass := []byte{}
-
-	keyPEM, err := os.ReadFile(keyFilePath)
+func readFile(path string) ([]byte, error) {
+	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading key file: %w", err)
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+	return bytes, nil
+}
+
+// IsPrivateKeyEncrypted checks if the given PEM key is encrypted.
+// It returns true if encrypted, false otherwise, and an error if decoding fails.
+func IsPrivateKeyEncrypted(key []byte) (bool, error) {
+	keyBlock, _ := pem.Decode(key)
+	if keyBlock == nil {
+		return false, errors.New("failed to decode PEM")
 	}
 
-	pkcs8EncRE := regexp.MustCompile(`\sENCRYPTED\sPRIVATE\sKEY`)
-	if pkcs8EncRE.Match(keyPEM) {
-		pkcs8Encrypted = true
+	switch keyBlock.Type {
+	case "ENCRYPTED PRIVATE KEY": // PKCS8 RSA, ED25519
+		return true, nil
+	case "EC PRIVATE KEY", "RSA PRIVATE KEY": // EC and PKCS1 RSA, encrypted or not
+		_, hasDEK := keyBlock.Headers["DEK-Info"] // if encrypted, DEK-Info header exists
+		return hasDEK, nil
+	default:
+		return false, fmt.Errorf("unrecognized private key type: %s", keyBlock.Type)
 	}
+}
 
-	pkcs1EncRE := regexp.MustCompile(`4,ENCRYPTED`)
-	if pkcs1EncRE.Match(keyPEM) {
-		pkcs1Encrypted = true
+func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string) ([]byte, error) {
+	if !isEncrypted {
+		return nil, nil
 	}
-
-	if (pkeyEnvPw != "") && (pkcs1Encrypted || pkcs8Encrypted) {
-		pass = []byte(pkeyEnvPw)
+	pkeyEnvPw := os.Getenv(pwEnvKey)
+	if pkeyEnvPw != "" {
+		return []byte(pkeyEnvPw), nil
 	}
-
-	if (pkeyEnvPw == "") && (pkcs1Encrypted || pkcs8Encrypted) {
-		fmt.Print("Private key is encrypted, please enter passphrase:")
-
-		pw, trErr := term.ReadPassword(int(os.Stdin.Fd()))
-		if trErr != nil {
-			return nil, fmt.Errorf("error reading passphrase: %w", trErr)
-		}
-
-		pass = pw
+	fmt.Print("Private key is encrypted, please enter passphrase: ")
+	pw, trErr := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if trErr != nil {
+		return nil, fmt.Errorf("error reading passphrase: %w", trErr)
 	}
+	return pw, nil
+}
 
+// ParsePrivateKey parses a PEM-encoded private key and returns it as a crypto.PrivateKey.
+//
+// Supported formats:
+//
+// - PKCS#8 ("BEGIN PRIVATE KEY" / "BEGIN ENCRYPTED PRIVATE KEY") — decrypted with github.com/youmark/pkcs8
+//
+// - PKCS#1 RSA ("BEGIN RSA PRIVATE KEY") — cleartext or PEM-encrypted (x509.DecryptPEMBlock)
+//
+// - EC private keys ("BEGIN EC PRIVATE KEY") — cleartext or certain PKCS#8-encrypted ECDSA keys
+//
+// If the PEM is encrypted the function will try to read the passphrase from the environment
+// variable named by pwEnvKey; if that is empty it will prompt the user interactively.
+//
+// The function returns a descriptive error if the PEM cannot be decoded, decryption/parsing fails,
+// or the key format is unsupported.
+func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) {
 	keyBlock, _ := pem.Decode(keyPEM)
 	if keyBlock == nil {
-		return nil, fmt.Errorf("failed to decode PEM private key from %s", keyFilePath)
+		return nil, errors.New("failed to decode PEM")
 	}
 
-	var pkcs8PrivKey any
-	if pkcs8Encrypted {
-		pkcs8PrivKey, err = pkcs8.ParsePKCS8PrivateKey(keyBlock.Bytes, pass)
+	isEncrypted, _ := IsPrivateKeyEncrypted(keyPEM)
+
+	pass, err := getPassphraseIfNeeded(isEncrypted, pwEnvKey)
+	if err != nil {
+		return nil, err
+	}
+
+	switch keyBlock.Type {
+	case "ENCRYPTED PRIVATE KEY": // RSA PKCS8, ED25519
+		priv, err := pkcs8.ParsePKCS8PrivateKey(keyBlock.Bytes, pass)
 		if err != nil {
-			return nil, fmt.Errorf("error decrypting PKCS8 private key: %w", err)
+			return nil, fmt.Errorf("PKCS8 decryption failed: %w", err)
 		}
-
-		return pkcs8PrivKey, nil
+		return priv, nil
+	default: // RSA PKCS1, EC
+		if isEncrypted {
+			decryptedDERBytes, err := x509.DecryptPEMBlock(keyBlock, pass)
+			if err != nil {
+				return nil, fmt.Errorf("PEM block decryption failed: %w", err)
+			}
+			keyBlock.Bytes = decryptedDERBytes
+		}
 	}
 
-	var keyDER []byte
-	if pkcs1Encrypted {
-		keyDER, err = x509.DecryptPEMBlock(keyBlock, pass)
-		if err != nil {
-			return nil, fmt.Errorf("error decrypting PKCS1 private key: %w", err)
-		}
-
-		keyBlock.Bytes = keyDER
-	}
-
-	pkcs8Key, pkcs8Err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
-	if pkcs8Err == nil {
+	// Try PKCS8
+	if pkcs8Key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes); err == nil { // NO errors, returning the key
 		return pkcs8Key, nil
 	}
-
-	rsaKey, pkcs1Err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
-	if pkcs1Err == nil {
+	// Try PKCS1 RSA
+	if rsaKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes); err == nil { // NO errors, returning the key
 		return rsaKey, nil
 	}
-
-	ecKey, ecErr := x509.ParseECPrivateKey(keyBlock.Bytes)
-	if ecErr == nil {
+	// Try EC
+	if ecKey, err := x509.ParseECPrivateKey(keyBlock.Bytes); err == nil { // NO errors, returning the key
 		return ecKey, nil
 	}
 
-	err = ecErr
+	return nil, errors.New("unsupported key format or invalid password")
+}
 
-	return nil, fmt.Errorf("error parsing private key: %w", err)
+func GetKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
+	keyPEM, err := readFile(keyFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := ParsePrivateKey(keyPEM, privateKeyPwEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
 }

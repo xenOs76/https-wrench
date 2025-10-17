@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	TLSTimeout      = 3 * time.Second
-	CertExpWarnDays = 40
+	TLSTimeout         = 3 * time.Second
+	CertExpWarnDays    = 40
+	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
 )
 
 type CertinfoConfig struct {
@@ -32,12 +33,12 @@ type CertinfoConfig struct {
 }
 
 var (
-	certsBundle        []*x509.Certificate
-	privKey            any
-	tlsEndpoint        string
-	TlsServerName      string
-	TlsInsecure        bool
-	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
+	// TODO: remove
+	// certsBundle   []*x509.Certificate
+	// privKey       any
+	// tlsEndpoint   string
+	TlsServerName string
+	TlsInsecure   bool
 )
 
 func NewCertinfoConfig() (*CertinfoConfig, error) {
