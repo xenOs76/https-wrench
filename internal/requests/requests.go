@@ -318,7 +318,7 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 
 func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
-		return nil, errors.New("SetProxyProtocolV2 failed: trasportOverrideURL not set")
+		return nil, errors.New("SetProxyProtocolV2 failed: transportOverrideURL not set")
 	}
 
 	if rc.client == nil {
@@ -349,7 +349,6 @@ func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*Requ
 			return nil, fmt.Errorf("failed to write PROXY header: %w", err)
 		}
 
-		return conn, err
 		return conn, nil
 	}
 
