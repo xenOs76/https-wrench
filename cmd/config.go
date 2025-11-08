@@ -5,10 +5,10 @@ import (
 )
 
 type HTTPSWrenchConfig struct {
-	Debug                   bool   `mapstructure:"debug"`
-	Verbose                 bool   `mapstructure:"verbose"`
-	CaBundle                string `mapstructure:"caBundle"`
-	requests.RequestsConfig `mapstructure:",squash"`
+	Debug                       bool   `mapstructure:"debug"`
+	Verbose                     bool   `mapstructure:"verbose"`
+	CaBundle                    string `mapstructure:"caBundle"`
+	requests.RequestsMetaConfig `mapstructure:",squash"`
 }
 
 func NewHTTPSWrenchConfig() *HTTPSWrenchConfig {

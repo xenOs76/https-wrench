@@ -185,6 +185,7 @@ func readFile(path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
+
 	return bytes, nil
 }
 
@@ -211,16 +212,22 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string) ([]byte, error) {
 	if !isEncrypted {
 		return nil, nil
 	}
+
 	pkeyEnvPw := os.Getenv(pwEnvKey)
 	if pkeyEnvPw != "" {
 		return []byte(pkeyEnvPw), nil
 	}
+
 	fmt.Print("Private key is encrypted, please enter passphrase: ")
+
 	pw, trErr := term.ReadPassword(int(os.Stdin.Fd()))
+
 	fmt.Println()
+
 	if trErr != nil {
 		return nil, fmt.Errorf("error reading passphrase: %w", trErr)
 	}
+
 	return pw, nil
 }
 
@@ -258,6 +265,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) 
 		if err != nil {
 			return nil, fmt.Errorf("PKCS8 decryption failed: %w", err)
 		}
+
 		return priv, nil
 	default: // RSA PKCS1, EC
 		if isEncrypted {
@@ -265,6 +273,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) 
 			if err != nil {
 				return nil, fmt.Errorf("PEM block decryption failed: %w", err)
 			}
+
 			keyBlock.Bytes = decryptedDERBytes
 		}
 	}
@@ -295,5 +304,6 @@ func GetKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
