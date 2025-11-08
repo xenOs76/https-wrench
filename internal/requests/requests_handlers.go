@@ -2,9 +2,7 @@ package requests
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss/table"
 	proxyproto "github.com/pires/go-proxyproto"
@@ -122,9 +119,18 @@ func getUrlsFromHost(h Host) []string {
 }
 
 func transportAddressFromRequest(r RequestConfig) (string, error) {
+	addr, err := transportAddressFromURLString(r.TransportOverrideURL)
+	if err != nil {
+		return emptyString, err
+	}
+
+	return addr, nil
+}
+
+func transportAddressFromURLString(transportURL string) (string, error) {
 	var addr string
 
-	overrideURL, err := url.Parse(r.TransportOverrideURL)
+	overrideURL, err := url.Parse(transportURL)
 	if err != nil {
 		return "", err
 	}
@@ -164,7 +170,7 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	reqHostname := reqURL.Hostname()
 	reqPort := reqURL.Port()
 
-	if reqPort == "" {
+	if reqPort == emptyString {
 		reqPort = "443"
 	}
 
@@ -197,90 +203,8 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	return header, nil
 }
 
-func buildHTTPClient(r RequestConfig, serverName string, caCertsPool *x509.CertPool) (*http.Client, string, error) {
-	var transportAddress string
-
-	clientTimeout := httpClientTimeout
-
-	if r.ClientTimeout > 0 {
-		clientTimeout = time.Duration(r.ClientTimeout) * time.Second
-	}
-
-	tlsClientConfig := &tls.Config{
-		ServerName: serverName,
-	}
-
-	if caCertsPool != nil {
-		tlsClientConfig = &tls.Config{
-			RootCAs: caCertsPool,
-		}
-	}
-
-	if r.Insecure {
-		tlsClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-	}
-
-	transport := &http.Transport{
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          transportMaxIdleConns,
-		IdleConnTimeout:       transportIdleConnTimeout,
-		TLSHandshakeTimeout:   transportTLSHandshakeTimeout,
-		ResponseHeaderTimeout: transportResponseHeaderTimeout,
-		ExpectContinueTimeout: transportExpectContinueTimeout,
-		TLSClientConfig:       tlsClientConfig,
-	}
-
-	if len(r.TransportOverrideURL) > 0 {
-		tAddr, err := transportAddressFromRequest(r)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to parse transport override url: %w", err)
-		}
-
-		transportAddress = tAddr
-
-		dialer := &net.Dialer{
-			Timeout:   httpClientTimeout,
-			KeepAlive: httpClientKeepalive,
-		}
-
-		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
-			conn, err := dialer.DialContext(ctx, network, transportAddress)
-			if err != nil {
-				return nil, err
-			}
-
-			if r.EnableProxyProtocolV2 {
-				header, pphErr := proxyProtoHeaderFromRequest(r, serverName)
-				if pphErr != nil {
-					return nil, fmt.Errorf("failed to create proxy header from request: %w", err)
-				}
-
-				if r.RequestDebug {
-					fmt.Printf("Sending PROXY header: %+v\n", header)
-				}
-
-				if _, hwtErr := header.WriteTo(conn); hwtErr != nil {
-					conn.Close()
-
-					return nil, fmt.Errorf("failed to write PROXY header: %w", hwtErr)
-				}
-			}
-
-			return conn, err
-		}
-	}
-
-	return &http.Client{
-		Transport: transport,
-		Timeout:   clientTimeout,
-	}, transportAddress, nil
-}
-
-func HandleRequests(cfg *RequestsConfig) (map[string][]ResponseData, error) {
+func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
 	respDataMap := make(map[string][]ResponseData)
-	clientMethod := httpClientDefaultMethod
 
 	if cfg.RequestVerbose {
 		fmt.Println()
@@ -289,18 +213,9 @@ func HandleRequests(cfg *RequestsConfig) (map[string][]ResponseData, error) {
 	}
 
 	for _, r := range cfg.Requests {
-
 		var respDataList []ResponseData
 
-		requestBodyReader := bytes.NewReader([]byte(""))
-
-		if len(r.RequestMethod) > 0 {
-			clientMethod = strings.ToUpper(r.RequestMethod)
-		}
-
-		if len(r.RequestBody) > 0 {
-			requestBodyReader = bytes.NewReader([]byte(r.RequestBody))
-		}
+		requestBodyBytes := []byte(r.RequestBody)
 
 		if cfg.RequestVerbose {
 			fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
@@ -313,17 +228,25 @@ func HandleRequests(cfg *RequestsConfig) (map[string][]ResponseData, error) {
 		}
 
 		for _, host := range r.Hosts {
-			client, transportAddress, err := buildHTTPClient(r, host.Name, cfg.CACertsPool)
+			reqClient, err := NewHTTPClientFromRequest(
+				r,
+				host.Name,
+				cfg.CACertsPool)
 			if err != nil {
-				return nil, fmt.Errorf("failed to build HTTP client: %w", err)
+				return nil, err
 			}
 
 			urlList := getUrlsFromHost(host)
 
 			for _, reqURL := range urlList {
+				requestBodyReader := bytes.NewReader(requestBodyBytes)
 				ua := httpUserAgent
 
-				req, err := http.NewRequest(clientMethod, reqURL, requestBodyReader)
+				req, err := http.NewRequest(
+					reqClient.method,
+					reqURL,
+					requestBodyReader,
+				)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create request: %w", err)
 				}
@@ -340,7 +263,7 @@ func HandleRequests(cfg *RequestsConfig) (map[string][]ResponseData, error) {
 
 				rd := ResponseData{
 					Request:          r,
-					TransportAddress: transportAddress,
+					TransportAddress: reqClient.transportAddress,
 					URL:              reqURL,
 				}
 
@@ -354,7 +277,7 @@ func HandleRequests(cfg *RequestsConfig) (map[string][]ResponseData, error) {
 					fmt.Printf("Request dump:\n%s\n", string(reqDump))
 				}
 
-				resp, err := client.Do(req)
+				resp, err := reqClient.client.Do(req)
 				if err != nil {
 					rd.Error = err
 					respDataList = append(respDataList, rd)
@@ -448,59 +371,39 @@ func (rd *ResponseData) ImportResponseBody() {
 
 	contentType := rd.Response.Header.Get("Content-Type")
 
-	htmlRegexp, _ := regexp.Compile("(?i)text/html")
-	if matched := htmlRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("html", string(body))
-
-		return
+	contentParsingItems := []struct {
+		language string
+		regexp   string
+	}{
+		{"html", "(?i)text/html"},
+		{"json", "(?i)application/json"},
+		{"csv", "(?i)text/csv"},
+		{"yaml", "(?i)(application|text)/(yaml|x-yaml)"},
+		{"xml", "(?i)(application|text)/xml"},
+		{"javascript", "(?i)text/javascript"},
+		{"css", "(?i)text/css"},
 	}
 
-	jsonRegexp, _ := regexp.Compile("(?i)application/json")
-	if matched := jsonRegexp.MatchString(contentType); matched {
-		var prettyJSON bytes.Buffer
-		err := json.Indent(&prettyJSON, body, "", "  ")
-		if err != nil {
-			prettyJSON.Write(body)
+	for _, item := range contentParsingItems {
+		rex := regexp.MustCompile(item.regexp)
+
+		code := string(body)
+
+		if item.language == "json" {
+			var prettyJSON bytes.Buffer
+
+			err := json.Indent(&prettyJSON, body, "", "  ")
+			if err != nil {
+				prettyJSON.Write(body)
+			}
+
+			code = prettyJSON.String()
 		}
 
-		rd.ResponseBody = style.CodeSyntaxHighlight("json", prettyJSON.String())
-
-		return
-	}
-
-	csvRegexp, _ := regexp.Compile("(?i)text/csv")
-	if matched := csvRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("csv", string(body))
-
-		return
-	}
-
-	yamlRegexp, _ := regexp.Compile("(?i)(application|text)/(yaml|x-yaml)")
-	if matched := yamlRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("yaml", string(body))
-
-		return
-	}
-
-	xmlRegexp, _ := regexp.Compile("(?i)(application|text)/xml")
-	if matched := xmlRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("xml", string(body))
-
-		return
-	}
-
-	jsRegexp, _ := regexp.Compile("(?i)text/javascript")
-	if matched := jsRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("javascript", string(body))
-
-		return
-	}
-
-	cssRegexp, _ := regexp.Compile("(?i)text/css")
-	if matched := cssRegexp.MatchString(contentType); matched {
-		rd.ResponseBody = style.CodeSyntaxHighlight("css", string(body))
-
-		return
+		if matched := rex.MatchString(contentType); matched {
+			rd.ResponseBody = style.CodeSyntaxHighlight(item.language, code)
+			return
+		}
 	}
 
 	rd.ResponseBody = string(body)

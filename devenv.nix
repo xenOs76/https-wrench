@@ -23,7 +23,7 @@
     mkcert
     gum
     goreleaser
-    golangci-lint
+    # golangci-lint
     curl
     jq
     httpie
@@ -152,7 +152,8 @@
     set -e
     gum format "## building..."
     test -d dist || mkdir dist
-    go get -u
+    # deps update suspended: https://github.com/charmbracelet/x/issues/631
+    # go get -u
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
         GO_MODULE_NAME=$(go list -m) &&
         CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
@@ -200,12 +201,17 @@
 
   scripts.test-requests-sample-config.exec = ''
     gum format "## test request with sample config"
-    ./dist/https-wrench requests --config ./src/cmd/embedded/config-example.yaml
+    ./dist/https-wrench requests --config ./cmd/embedded/config-example.yaml
   '';
 
   scripts.test-requests-k3s.exec = ''
     gum format "## test request against local k3s"
     ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/https-wrench-k3s.yaml
+  '';
+
+  scripts.test-requests-methods.exec = ''
+    gum format "## test request methods"
+    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/http-methods.yaml
   '';
 
   scripts.test-requests-timeout.exec = ''
@@ -460,6 +466,7 @@
 
     # test-requests-sample-config
     test-requests-k3s
+    test-requests-methods
     test-requests-timeout
     test-requests-insecure
     test-requests-syntax-highlight
@@ -515,6 +522,36 @@
     test-certinfo-ecdsa-cert
   '';
 
+  scripts.run-go-tests.exec = ''
+    gum format "## Run GO tests"
+
+    time go test ./... -cover -coverprofile=cover.out
+  '';
+
+  scripts.run-go-tests-verbose.exec = ''
+    gum format "## Run GO tests"
+
+    time go test -v ./... -cover -coverprofile=cover.out
+  '';
+
+  scripts.run-go-cover-html.exec = ''
+    gum format "## Run GO cover HTML"
+
+    go tool cover -html=cover.out
+  '';
+
+  scripts.run-go-cover-text.exec = ''
+    gum format "## Run GO cover text"
+
+    go tool cover -func=cover.out
+  '';
+
+  scripts.run-golangcilint-fix.exec = ''
+    gum format "## Run golangci-lint"
+
+    golangci-lint run --fix
+  '';
+
   enterShell = ''
     gum format "# Devenv shell"
     export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
@@ -527,6 +564,7 @@
     gum format "# Running tests"
     build
 
+    run-go-tests
     run-requests-tests
     run-certinfo-priv-key-tests
     run-certinfo-cert-tests

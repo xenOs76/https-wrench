@@ -40,7 +40,7 @@ var requestsCmd = &cobra.Command{
 			dump.Print(cfg)
 		}
 
-		requestsCfg, err := requests.NewRequestsConfig()
+		requestsCfg, err := requests.NewRequestsMetaConfig()
 		if err != nil {
 			fmt.Print(err)
 			return
