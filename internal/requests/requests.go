@@ -305,7 +305,7 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 			return nil, err
 		}
 
-		return conn, err
+		return conn, nil
 	}
 
 	rc.client = &http.Client{
@@ -350,6 +350,7 @@ func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*Requ
 		}
 
 		return conn, err
+		return conn, nil
 	}
 
 	rc.client = &http.Client{
