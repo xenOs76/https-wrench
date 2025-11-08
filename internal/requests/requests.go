@@ -36,6 +36,18 @@ const (
 
 var ErrMethodNotFound = errors.New("HTTP method not found")
 
+var allowedHTTPMethods = map[string]string{
+	"GET":     http.MethodGet,
+	"HEAD":    http.MethodHead,
+	"POST":    http.MethodPost,
+	"PUT":     http.MethodPut,
+	"PATCH":   http.MethodPatch,
+	"DELETE":  http.MethodDelete,
+	"CONNECT": http.MethodConnect,
+	"OPTIONS": http.MethodOptions,
+	"TRACE":   http.MethodTrace,
+}
+
 type (
 	URI            string
 	ResponseHeader string
@@ -250,20 +262,9 @@ func (rc *RequestHTTPClient) SetMethod(method string) (*RequestHTTPClient, error
 		return rc, nil
 	}
 
-	allowedMethods := make(map[string]string)
-	allowedMethods["GET"] = http.MethodGet
-	allowedMethods["HEAD"] = http.MethodHead
-	allowedMethods["POST"] = http.MethodPost
-	allowedMethods["PUT"] = http.MethodPut
-	allowedMethods["PATCH"] = http.MethodPatch
-	allowedMethods["DELETE"] = http.MethodDelete
-	allowedMethods["CONNECT"] = http.MethodConnect
-	allowedMethods["OPTIONS"] = http.MethodOptions
-	allowedMethods["TRACE"] = http.MethodTrace
-
 	m := strings.ToUpper(method)
 
-	if _, ok := allowedMethods[m]; ok {
+	if _, ok := allowedHTTPMethods[m]; ok {
 		rc.method = m
 		return rc, nil
 	}
