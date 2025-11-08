@@ -13,8 +13,9 @@ linters:
     - iface
     - unconvert
     - revive
-    # - wsl_v5
+    - wsl_v5
     - tagliatelle
+    - testifylint
   disable:
     - staticcheck
     - unused
@@ -24,17 +25,34 @@ linters:
     - exhaustruct
 
   settings:
+    gocyclo:
+      min-complexity: 15
+
     revive:
       enable-all-rules: true
       severity: warning
       rules:
+
+        # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md#add-constant
+        - name: add-constant
+          severity: warning
+          disabled: true
+          exclude: [""]
         - name: exported
           disabled: true
+
         - name: line-length-limit
           severity: warning
           disabled: false
           exclude: [""]
           arguments: [100]
+
+        # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md#cognitive-complexity
+        - name: cognitive-complexity
+          severity: warning
+          disabled: false
+          exclude: [""]
+          arguments: [15]
 
   exclusions:
     generated: lax
