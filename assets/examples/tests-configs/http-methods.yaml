@@ -1,0 +1,196 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: httpGetDefault
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /get?method=DefaultGet
+
+  - name: httpGetDeclared
+    requestMethod: GET
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    # printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /get?clientMethod=GET
+
+  - name: httpPost
+    requestMethod: POST
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestHeaders:
+      - key: x-custom-header
+        value: custom-header-value
+
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /post
+
+  - name: httpPostBodyText
+    requestMethod: POST
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestHeaders:
+      - key: content-type
+        value: text/plain
+
+    requestDebug: true
+    requestBody: "plain requestBody \non a multiline string\n"
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /post
+
+  - name: httpPostBodyJson
+    requestMethod: POST
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestHeaders:
+      - key: content-type
+        value: application/json
+
+    requestDebug: true
+    requestBody: '{"a": 1, "b": 2, "c": 3}'
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /post
+
+  - name: httpPut
+    requestMethod: PUT
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /put
+
+  - name: httpDelete
+    requestMethod: DELETE
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /delete
+
+  - name: httpPatch
+    requestMethod: PATCH
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /patch
+
+  - name: reqBinOptions
+    requestMethod: OPTIONS
+
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+    requestDebug: true
+    # printResponseHeaders: true
+    # printResponseBody: true
+    requestHeaders:
+      - key: Access-Control-Request-Method
+        value: PUT
+      - key: Origin
+        value: https://reqbin.com
+      - key: Access-Control-Request-Headers
+        value: content-type
+
+    hosts:
+      - name: api.reqbin.com
+        uriList:
+          - /api/v1/requests
+
+  - name: httpTraceNotAllowed
+    requestMethod: TRACE
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /get
+
+  - name: httpTrace
+    requestMethod: TRACE
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # printResponseHeaders: true
+    printResponseBody: true
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /any
+
+  - name: httpHead
+    requestMethod: HEAD
+    transportOverrideUrl: https://localhost:9443
+    insecure: true
+
+    requestDebug: true
+    # requestDebug: true
+    printResponseHeaders: true
+
+    hosts:
+      - name: example.com
