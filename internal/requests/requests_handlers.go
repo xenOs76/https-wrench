@@ -215,11 +215,7 @@ func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) 
 	for _, r := range cfg.Requests {
 		var respDataList []ResponseData
 
-		requestBodyReader := bytes.NewReader([]byte(""))
-
-		if len(r.RequestBody) > 0 {
-			requestBodyReader = bytes.NewReader([]byte(r.RequestBody))
-		}
+		requestBodyBytes := []byte(r.RequestBody)
 
 		if cfg.RequestVerbose {
 			fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
@@ -243,6 +239,7 @@ func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) 
 			urlList := getUrlsFromHost(host)
 
 			for _, reqURL := range urlList {
+				requestBodyReader := bytes.NewReader(requestBodyBytes)
 				ua := httpUserAgent
 
 				req, err := http.NewRequest(
