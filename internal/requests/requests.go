@@ -2,6 +2,7 @@ package requests
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -149,6 +150,7 @@ func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMeta
 }
 
 func NewRequestHTTPClient() *RequestHTTPClient {
+	tlsConfig := &tls.Config{}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:     true,
@@ -157,6 +159,7 @@ func NewRequestHTTPClient() *RequestHTTPClient {
 			TLSHandshakeTimeout:   transportTLSHandshakeTimeout,
 			ResponseHeaderTimeout: transportResponseHeaderTimeout,
 			ExpectContinueTimeout: transportExpectContinueTimeout,
+			TLSClientConfig:       tlsConfig,
 		},
 		Timeout: httpClientTimeout,
 	}
