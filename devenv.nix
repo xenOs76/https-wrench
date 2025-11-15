@@ -148,12 +148,16 @@
     gum format "# Devenv shell"
   '';
 
+  scripts.update-go-deps.exec = ''
+    gum format "## updating Go dependencies..."
+    go get -u
+    go mod tidy
+  '';
+
   scripts.build.exec = ''
     set -e
     gum format "## building..."
     test -d dist || mkdir dist
-    # deps update suspended: https://github.com/charmbracelet/x/issues/631
-    # go get -u
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
         GO_MODULE_NAME=$(go list -m) &&
         CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
@@ -562,6 +566,7 @@
 
   enterTest = ''
     gum format "# Running tests"
+    update-go-deps
     build
 
     run-go-tests
