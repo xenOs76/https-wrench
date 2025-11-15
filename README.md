@@ -115,6 +115,13 @@ Or like this, if you customize one of the files in the [examples](./assets/examp
 
 ## How to install
 
+### Go install
+
+HTTPS Wrench is "go gettable", so it can be installed with the following commnand when having a proper `go` setup:  
+```bash
+go install github.com/xenos76/https-wrench@latest
+```
+
 ### Manual download
 
 Release binaries and DEB, RPM, APK packages can be downloaded from the [repo's releases section](https://github.com/xenOs76/https-wrench/releases).  
