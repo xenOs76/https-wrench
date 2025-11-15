@@ -1,9 +1,14 @@
 <h1>HTTPS Wrench</h1>
 <p align="center">
-    <img width="450" alt="HTTPS Wrench Logo" src="./assets/img/https-wrench-logo.jpg" /><br />
+    <img width="450" alt="HTTPS Wrench Logo" src="./assets/img/https-wrench-logo.jpg"/><br />
 </p>
 <p align="center">
     <i>HTTPS Wrench, a wrench not to bench</i>
+</p>
+<p align="center">
+    <a href="https://goreportcard.com/report/github.com/xenos76/https-wrench">
+        <img alt="Go Report Card badge for HTTPS Wrench" src="https://goreportcard.com/badge/github.com/xenos76/https-wrench"/>
+    </a>
 </p>
 
 **HTTPS Wrench** is a Golang CLI program to make HTTPS requests based on a YAML configuration file.   
