@@ -118,6 +118,9 @@ type ResponseData struct {
 }
 
 type RequestsMetaConfig struct {
+	// TODO: can we remove the following
+	// three lines and just embed an "options"
+	// struct to take care of metadata?
 	RequestDebug   bool
 	RequestVerbose bool
 	CACertsPool    *x509.CertPool
@@ -513,7 +516,6 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 	return reqClient, nil
 }
 
-func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool, debug bool) ([]ResponseData, error) {
 func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
@@ -565,8 +567,15 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 
 			resp, err := reqClient.client.Do(req)
 			if err != nil {
+				// if the request returns and error, we track it in
+				// the responseData and stop processing.
+				// Going further and importing the *http.Response into
+				// ResponseData would result in a nil pointer error.
+				// Avoiding that error will cost some duplicated code
+				// in this branch mirroring the end of the outer one.
 				responseData.Error = err
 				responseDataList = append(responseDataList, responseData)
+				responseData.PrintResponseData(isVerbose)
 
 				continue
 			}
