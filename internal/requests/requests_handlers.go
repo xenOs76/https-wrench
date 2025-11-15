@@ -212,7 +212,6 @@ func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) 
 			r,
 			cfg.CACertsPool,
 			cfg.RequestVerbose,
-			cfg.RequestDebug,
 		)
 		if err != nil {
 			return nil, err

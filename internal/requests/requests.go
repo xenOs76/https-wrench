@@ -514,6 +514,7 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 }
 
 func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool, debug bool) ([]ResponseData, error) {
+func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
 	requestBodyBytes := []byte(r.RequestBody)
