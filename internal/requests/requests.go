@@ -198,8 +198,8 @@ func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	}
 }
 
-func PrintRequestDebug(debug bool, req *http.Request) {
-	if debug {
+func (r *RequestConfig) PrintRequestDebug(req *http.Request) {
+	if r.RequestDebug {
 		reqDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
 			fmt.Printf("Warning: failed to dump request: %v\n", err)
@@ -211,8 +211,8 @@ func PrintRequestDebug(debug bool, req *http.Request) {
 	}
 }
 
-func PrintResponseDebug(debug bool, resp *http.Response) {
-	if debug {
+func (r *RequestConfig) PrintResponseDebug(resp *http.Response) {
+	if r.ResponseDebug {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
 			fmt.Printf("Warning: failed to dump response: %v\n", err)
@@ -560,7 +560,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				req.Header.Add(header.Key, header.Value)
 			}
 
-			PrintRequestDebug(debug, req)
+			r.PrintRequestDebug(req)
 
 			resp, err := reqClient.client.Do(req)
 			if err != nil {
@@ -570,7 +570,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				continue
 			}
 
-			PrintResponseDebug(debug, resp)
+			r.PrintResponseDebug(resp)
 
 			responseData.Response = resp
 
@@ -580,7 +580,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 
 			err = resp.Body.Close()
 			if err != nil {
-				fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
+				fmt.Printf("unable to close response Body: %v\n", err)
 			}
 
 			responseDataList = append(responseDataList, responseData)
