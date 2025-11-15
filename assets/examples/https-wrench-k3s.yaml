@@ -12,6 +12,16 @@ requests:
     hosts:
       - name: httpbingo.k3s.os76.xyz
 
+  - name: k3sOs76NoLbShouldFail
+    transportOverrideUrl: https://rpi501.home.arpa
+
+    # requestDebug: true
+    # responseDebug: true
+    hosts:
+      - name: httpbingo.k3s.os76.xyz
+        uriList:
+          - /headers
+
   - name: k3sOs76ViaIstioDnsOverride
     transportOverrideUrl: https://192.168.1.114:30443
     # requestDebug: true
@@ -40,13 +50,6 @@ requests:
     responseHeadersFilter:
       - Server
 
-    hosts:
-      - name: httpbingo.k3s.os76.xyz
-        uriList:
-          - /headers
-
-  - name: k3sOs76NoLbShouldFail
-    transportOverrideUrl: https://rpi501.home.arpa
     hosts:
       - name: httpbingo.k3s.os76.xyz
         uriList:
