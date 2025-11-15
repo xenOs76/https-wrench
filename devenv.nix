@@ -152,8 +152,7 @@
     set -e
     gum format "## building..."
     test -d dist || mkdir dist
-    # deps update suspended: https://github.com/charmbracelet/x/issues/631
-    # go get -u
+    go get -u
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
         GO_MODULE_NAME=$(go list -m) &&
         CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
