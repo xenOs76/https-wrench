@@ -200,10 +200,11 @@ func (r *RequestConfig) PrintTitle(isVerbose bool) {
 
 func PrintRequestDebug(debug bool, req *http.Request) {
 	if debug {
-		reqDump, _ := httputil.DumpRequestOut(req, true)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		reqDump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			fmt.Printf("Warning: failed to dump request: %v\n", err)
+			return
+		}
 
 		fmt.Printf("Requesting url: %s\n", req.URL)
 		fmt.Printf("Request dump:\n%s\n", string(reqDump))
@@ -212,30 +213,36 @@ func PrintRequestDebug(debug bool, req *http.Request) {
 
 func PrintResponseDebug(debug bool, resp *http.Response) {
 	if debug {
-		respDump, _ := httputil.DumpResponse(resp, true)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			fmt.Printf("Warning: failed to dump response: %v\n", err)
+			return
+		}
 
 		fmt.Printf("Requested url: %s\n", resp.Request.URL)
 		fmt.Printf("Response dump:\n%s\n", string(respDump))
-		fmt.Println("TLS:")
-		fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
-		fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
 
-		for i, cert := range resp.TLS.PeerCertificates {
-			fmt.Printf("Certificate %d:\n", i)
-			certinfo.PrintCertInfo(cert, 1)
+		if resp.TLS != nil {
+			fmt.Println("TLS:")
+			fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
+			fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+
+			for i, cert := range resp.TLS.PeerCertificates {
+				fmt.Printf("Certificate %d:\n", i)
+				certinfo.PrintCertInfo(cert, 1)
+			}
+
+			for i, chain := range resp.TLS.VerifiedChains {
+				fmt.Printf("Verified Chain %d:\n", i)
+
+				for j, cert := range chain {
+					fmt.Printf(" Cert %d:\n", j)
+					certinfo.PrintCertInfo(cert, 2)
+				}
+			}
+		} else {
+			fmt.Println("TLS: Not available (non-TLS connection)")
 		}
-
-		// Optionally show verified chains
-		// for i, chain := range resp.TLS.VerifiedChains {
-		// 	fmt.Printf("Verified Chain %d:\n", i)
-		// 	for j, cert := range chain {
-		// 		fmt.Printf(" Cert %d:\n", j)
-		// 		PrintCertInfo(cert, 2)
-		// 	}
-		// }
 	}
 }
 
