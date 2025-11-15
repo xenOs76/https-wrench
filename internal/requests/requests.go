@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -8,16 +9,19 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"time"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/style"
 )
 
 const (
 	httpUserAgent                         = "https-wrench-request"
 	httpClientDefaultMethod               = "GET"
+	httpClientDefaultScheme               = "https"
 	httpClientTimeout       time.Duration = 30 * time.Second
 	httpClientKeepalive     time.Duration = 30 * time.Second
 
@@ -46,6 +50,19 @@ var allowedHTTPMethods = map[string]string{
 	"CONNECT": http.MethodConnect,
 	"OPTIONS": http.MethodOptions,
 	"TRACE":   http.MethodTrace,
+}
+
+var contentTypeMatchingItems = []struct {
+	language string
+	regexp   string
+}{
+	{"html", "(?i)text/html"},
+	{"json", "(?i)application/json"},
+	{"csv", "(?i)text/csv"},
+	{"yaml", "(?i)(application|text)/(yaml|x-yaml)"},
+	{"xml", "(?i)(application|text)/xml"},
+	{"javascript", "(?i)text/javascript"},
+	{"css", "(?i)text/css"},
 }
 
 type (
@@ -159,6 +176,67 @@ func (r *RequestsMetaConfig) SetCaPoolFromFile(filePath string) error {
 func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMetaConfig {
 	r.Requests = requests
 	return r
+}
+
+func (r *RequestsMetaConfig) PrintCmd() {
+	if r.RequestVerbose {
+		fmt.Println()
+		fmt.Println(style.LgSprintf(style.Cmd, "Requests"))
+		fmt.Println()
+	}
+}
+
+func (r *RequestConfig) PrintTitle(isVerbose bool) {
+	if isVerbose {
+		fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
+		fmt.Println(style.LgSprintf(style.Title, "%s", r.Name))
+
+		if r.TransportOverrideURL != "" {
+			fmt.Print(style.LgSprintf(style.ItemKey, "Via:"))
+			fmt.Println(style.LgSprintf(style.Via, "%s", r.TransportOverrideURL))
+		}
+	}
+}
+
+func PrintRequestDebug(debug bool, req *http.Request) {
+	if debug {
+		reqDump, _ := httputil.DumpRequestOut(req, true)
+		// if err != nil {
+		// 	return nil, err
+		// }
+
+		fmt.Printf("Requesting url: %s\n", req.URL)
+		fmt.Printf("Request dump:\n%s\n", string(reqDump))
+	}
+}
+
+func PrintResponseDebug(debug bool, resp *http.Response) {
+	if debug {
+		respDump, _ := httputil.DumpResponse(resp, true)
+		// if err != nil {
+		// 	return nil, err
+		// }
+
+		fmt.Printf("Requested url: %s\n", resp.Request.URL)
+		fmt.Printf("Response dump:\n%s\n", string(respDump))
+		fmt.Println("TLS:")
+		fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
+		fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+
+		for i, cert := range resp.TLS.PeerCertificates {
+			fmt.Printf("Certificate %d:\n", i)
+			certinfo.PrintCertInfo(cert, 1)
+		}
+
+		// Optionally show verified chains
+		// for i, chain := range resp.TLS.VerifiedChains {
+		// 	fmt.Printf("Verified Chain %d:\n", i)
+		// 	for j, cert := range chain {
+		// 		fmt.Printf(" Cert %d:\n", j)
+		// 		PrintCertInfo(cert, 2)
+		// 	}
+		// }
+	}
 }
 
 func NewRequestHTTPClient() *RequestHTTPClient {
@@ -278,7 +356,8 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	}
 
 	if rc.client == nil {
-		return nil, errors.New("*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, errors.New(
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
 	transportAddress, err := transportAddressFromURLString(transportURL)
@@ -323,7 +402,8 @@ func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*Requ
 	}
 
 	if rc.client == nil {
-		return nil, errors.New("*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, errors.New(
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
 	dialer := &net.Dialer{
@@ -363,7 +443,8 @@ func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*Requ
 
 func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, error) {
 	if rc.client == nil {
-		return nil, errors.New("*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, errors.New(
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
 	t := time.Duration(timeout) * time.Second
@@ -372,7 +453,7 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 	return rc, nil
 }
 
-func NewHTTPClientFromRequest(r RequestConfig, serverName string, caPool *x509.CertPool) (*RequestHTTPClient, error) {
+func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *x509.CertPool) (*RequestHTTPClient, error) {
 	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
 		return nil, errors.New(
 			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
@@ -423,4 +504,82 @@ func NewHTTPClientFromRequest(r RequestConfig, serverName string, caPool *x509.C
 	}
 
 	return reqClient, nil
+}
+
+func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool, debug bool) ([]ResponseData, error) {
+	var responseDataList []ResponseData
+
+	requestBodyBytes := []byte(r.RequestBody)
+
+	r.PrintTitle(isVerbose)
+
+	for _, host := range r.Hosts {
+		reqClient, err := NewHTTPClientFromRequestConfig(
+			r,
+			host.Name,
+			caPool)
+		if err != nil {
+			return nil, err
+		}
+
+		urlList := getUrlsFromHost(host)
+
+		for _, reqURL := range urlList {
+			responseData := ResponseData{
+				Request:          r,
+				TransportAddress: reqClient.transportAddress,
+				URL:              reqURL,
+			}
+
+			requestBodyReader := bytes.NewReader(requestBodyBytes)
+
+			req, err := http.NewRequest(
+				reqClient.method,
+				reqURL,
+				requestBodyReader,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create request: %w", err)
+			}
+
+			ua := httpUserAgent
+			if len(r.UserAgent) > 0 {
+				ua = r.UserAgent
+			}
+
+			req.Header.Add("User-Agent", ua)
+
+			for _, header := range r.RequestHeaders {
+				req.Header.Add(header.Key, header.Value)
+			}
+
+			PrintRequestDebug(debug, req)
+
+			resp, err := reqClient.client.Do(req)
+			if err != nil {
+				responseData.Error = err
+				responseDataList = append(responseDataList, responseData)
+
+				continue
+			}
+
+			PrintResponseDebug(debug, resp)
+
+			responseData.Response = resp
+
+			if r.ResponseBodyMatchRegexp != emptyString || responseData.Request.PrintResponseBody {
+				responseData.ImportResponseBody()
+			}
+
+			err = resp.Body.Close()
+			if err != nil {
+				fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
+			}
+
+			responseDataList = append(responseDataList, responseData)
+			responseData.PrintResponseData(isVerbose)
+		}
+	}
+
+	return responseDataList, nil
 }

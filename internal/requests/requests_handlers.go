@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"regexp"
 	"slices"
@@ -98,7 +97,7 @@ func getUrlsFromHost(h Host) []string {
 	var list []string
 
 	if len(h.URIList) == 0 {
-		s := "https://" + h.Name
+		s := httpClientDefaultScheme + "://" + h.Name
 		list = append(list, s)
 
 		return list
@@ -106,12 +105,12 @@ func getUrlsFromHost(h Host) []string {
 
 	for _, uri := range h.URIList {
 		if parsed := uri.Parse(); !parsed {
-			fmt.Printf("Invalid uri %s for host %s", uri, h)
+			fmt.Printf("Invalid uri %s for host %s", uri, h.Name)
 
 			break
 		}
 
-		s := fmt.Sprintf("https://%s%s", h.Name, uri)
+		s := fmt.Sprintf("%s://%s%s", httpClientDefaultScheme, h.Name, uri)
 		list = append(list, s)
 	}
 
@@ -204,144 +203,25 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 }
 
 func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
-	respDataMap := make(map[string][]ResponseData)
+	responseDataMap := make(map[string][]ResponseData)
 
-	if cfg.RequestVerbose {
-		fmt.Println()
-		fmt.Println(style.LgSprintf(style.Cmd, "Requests"))
-		fmt.Println()
-	}
+	cfg.PrintCmd()
 
 	for _, r := range cfg.Requests {
-		var respDataList []ResponseData
-
-		requestBodyBytes := []byte(r.RequestBody)
-
-		if cfg.RequestVerbose {
-			fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
-			fmt.Println(style.LgSprintf(style.Title, "%s", r.Name))
-
-			if r.TransportOverrideURL != "" {
-				fmt.Print(style.LgSprintf(style.ItemKey, "Via:"))
-				fmt.Println(style.LgSprintf(style.Via, "%s", r.TransportOverrideURL))
-			}
+		responseDataList, err := processHTTPRequestsByHost(
+			r,
+			cfg.CACertsPool,
+			cfg.RequestVerbose,
+			cfg.RequestDebug,
+		)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, host := range r.Hosts {
-			reqClient, err := NewHTTPClientFromRequest(
-				r,
-				host.Name,
-				cfg.CACertsPool)
-			if err != nil {
-				return nil, err
-			}
-
-			urlList := getUrlsFromHost(host)
-
-			for _, reqURL := range urlList {
-				requestBodyReader := bytes.NewReader(requestBodyBytes)
-				ua := httpUserAgent
-
-				req, err := http.NewRequest(
-					reqClient.method,
-					reqURL,
-					requestBodyReader,
-				)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create request: %w", err)
-				}
-
-				if len(r.UserAgent) > 0 {
-					ua = r.UserAgent
-				}
-
-				req.Header.Add("User-Agent", ua)
-
-				for _, header := range r.RequestHeaders {
-					req.Header.Add(header.Key, header.Value)
-				}
-
-				rd := ResponseData{
-					Request:          r,
-					TransportAddress: reqClient.transportAddress,
-					URL:              reqURL,
-				}
-
-				if r.RequestDebug {
-					reqDump, drErr := httputil.DumpRequestOut(req, true)
-					if drErr != nil {
-						return nil, drErr
-					}
-
-					fmt.Printf("Requesting url: %s\n", reqURL)
-					fmt.Printf("Request dump:\n%s\n", string(reqDump))
-				}
-
-				resp, err := reqClient.client.Do(req)
-				if err != nil {
-					rd.Error = err
-					respDataList = append(respDataList, rd)
-
-					if cfg.RequestVerbose {
-						rd.PrintResponseData()
-					}
-
-					continue
-				}
-
-				if r.ResponseDebug {
-					respDump, err := httputil.DumpResponse(resp, true)
-					if err != nil {
-						return nil, err
-					}
-
-					fmt.Printf("Requested url: %s\n", reqURL)
-					fmt.Printf("Response dump:\n%s\n", string(respDump))
-					fmt.Println("TLS:")
-					fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
-					fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
-
-					for i, cert := range resp.TLS.PeerCertificates {
-						fmt.Printf("Certificate %d:\n", i)
-						certinfo.PrintCertInfo(cert, 1)
-					}
-
-					// Optionally show verified chains
-					// for i, chain := range resp.TLS.VerifiedChains {
-					// 	fmt.Printf("Verified Chain %d:\n", i)
-					// 	for j, cert := range chain {
-					// 		fmt.Printf(" Cert %d:\n", j)
-					// 		PrintCertInfo(cert, 2)
-					// 	}
-					// }
-				}
-
-				rd.Response = resp
-
-				if r.ResponseBodyMatchRegexp != "" {
-					rd.ImportResponseBody()
-				}
-
-				if rd.Request.PrintResponseBody {
-					rd.ImportResponseBody()
-				}
-
-				err = resp.Body.Close()
-				if err != nil {
-					fmt.Print(fmt.Errorf("unable to close response Body: %w", err))
-				}
-
-				respDataList = append(respDataList, rd)
-				respDataMap[rd.Request.Name] = respDataList
-
-				if cfg.RequestVerbose {
-					rd.PrintResponseData()
-				}
-			}
-		}
+		responseDataMap[r.Name] = responseDataList
 	}
 
-	return respDataMap, nil
+	return responseDataMap, nil
 }
 
 func (rd *ResponseData) ImportResponseBody() {
@@ -371,20 +251,7 @@ func (rd *ResponseData) ImportResponseBody() {
 
 	contentType := rd.Response.Header.Get("Content-Type")
 
-	contentParsingItems := []struct {
-		language string
-		regexp   string
-	}{
-		{"html", "(?i)text/html"},
-		{"json", "(?i)application/json"},
-		{"csv", "(?i)text/csv"},
-		{"yaml", "(?i)(application|text)/(yaml|x-yaml)"},
-		{"xml", "(?i)(application|text)/xml"},
-		{"javascript", "(?i)text/javascript"},
-		{"css", "(?i)text/css"},
-	}
-
-	for _, item := range contentParsingItems {
+	for _, item := range contentTypeMatchingItems {
 		rex := regexp.MustCompile(item.regexp)
 
 		code := string(body)
@@ -409,7 +276,11 @@ func (rd *ResponseData) ImportResponseBody() {
 	rd.ResponseBody = string(body)
 }
 
-func (rd ResponseData) PrintResponseData() {
+func (rd ResponseData) PrintResponseData(isVerbose bool) {
+	if !isVerbose {
+		return
+	}
+
 	fmt.Println(style.LgSprintf(style.ItemKey,
 		"- Url: %s",
 		style.URL.Render(rd.URL)),
