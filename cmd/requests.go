@@ -35,20 +35,26 @@ HTTPS Wrench requests: make HTTPS requests defined in the YAML configuration fil
 			return
 		}
 
+		if showSampleConfig {
+			fmt.Print(sampleYamlConfig)
+			return
+		}
+
+		if cfgFile == "" {
+			_ = cmd.Help()
+			return
+		}
+
 		_, err := os.Stat(viper.ConfigFileUsed())
 		if err != nil {
 			fmt.Printf("\nConfig file not found: %s\n", viper.ConfigFileUsed())
 			_ = cmd.Help()
+			return
 		}
 
 		cfg, err := LoadConfig()
 		if err != nil {
 			fmt.Print(err)
-			return
-		}
-
-		if showSampleConfig {
-			fmt.Print(sampleYamlConfig)
 			return
 		}
 
