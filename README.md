@@ -24,29 +24,29 @@ Check the help:
 
 ```bash
 ❯ https-wrench -h
-A tool to make HTTPS requests based on a YAML configuration file
+HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file
 
 Usage:
   https-wrench [flags]
   https-wrench [command]
 
 Available Commands:
+  certinfo    Show info about PEM certificates and keys
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
-  requests    Make HTTPS requests
+  requests    Make HTTPS requests defined in the YAML configuration file
 
 Flags:
-      --config string        config file (default is $HOME/.https-wrench.yaml)
-  -h, --help                 help for https-wrench
-      --show-sample-config   Show a sample YAML configuration
-      --version              Display the version
+      --config string   config file (default is $HOME/.https-wrench.yaml)
+  -h, --help            help for https-wrench
+      --version         Display the version
 
 Use "https-wrench [command] --help" for more information about a command.
 ```
 
 Generate a sample config file:
 ```bash
-https-wrench --show-sample-config > sample-wrench.yaml
+https-wrench requests --show-sample-config > sample-wrench.yaml
 ```
 
 <details>
@@ -102,7 +102,7 @@ requests:
 
 Make the HTTPS requests defined in the YAML file:
 ```bash
-https-wrench --config sample-wrench.yaml requests
+https-wrench requests --config sample-wrench.yaml 
 ```
 
 <details>
@@ -140,7 +140,7 @@ echo "deb [trusted=yes] https://repo.os76.xyz/apt stable main" | sudo tee /etc/a
 ```
 then: 
 ```bash
-apt-get update && apt-get install https-wrench
+sudo apt-get update && sudo apt-get install -y https-wrench
 ```
 
 ### YUM
@@ -156,7 +156,7 @@ repo_gpgcheck=0' | sudo tee /etc/yum.repos.d/os76.repo
 ```
 then: 
 ```bash
-yum install https-wrench
+sudo yum install https-wrench
 ```
 
 ### Docker image
