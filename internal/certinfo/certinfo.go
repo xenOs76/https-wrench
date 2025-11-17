@@ -62,6 +62,7 @@ func (c *CertinfoConfig) SetCaPoolFromFile(filePath string) error {
 		}
 
 		c.CACertsPool = caCertsPool
+		c.CACertsFilePath = filePath
 	}
 
 	return nil
@@ -75,6 +76,7 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string) error {
 		}
 
 		c.CertsBundle = certs
+		c.CertsBundleFilePath = filePath
 	}
 
 	return nil
@@ -82,14 +84,13 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string) error {
 
 func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string) error {
 	if filePath != "" {
-		c.PrivKeyFilePath = filePath
-
 		keyFromFile, err := GetKeyFromFile(c.PrivKeyFilePath)
 		if err != nil {
 			return err
 		}
 
 		c.PrivKey = keyFromFile
+		c.PrivKeyFilePath = filePath
 	}
 
 	return nil
