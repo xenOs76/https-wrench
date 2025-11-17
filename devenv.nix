@@ -24,6 +24,7 @@
     gum
     goreleaser
     # golangci-lint
+    govulncheck
     curl
     jq
     httpie
@@ -151,7 +152,10 @@
   scripts.update-go-deps.exec = ''
     gum format "## updating Go dependencies..."
     go get -u
+    gum format "## running go mod tidy..."
     go mod tidy
+    gum format "## running govulncheck..."
+    govulncheck ./...
   '';
 
   scripts.build.exec = ''
@@ -201,6 +205,36 @@
 
   scripts.test-curl.exec = ''
     curl "https://localhost:9443/get" -k -v
+  '';
+
+  scripts.test-cmd-root-version.exec = ''
+    gum format "## Command root --version"
+    ./dist/https-wrench --version | grep -E '[0-9]\.+'
+  '';
+
+  scripts.test-cmd-requests-version.exec = ''
+    gum format "## Command requests --version"
+    ./dist/https-wrench requests --version | grep -E '[0-9]\.+'
+  '';
+
+  scripts.test-cmd-certinfo-version.exec = ''
+    gum format "## Command certinfo --version"
+    ./dist/https-wrench certinfo --version | grep -E '[0-9]\.+'
+  '';
+
+  scripts.test-cmd-root-help-when-no-flags.exec = ''
+    gum format "## Command root, help when no flags"
+    ./dist/https-wrench | grep "help for https-wrench"
+  '';
+
+  scripts.test-cmd-requests-help-when-no-flags.exec = ''
+    gum format "## Command requests, help when no flags"
+    ./dist/https-wrench requests | grep "help for requests"
+  '';
+
+  scripts.test-cmd-certinfo-help-when-no-flags.exec = ''
+    gum format "## Command certinfo, help when no flags"
+    ./dist/https-wrench certinfo | grep "help for certinfo"
   '';
 
   scripts.test-requests-sample-config.exec = ''
@@ -566,10 +600,18 @@
 
   enterTest = ''
     gum format "# Running tests"
-    update-go-deps
+    # update-go-deps
     build
 
     run-go-tests
+
+    test-cmd-root-version
+    test-cmd-requests-version
+    test-cmd-certinfo-version
+    test-cmd-root-help-when-no-flags
+    test-cmd-requests-help-when-no-flags
+    test-cmd-certinfo-help-when-no-flags
+
     run-requests-tests
     run-certinfo-priv-key-tests
     run-certinfo-cert-tests

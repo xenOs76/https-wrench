@@ -47,8 +47,9 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "https-wrench",
-	Short: "A tool to make HTTPS requests based on a YAML configuration file",
-	Long:  "A tool to make HTTPS requests based on a YAML configuration file",
+	Short: "HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file",
+	Long: `
+HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
@@ -57,9 +58,9 @@ var rootCmd = &cobra.Command{
 
 			return
 		}
-		_, err := os.Stat(viper.ConfigFileUsed())
-		if err != nil {
-			fmt.Printf("Config file not found: %s\n", viper.ConfigFileUsed())
+
+		if cfgFile == "" {
+			_ = cmd.Help()
 		}
 	},
 }
@@ -67,7 +68,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		return
 	}
 }
 
@@ -84,8 +85,8 @@ func init() {
 	}
 
 	addCaBundleFlag(requestsCmd)
-	addCertBundleFlag(requestsCmd)
-	addKeyFileFlag(requestsCmd)
+	// addCertBundleFlag(requestsCmd)
+	// addKeyFileFlag(requestsCmd)
 
 	addCaBundleFlag(certinfoCmd)
 	addCertBundleFlag(certinfoCmd)
