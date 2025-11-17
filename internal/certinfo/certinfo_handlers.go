@@ -32,14 +32,22 @@ func (c *CertinfoConfig) PrintData() {
 
 	if c.PrivKey != nil {
 		fmt.Println(style.LgSprintf(ks, "PrivateKey"))
-		fmt.Println(style.LgSprintf(sl.PaddingTop(1), "PrivateKey file: %v", sv.Render(c.PrivKeyFilePath)))
+		fmt.Println(style.LgSprintf(
+			sl.PaddingTop(1),
+			"PrivateKey file: %v",
+			sv.Render(c.PrivKeyFilePath),
+		))
 		style.PrintKeyInfoStyle(c.PrivKey)
 	}
 
 	if len(c.CertsBundle) > 0 {
 		fmt.Println(style.LgSprintf(ks, "Certificates"))
 
-		fmt.Println(style.LgSprintf(sl.PaddingTop(1), "Certificates file: %v", sv.Render(c.CertsBundleFilePath)))
+		fmt.Println(style.LgSprintf(
+			sl.PaddingTop(1),
+			"Certificate bundle file: %v",
+			sv.Render(c.CertsBundleFilePath),
+		))
 
 		if c.PrivKey != nil {
 			certMatch, err := certMatchPrivateKey(c.CertsBundle[0], c.PrivKey)
@@ -47,7 +55,11 @@ func (c *CertinfoConfig) PrintData() {
 				fmt.Print(err)
 			}
 
-			fmt.Println(style.LgSprintf(sl, "PrivateKey match: %v", style.BoolStyle(certMatch)))
+			fmt.Println(style.LgSprintf(
+				sl,
+				"PrivateKey match: %v",
+				style.BoolStyle(certMatch),
+			))
 		}
 
 		CertsToTables(c.CertsBundle)
@@ -57,10 +69,18 @@ func (c *CertinfoConfig) PrintData() {
 		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
 
 		fmt.Println(style.LgSprintf(ks, "TLSEndpoint Certificates"))
-		fmt.Println(style.LgSprintf(sl.PaddingTop(1), "Endpoint: %v", endpoint))
+		fmt.Println(style.LgSprintf(
+			sl.PaddingTop(1),
+			"Endpoint: %v",
+			endpoint,
+		))
 
 		if c.TLSServerName != "" {
-			fmt.Println(style.LgSprintf(sl, "ServerName: %v", sv.Render(c.TLSServerName)))
+			fmt.Println(style.LgSprintf(
+				sl,
+				"ServerName: %v",
+				sv.Render(c.TLSServerName),
+			))
 		}
 
 		if c.PrivKey != nil {
@@ -69,7 +89,11 @@ func (c *CertinfoConfig) PrintData() {
 				fmt.Print(err)
 			}
 
-			fmt.Println(style.LgSprintf(sl, "PrivateKey match: %v", style.BoolStyle(tlsMatch)))
+			fmt.Println(style.LgSprintf(
+				sl,
+				"PrivateKey match: %v",
+				style.BoolStyle(tlsMatch),
+			))
 		}
 
 		CertsToTables(c.TLSEndpointCerts)
