@@ -84,7 +84,7 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string) error {
 
 func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string) error {
 	if filePath != "" {
-		keyFromFile, err := GetKeyFromFile(c.PrivKeyFilePath)
+		keyFromFile, err := GetKeyFromFile(filePath)
 		if err != nil {
 			return err
 		}
