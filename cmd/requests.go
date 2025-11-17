@@ -7,9 +7,11 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
+	"os"
 
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
@@ -21,10 +23,24 @@ var (
 
 var requestsCmd = &cobra.Command{
 	Use:   "requests",
-	Short: "Make HTTPS requests",
-	Long:  `Make HTTPS requests defined in the YAML configuration file.`,
+	Short: "Make HTTPS requests defined in the YAML configuration file",
+	Long: `
+HTTPS Wrench requests: make HTTPS requests defined in the YAML configuration file`,
 
 	Run: func(cmd *cobra.Command, args []string) {
+		versionRequested := viper.GetBool("version")
+
+		if versionRequested {
+			fmt.Print(version)
+			return
+		}
+
+		_, err := os.Stat(viper.ConfigFileUsed())
+		if err != nil {
+			fmt.Printf("\nConfig file not found: %s\n", viper.ConfigFileUsed())
+			_ = cmd.Help()
+		}
+
 		cfg, err := LoadConfig()
 		if err != nil {
 			fmt.Print(err)

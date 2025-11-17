@@ -168,7 +168,10 @@ func CertsToTables(certs []*x509.Certificate) {
 	svn := style.CertValueNotice.Render
 
 	for i := range certs {
-		header := style.LgSprintf(style.CertKeyP4.Bold(true), "Certificate %d", i)
+		header := style.LgSprintf(
+			style.CertKeyP4.Bold(true),
+			"Certificate %d",
+			i)
 		cert := certs[i]
 
 		subject := cert.Subject.String()

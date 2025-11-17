@@ -21,13 +21,16 @@ var (
 var certinfoCmd = &cobra.Command{
 	Use:   "certinfo",
 	Short: "Show info about PEM certificates and keys",
-	Long: `Show info about PEM certificates and keys.
-Can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a private 
+	Long: `
+HTTPS Wrench certinfo: show info about PEM certificates and keys.
+
+Certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a private 
 key matches any of the certificates.
 The certificates can be verified against the system root CAs or a custom CA bundle file. 
 The validation can be skipped.
 If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW 
 environment variable or will be prompted on stdin.
+
 Examples:
   certinfo --tls-endpoint example.com:443
   certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
@@ -41,6 +44,22 @@ Examples:
   certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		caBundleValue := viper.GetString("ca-bundle")
+		certBundleValue := viper.GetString("cert-bundle")
+		keyFileValue := viper.GetString("key-file")
+		versionRequested := viper.GetBool("version")
+
+		if versionRequested {
+			fmt.Print(version)
+			return
+		}
+
+		// display the help if none of the main flags is set
+		if len(caBundleValue+certBundleValue+keyFileValue+tlsEndpoint) == 0 {
+			_ = cmd.Help()
+			return
+		}
+
 		certinfoCfg, err := certinfo.NewCertinfoConfig()
 		if err != nil {
 			fmt.Printf("Error creating new Certinfo config: %s", err)
@@ -49,11 +68,11 @@ Examples:
 
 		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
 
-		if err := certinfoCfg.SetCaPoolFromFile(viper.GetString("ca-bundle")); err != nil {
+		if err := certinfoCfg.SetCaPoolFromFile(caBundleValue); err != nil {
 			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
 
-		if err := certinfoCfg.SetCertsFromFile(viper.GetString("cert-bundle")); err != nil {
+		if err := certinfoCfg.SetCertsFromFile(certBundleValue); err != nil {
 			fmt.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
@@ -61,7 +80,7 @@ Examples:
 			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}
 
-		if err := certinfoCfg.SetPrivateKeyFromFile(viper.GetString("key-file")); err != nil {
+		if err := certinfoCfg.SetPrivateKeyFromFile(keyFileValue); err != nil {
 			fmt.Printf("Error importing key from file: %s", err)
 		}
 
