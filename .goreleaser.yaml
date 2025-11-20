@@ -65,7 +65,7 @@ nfpms:
       - src: completions/https-wrench.fish
         dst: /usr/share/fish/vendor_completions.d/https-wrench.fish
       - src: completions/https-wrench.zsh
-        dst: /usr/share/zsh/site-functions/https-wrench
+        dst: /usr/share/zsh/site-functions/_https-wrench
         # - src: ./manpages/https-wrench.1.gz
         #   dst: /usr/share/man/man1/https-.1.gz
     release: "1"
