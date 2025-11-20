@@ -19,12 +19,11 @@ before:
     - go mod download
     - go mod tidy
     - go test
-    # - govulncheck -mode source -show verbose .
-    # - rm -rf ../completions
-    # - mkdir ../completions
-    # - sh -c 'go run . completion bash > ../completions/https-wrench.bash'
-    # - sh -c 'go run . completion zsh > ../completions/https-wrench.zsh'
-    # - sh -c 'go run . completion fish > ../completions/https-wrench.fish'
+    - rm -rf completions
+    - mkdir completions
+    - sh -c 'go run . completion bash > completions/https-wrench.bash'
+    - sh -c 'go run . completion zsh > completions/https-wrench.zsh'
+    - sh -c 'go run . completion fish > completions/https-wrench.fish'
     # - rm -rf manpages
     # - mkdir manpages
     # - sh -c 'go run . man | gzip -c > manpages/https-wrench.1.gz'
@@ -45,6 +44,11 @@ archives:
   - name_template: >-
       {{ .ProjectName }}_{{- .Version }}_{{- title .Os }}_{{- if eq .Arch "amd64" }}x86_64{{- else if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}{{- with .Arm}}v{{ . }}{{ end }}
     wrap_in_directory: false
+    files:
+      - README.md
+      - LICENSE
+      - completions/*
+      # - man/*
 
 nfpms:
   - maintainer: Zeno Belli <xeno@os76.xyz>
@@ -55,6 +59,15 @@ nfpms:
       - apk
       - deb
       - rpm
+    contents:
+      - src: completions/https-wrench.bash
+        dst: /etc/bash_completion.d/https-wrench
+      - src: completions/https-wrench.fish
+        dst: /usr/share/fish/vendor_completions.d/https-wrench.fish
+      - src: completions/https-wrench.zsh
+        dst: /usr/share/zsh/site-functions/_https-wrench
+        # - src: ./manpages/https-wrench.1.gz
+        #   dst: /usr/share/man/man1/https-.1.gz
     release: "1"
 
 dockers:
@@ -117,11 +130,10 @@ homebrew_casks:
     description: https-wrench
     license: MIT
     skip_upload: false
-    # FIXME: Error: xeno/tap/https-wrench: It seems the symlink source ... is not there
-    # completions:
-    #   bash: "completions/https-wrench.bash"
-    #   zsh: "completions/https-wrench.zsh"
-    #   fish: "completions/https-wrench.fish"
+    completions:
+      bash: "completions/{{ .ProjectName }}.bash"
+      zsh: "completions/{{ .ProjectName }}.zsh"
+      fish: "completions/{{ .ProjectName }}.fish"
 
 nix:
   - name: https-wrench
@@ -132,8 +144,13 @@ nix:
     description: https-wrench
     path: pkgs/https-wrench/default.nix
     license: mit
-    # extra_install: |-
-    #   installShellCompletion completions/*
+
+    extra_install: |-
+      installShellCompletion --cmd https-wrench \
+        --bash <($out/bin/https-wrench completion bash) \
+        --fish <($out/bin/https-wrench completion fish) \
+        --zsh <($out/bin/https-wrench completion zsh)
+    #   installManPage ./manpages/foo.1.gz
 
 changelog:
   sort: asc
