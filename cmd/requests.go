@@ -25,7 +25,7 @@ var requestsCmd = &cobra.Command{
 	Use:   "requests",
 	Short: "Make HTTPS requests defined in the YAML configuration file",
 	Long: `
-https-wrench requests is the sub command that does HTTPS requests according to the configuration 
+https-wrench requests is the subcommand that does HTTPS requests according to the configuration 
 pointed by the --config flag.
 
 A sample configuration can be generated as a starting point (--show-sample-config).

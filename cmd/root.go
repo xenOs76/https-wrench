@@ -51,13 +51,13 @@ var rootCmd = &cobra.Command{
 	Long: `
 HTTPS Wrench is mainly a tool to make HTTPS requests based on a YAML configuration file.
 
-https-wrench has two sub commands: requests and certinfo.
+https-wrench has two subcommands: requests and certinfo.
 
-requests is the sub command that does HTTPS requests according to the configuration provided 
+requests is the subcommand that does HTTPS requests according to the configuration provided 
 by the --config flag.
 
-certinfo is a sub command that allows to easily read information from PEM certificates and keys. The 
-certificates can be read from local files or TLS enabled endpoints.
+certinfo is a subcommand that reads information from PEM certificates and keys. The certificates 
+can be read from local files or TLS enabled endpoints.
 
 certinfo can compare public keys extracted from certificates and private keys to check if they match.
 
