@@ -20,28 +20,31 @@ var (
 
 var certinfoCmd = &cobra.Command{
 	Use:   "certinfo",
-	Short: "Show info about PEM certificates and keys",
+	Short: "Shows information about PEM certificates and keys",
 	Long: `
-HTTPS Wrench certinfo: show info about PEM certificates and keys.
+HTTPS Wrench certinfo: shows information about PEM certificates and keys.
 
-Certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a private 
-key matches any of the certificates.
+https-wrench certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a 
+private key matches any of the certificates.
+
 The certificates can be verified against the system root CAs or a custom CA bundle file. 
+
 The validation can be skipped.
+
 If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW 
 environment variable or will be prompted on stdin.
 
 Examples:
-  certinfo --tls-endpoint example.com:443
-  certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
-  certinfo --cert-bundle ./bundle.pem
-  certinfo --key-file ./key.pem
-  certinfo --tls-endpoint example.com:443 --key-file ./key.pem
-  certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
-  certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
-  certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
-  certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
-  certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+  https-wrench certinfo --tls-endpoint example.com:443
+  https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
+  https-wrench certinfo --cert-bundle ./bundle.pem
+  https-wrench certinfo --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
+  https-wrench certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		caBundleValue := viper.GetString("ca-bundle")
