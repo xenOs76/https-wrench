@@ -37,7 +37,7 @@
       ".gitignore"
       ".envrc"
       "internal/certinfo/common_handlers.go"
-      "completions"
+      "completions/*"
     ];
     hooks = {
       shellcheck.enable = true;
@@ -236,6 +236,11 @@
   scripts.test-cmd-certinfo-help-when-no-flags.exec = ''
     gum format "## Command certinfo, help when no flags"
     ./dist/https-wrench certinfo | grep "help for certinfo"
+  '';
+
+  scripts.test-requests-show-sample-config.exec = ''
+    gum format "## test request show sample config"
+    ./dist/https-wrench requests --show-sample-config| grep 'requests:'
   '';
 
   scripts.test-requests-sample-config.exec = ''
@@ -504,6 +509,7 @@
     gum format "## Requests tests"
 
     # test-requests-sample-config
+    test-requests-show-sample-config
     test-requests-k3s
     test-requests-methods
     test-requests-timeout

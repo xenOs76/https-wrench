@@ -25,7 +25,21 @@ var requestsCmd = &cobra.Command{
 	Use:   "requests",
 	Short: "Make HTTPS requests defined in the YAML configuration file",
 	Long: `
-HTTPS Wrench requests: make HTTPS requests defined in the YAML configuration file`,
+https-wrench requests is the subcommand that does HTTPS requests according to the configuration 
+pointed by the --config flag.
+
+A sample configuration can be generated as a starting point (--show-sample-config).
+
+The Github repository has more configuration examples: 
+https://github.com/xenOs76/https-wrench/tree/main/assets/examples
+
+It also provides a JSON schema that can be used to validate new configuration files: 
+https://github.com/xenOs76/https-wrench/blob/main/https-wrench.schema.json
+
+Examples:
+ https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
+ https-wrench requests --config https-wrench-sample-config.yaml
+	`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		versionRequested := viper.GetBool("version")

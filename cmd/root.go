@@ -49,7 +49,20 @@ var rootCmd = &cobra.Command{
 	Use:   "https-wrench",
 	Short: "HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file",
 	Long: `
-HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file`,
+HTTPS Wrench is mainly a tool to make HTTPS requests based on a YAML configuration file.
+
+https-wrench has two subcommands: requests and certinfo.
+
+requests is the subcommand that does HTTPS requests according to the configuration provided 
+by the --config flag.
+
+certinfo is a subcommand that reads information from PEM certificates and keys. The certificates 
+can be read from local files or TLS enabled endpoints.
+
+certinfo can compare public keys extracted from certificates and private keys to check if they match.
+
+HTTPS Wrench is distributed with an open source license and available at the following address:
+https://github.com/xenOs76/https-wrench`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
