@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 	Long: `
 HTTPS Wrench is mainly a tool to make HTTPS requests based on a YAML configuration file.
 
-https-wrench has two sub commands: requests and certfinfo.
+https-wrench has two sub commands: requests and certinfo.
 
 requests is the sub command that does HTTPS requests according to the configuration provided 
 by the --config flag.
