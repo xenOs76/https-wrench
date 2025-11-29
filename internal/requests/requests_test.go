@@ -516,7 +516,8 @@ func TestNewRequestHTTPClient_SetClientTimeout(t *testing.T) {
 
 			c := NewRequestHTTPClient()
 
-			c.SetClientTimeout(tt)
+			_, err := c.SetClientTimeout(tt)
+			require.NoError(t, err)
 
 			var i any = c.client.Timeout
 
