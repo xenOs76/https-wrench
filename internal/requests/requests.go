@@ -227,6 +227,7 @@ func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error 
 }
 
 func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
+	// TODO: return an error
 	if resp == nil {
 		return
 	}
@@ -598,7 +599,9 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				req.Header.Add(header.Key, header.Value)
 			}
 
-			r.PrintRequestDebug(os.Stdout, req)
+			if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
+			}
 
 			resp, err := reqClient.client.Do(req)
 			if err != nil {
