@@ -443,6 +443,21 @@ func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 	}
 }
 
+func TestNewRequestHTTPClient_SetServerName_clientError(t *testing.T) {
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		noTransportClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &noTransportClient
+
+		_, err := c.SetServerName("localhost")
+
+		require.Error(t, err)
+	})
+}
+
 func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 	testsError := []struct {
 		desc       string
