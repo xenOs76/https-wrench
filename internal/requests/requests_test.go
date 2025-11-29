@@ -332,7 +332,7 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				tt.pool,
 			)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			var i any = rcClient.client
