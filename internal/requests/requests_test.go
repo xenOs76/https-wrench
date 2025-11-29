@@ -249,7 +249,8 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 			reqConf: RequestConfig{
 				EnableProxyProtocolV2: true,
 			},
-			errMsg: "if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set",
+			serverName: "localhost",
+			errMsg:     "if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set",
 		},
 		{
 			desc: "EnableProxyProtoNoServerName",
@@ -257,8 +258,8 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 				TransportOverrideURL:  "https://localhost:8443",
 				EnableProxyProtocolV2: true,
 			},
-			serverName: "[::1]",
-			errMsg:     "SetServerName error: unable to parse serverName [::1]: parse \"[::1]\": first path segment in URL cannot contain colon",
+			serverName: emptyString,
+			errMsg:     "SetServerName error: serverName cannot be empty",
 		},
 	}
 
@@ -297,6 +298,7 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				Insecure:             true,
 				RequestMethod:        http.MethodGet,
 			},
+			serverName:      "localhost",
 			tranportAddress: "localhost:45555",
 		},
 		{
@@ -306,6 +308,7 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				RequestMethod:         http.MethodHead,
 				EnableProxyProtocolV2: true,
 			},
+			serverName:      "localhost",
 			tranportAddress: "localhost:8443",
 		},
 		{
@@ -313,7 +316,8 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 			reqConf: RequestConfig{
 				RequestMethod: http.MethodPut,
 			},
-			pool: caCertPool,
+			serverName: "localhost",
+			pool:       caCertPool,
 		},
 	}
 
@@ -383,7 +387,11 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 
 func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 	tests := []string{
-		"", "localhost", "127.0.0.1", "example.com", " a silly string ",
+		"[::1]",
+		"localhost",
+		"127.0.0.1",
+		"example.com",
+		" a silly string ",
 	}
 
 	for _, tt := range tests {
@@ -392,7 +400,11 @@ func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 			t.Parallel()
 
 			c := NewRequestHTTPClient()
-			c.SetServerName(tt)
+
+			_, err := c.SetServerName(tt)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// Extract the transport via type assertion
 			transport, ok := c.client.Transport.(*http.Transport)
@@ -400,31 +412,40 @@ func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 				t.Fatalf("expected *http.Transport, got %T", c.client.Transport)
 			}
 
-			if transport.TLSClientConfig == nil {
-				t.Fatal("TLSClientConfig is nil")
-			}
+			assert.NotNil(t,
+				transport.TLSClientConfig,
+				"check TLSClientConfig not nil",
+			)
 
-			if transport.TLSClientConfig.ServerName != tt {
-				t.Errorf("expected ServerName to be %s, got %s",
-					tt, transport.TLSClientConfig.ServerName)
-			}
+			assert.Equal(t,
+				tt,
+				transport.TLSClientConfig.ServerName,
+				"check ServerName in TLSClientConfig",
+			)
 		})
 	}
+}
 
+func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 	testsError := []struct {
+		desc       string
 		serverName string
 		errMsg     string
 	}{
 		{
-			"[::1]",
-			"unable to parse serverName [::1]: parse \"[::1]\": first path segment in URL cannot contain colon",
+			"empty serverName",
+			emptyString,
+			"serverName cannot be empty",
+		},
+		{
+			"url as serverName",
+			"https://localhost",
+			"serverName should be a hostname, not a URL: https://localhost",
 		},
 	}
 
 	for _, tt := range testsError {
-		testname := fmt.Sprintf("Error: %s", tt)
-
-		t.Run(testname, func(t *testing.T) {
+		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
 			c := NewRequestHTTPClient()
