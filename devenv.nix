@@ -37,7 +37,7 @@
       ".gitignore"
       ".envrc"
       "internal/certinfo/common_handlers.go"
-      "completions/*"
+      "completions"
     ];
     hooks = {
       shellcheck.enable = true;

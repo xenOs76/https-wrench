@@ -155,9 +155,9 @@ homebrew_casks:
     skip_upload: false
 
     manpages:
-      - ./manpages/https-wrench.1.gz
-      - ./manpages/https-wrench-requests.1.gz
-      - ./manpages/https-wrench-certinfo.1.gz
+      - manpages/https-wrench.1.gz
+      - manpages/https-wrench-requests.1.gz
+      - manpages/https-wrench-certinfo.1.gz
 
     completions:
       bash: "completions/{{ .ProjectName }}.bash"
@@ -175,9 +175,9 @@ nix:
     license: mit
 
     extra_install: |-
-      installManPage ./manpages/https-wrench.1.gz
-      installManPage ./manpages/https-wrench-certinfo.1.gz
-      installManPage ./manpages/https-wrench-requests.1.gz
+      installManPage manpages/https-wrench.1.gz
+      installManPage manpages/https-wrench-certinfo.1.gz
+      installManPage manpages/https-wrench-requests.1.gz
       installShellCompletion --cmd https-wrench \
         --bash <($out/bin/https-wrench completion bash) \
         --fish <($out/bin/https-wrench completion fish) \
