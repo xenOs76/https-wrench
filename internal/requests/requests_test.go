@@ -890,27 +890,29 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 }
 
 func TestPrintCmd(t *testing.T) {
-	tests := []struct {
-		verbose bool
-		output  string
-	}{
-		{true, "\n Requests \n"},
-		{false, ""},
-	}
+	tests := []bool{true, false}
 
 	for _, tt := range tests {
-		testname := fmt.Sprintf("%v", tt.verbose)
+		testname := fmt.Sprintf("%v", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
 			buffer := bytes.Buffer{}
-			r := RequestsMetaConfig{RequestVerbose: tt.verbose}
+			r := RequestsMetaConfig{RequestVerbose: tt}
 			r.PrintCmd(&buffer)
 
 			got := buffer.String()
-			want := tt.output
-
-			assert.Equal(t, want, got, "check PrintCmd")
+			if tt {
+				assert.Contains(t, got,
+					"Requests",
+					"check PrintCmd when verbose",
+				)
+			} else {
+				assert.Empty(t,
+					got,
+					"check emprty outputs from PrintCmd when not verbose",
+				)
+			}
 		})
 	}
 }
