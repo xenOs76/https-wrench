@@ -984,24 +984,24 @@ func TestPrintResponseDebug(t *testing.T) {
 				)
 			}
 		})
-
-		t.Run("non-TLS", func(t *testing.T) {
-			respURL := url.URL{Scheme: "http", Host: "localhost"}
-			req := http.Request{URL: &respURL}
-			resp := http.Response{
-				StatusCode: 200,
-				Request:    &req,
-			}
-			rc := RequestConfig{ResponseDebug: true}
-			buffer := bytes.Buffer{}
-			rc.PrintResponseDebug(&buffer, &resp)
-
-			assert.True(t,
-				bytes.Contains(buffer.Bytes(), []byte("TLS: Not available")),
-				"check non-TLS connection",
-			)
-		})
 	}
+
+	t.Run("non-TLS", func(t *testing.T) {
+		respURL := url.URL{Scheme: "http", Host: "localhost"}
+		req := http.Request{URL: &respURL}
+		resp := http.Response{
+			StatusCode: 200,
+			Request:    &req,
+		}
+		rc := RequestConfig{ResponseDebug: true}
+		buffer := bytes.Buffer{}
+		rc.PrintResponseDebug(&buffer, &resp)
+
+		assert.True(t,
+			bytes.Contains(buffer.Bytes(), []byte("TLS: Not available")),
+			"check non-TLS connection",
+		)
+	})
 }
 
 func TestPrintRequestDebug(t *testing.T) {
