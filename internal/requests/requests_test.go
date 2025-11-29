@@ -640,7 +640,7 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 			}
 
 			if tt {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, http.StatusOK, res.StatusCode)
 			}
 		})
