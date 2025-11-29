@@ -185,7 +185,8 @@ func TestRequestsMetaConfig_SetRequests(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
-			rmc, _ := NewRequestsMetaConfig()
+			rmc, err := NewRequestsMetaConfig()
+			require.NoError(t, err)
 			rmc.SetRequests(tt)
 
 			if diff := cmp.Diff(tt, rmc.Requests); diff != "" {
@@ -482,9 +483,7 @@ func TestNewRequestHTTPClient_SetClientTimeout(t *testing.T) {
 			c := NewRequestHTTPClient()
 
 			_, err := c.SetClientTimeout(tt)
-			if err != nil {
-				require.Error(t, err)
-			}
+			require.Error(t, err)
 
 			var i any = c.client.Timeout
 
@@ -910,7 +909,7 @@ func TestPrintCmd(t *testing.T) {
 			} else {
 				assert.Empty(t,
 					got,
-					"check emprty outputs from PrintCmd when not verbose",
+					"check empty outputs from PrintCmd when not verbose",
 				)
 			}
 		})
