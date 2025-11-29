@@ -1045,10 +1045,11 @@ func TestPrintRequestDebug(t *testing.T) {
 	expectedOutputIncomplete := "Warning: failed to dump request: http: nil Request.Header\n"
 
 	tests := []struct {
-		desc    string
-		verbose bool
-		request *http.Request
-		output  string
+		desc      string
+		verbose   bool
+		request   *http.Request
+		output    string
+		expectErr bool
 	}{
 		{
 			desc:    "verboseTrue",
@@ -1064,16 +1065,18 @@ func TestPrintRequestDebug(t *testing.T) {
 			output:  emptyString,
 		},
 		{
-			desc:    "nilRequestError",
-			verbose: true,
-			request: requestTestNilPointer,
-			output:  emptyString,
+			desc:      "nilRequestError",
+			verbose:   true,
+			request:   requestTestNilPointer,
+			output:    emptyString,
+			expectErr: true,
 		},
 		{
-			desc:    "incompleteRequestError",
-			verbose: true,
-			request: &requestTestIncomplete,
-			output:  expectedOutputIncomplete,
+			desc:      "incompleteRequestError",
+			verbose:   true,
+			request:   &requestTestIncomplete,
+			output:    expectedOutputIncomplete,
+			expectErr: true,
 		},
 	}
 
@@ -1085,8 +1088,11 @@ func TestPrintRequestDebug(t *testing.T) {
 			r := RequestConfig{RequestDebug: tt.verbose}
 
 			err := r.PrintRequestDebug(&buffer, tt.request)
-			if err != nil {
-				require.Error(t, err, "PrintRequestDebug error")
+
+			if tt.expectErr {
+				require.Error(t, err, "PrintRequestDebug should return an error")
+			} else {
+				require.NoError(t, err, "PrintRequestDebug should not return an error")
 			}
 
 			got := buffer.String()
