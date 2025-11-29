@@ -1010,11 +1010,11 @@ func TestPrintRequestDebug(t *testing.T) {
 
 	var requestTestNilPointer *http.Request
 
-	expectetOutput := "Requesting url: https://localhost\nRequest dump:\nGET / "
-	expectetOutput += "HTTP/1.1\r\nHost: localhost\r\nUser-Agent: go-test\r\nAccept-Encoding: "
-	expectetOutput += "gzip\r\n\r\n\n"
+	expectedOutput := "Requesting url: https://localhost\nRequest dump:\nGET / "
+	expectedOutput += "HTTP/1.1\r\nHost: localhost\r\nUser-Agent: go-test\r\nAccept-Encoding: "
+	expectedOutput += "gzip\r\n\r\n\n"
 
-	expectetOutputIncomplete := "Warning: failed to dump request: http: nil Request.Header\n"
+	expectedOutputIncomplete := "Warning: failed to dump request: http: nil Request.Header\n"
 
 	tests := []struct {
 		desc    string
@@ -1026,7 +1026,7 @@ func TestPrintRequestDebug(t *testing.T) {
 			desc:    "verboseTrue",
 			verbose: true,
 			request: &requestTest,
-			output:  expectetOutput,
+			output:  expectedOutput,
 		},
 
 		{
@@ -1045,7 +1045,7 @@ func TestPrintRequestDebug(t *testing.T) {
 			desc:    "incompleteRequestError",
 			verbose: true,
 			request: &requestTestIncomplete,
-			output:  expectetOutputIncomplete,
+			output:  expectedOutputIncomplete,
 		},
 	}
 
