@@ -52,7 +52,8 @@ func TestNewRequestsMetaConfig(t *testing.T) {
 func TestRequestsMetaConfig_SetVerbose(t *testing.T) {
 	tests := []bool{true, false}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetVerbose(%v)", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -67,7 +68,8 @@ func TestRequestsMetaConfig_SetVerbose(t *testing.T) {
 func TestRequestsMetaConfig_SetDebug(t *testing.T) {
 	tests := []bool{true, false}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetDebug(%v)", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -92,7 +94,8 @@ func TestRequestsMetaConfig_SetCaPoolFromYAML(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetCaPoolFromYAML(%v)", tt.desc)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -137,7 +140,8 @@ func TestRequestsMetaConfig_SetCaPoolFromFile(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetCaPoolFromFile(%v)", tt.desc)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -180,7 +184,8 @@ func TestRequestsMetaConfig_SetRequests(t *testing.T) {
 
 	tests := [][]RequestConfig{requestConfigs}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // use a local copy of tc should be safer when using t.Parallel()
 		testname := fmt.Sprintf("SetRequests(%v)", tt[0].Name)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -264,7 +269,8 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -322,7 +328,8 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -403,7 +410,8 @@ func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 		" a silly string ",
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -453,7 +461,8 @@ func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testsError {
+	for _, tc := range testsError {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -483,7 +492,8 @@ func TestNewRequestHTTPClient_SetClientTimeout(t *testing.T) {
 		3, 0, 50,
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -550,7 +560,8 @@ func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
 		{"System Cert Pool", defaultCertPool, defaultCertPool},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.testname, func(t *testing.T) {
 			t.Parallel()
 
@@ -576,7 +587,8 @@ func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
 
 func TestNewRequestHTTPClient_SetInsecureSkipVerify_struct(t *testing.T) {
 	tests := []bool{true, false}
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 
 		t.Run(testname, func(t *testing.T) {
@@ -605,7 +617,8 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_struct(t *testing.T) {
 
 func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 	tests := []bool{true, false}
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 
 		t.Run(testname, func(t *testing.T) {
@@ -653,7 +666,8 @@ func TestNewRequestHTTPClient_SetMethod(t *testing.T) {
 		{"post", http.MethodPost},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.got)
 
 		t.Run(testname, func(t *testing.T) {
@@ -679,7 +693,8 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_struc(t *testin
 		{"https://example.com", "example.com:443"},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.got)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -716,7 +731,8 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testi
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.trasportURL)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -812,7 +828,8 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.testname, func(t *testing.T) {
 			t.Parallel()
 
@@ -898,7 +915,8 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 func TestPrintCmd(t *testing.T) {
 	tests := []bool{true, false}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -950,7 +968,8 @@ func TestPrintResponseDebug(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -1080,7 +1099,8 @@ func TestPrintRequestDebug(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -1163,7 +1183,8 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.reqConf.Name, func(t *testing.T) {
 			t.Parallel()
 
