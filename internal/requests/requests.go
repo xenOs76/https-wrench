@@ -430,15 +430,15 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	return rc, nil
 }
 
-func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) (*RequestHTTPClient, error) {
+func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) *RequestHTTPClient {
 	rc.enableProxyProtoV2 = enable
 
-	return rc, nil
+	return rc
 }
 
 func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
-		return nil, errors.New("SetProxyProtocolV2 failed: transportOverrideURL not set")
+		return nil, errors.New("SetProxyProtocolHeader failed: transportOverrideURL not set")
 	}
 
 	if rc.client == nil {
@@ -530,10 +530,7 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 		return nil, fmt.Errorf("SetTransportOverride error: %w", err)
 	}
 
-	_, err = reqClient.SetProxyProtocolV2(r.EnableProxyProtocolV2)
-	if err != nil {
-		return nil, fmt.Errorf("SetProxyProtocolV2 error: %w", err)
-	}
+	reqClient.SetProxyProtocolV2(r.EnableProxyProtocolV2)
 
 	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
 		return nil, errors.New(
