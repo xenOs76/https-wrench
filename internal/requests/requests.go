@@ -422,7 +422,13 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	return rc, nil
 }
 
-func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*RequestHTTPClient, error) {
+func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) (*RequestHTTPClient, error) {
+	rc.enableProxyProtoV2 = enable
+
+	return rc, nil
+}
+
+func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
 		return nil, errors.New("SetProxyProtocolV2 failed: transportOverrideURL not set")
 	}
@@ -473,6 +479,10 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
+	if timeout < 0 {
+		return nil, fmt.Errorf("timeout value must be positive: %v provided", timeout)
+	}
+
 	t := time.Duration(timeout) * time.Second
 	rc.client.Timeout = t
 
@@ -480,11 +490,6 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 }
 
 func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *x509.CertPool) (*RequestHTTPClient, error) {
-	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
-		return nil, errors.New(
-			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
-	}
-
 	reqClient := NewRequestHTTPClient()
 
 	_, err := reqClient.SetCACertsPool(caPool)
@@ -517,15 +522,25 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 		return nil, fmt.Errorf("SetTransportOverride error: %w", err)
 	}
 
+	_, err = reqClient.SetProxyProtocolV2(r.EnableProxyProtocolV2)
+	if err != nil {
+		return nil, fmt.Errorf("SetProxyProtocolV2 error: %w", err)
+	}
+
+	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
+		return nil, errors.New(
+			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
+	}
+
 	if r.EnableProxyProtocolV2 && reqClient.transportAddress != emptyString {
 		header, err := proxyProtoHeaderFromRequest(r, serverName)
 		if err != nil {
 			return nil, fmt.Errorf("error creating proxyproto Header: %w", err)
 		}
 
-		_, err = reqClient.SetProxyProtocolV2(header)
+		_, err = reqClient.SetProxyProtocolHeader(header)
 		if err != nil {
-			return nil, fmt.Errorf("SetProxyProtocolV2 error: %w", err)
+			return nil, fmt.Errorf("SetProxyProtocolHeader error: %w", err)
 		}
 	}
 
