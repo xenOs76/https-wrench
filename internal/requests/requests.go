@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -292,8 +291,12 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
-	if _, err := url.Parse(serverName); err != nil {
-		return nil, fmt.Errorf("unable to parse serverName %s: %w", serverName, err)
+	if serverName == emptyString {
+		return nil, errors.New("serverName cannot be empty")
+	}
+
+	if strings.Contains(serverName, "://") {
+		return nil, fmt.Errorf("serverName should be a hostname, not a URL: %s", serverName)
 	}
 
 	transport, ok := rc.client.Transport.(*http.Transport)
