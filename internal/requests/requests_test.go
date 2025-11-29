@@ -360,6 +360,14 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				"check proxy proto enabled",
 			)
 
+			if tt.transportAddress != emptyString {
+				assert.Equal(t,
+					tt.transportAddress,
+					rcClient.transportAddress,
+					"check transportAddress",
+				)
+			}
+
 			var ti any = rcClient.client.Transport
 
 			transport, ok := ti.(*http.Transport)
