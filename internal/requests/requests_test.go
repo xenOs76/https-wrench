@@ -899,25 +899,32 @@ func TestPrintResponseDebug(t *testing.T) {
 		desc    string
 		srvAddr string
 		verbose bool
-		output  string
+		outputs []string
 	}{
 		{
 			desc:    "verboseTrue",
 			srvAddr: "localhost:46010",
 			verbose: true,
-			output:  emptyString,
+			outputs: []string{
+				"Requested url:",
+				"Response dump:",
+				"DemoHTTPSServer Handler - client output",
+				"TLS:",
+				"CipherSuite:",
+			},
 		},
 		{
 			desc:    "verboseFalse",
-			srvAddr: "localhost:46010",
+			srvAddr: "localhost:46011",
 			verbose: false,
-			output:  emptyString,
+			outputs: []string{emptyString},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
+
 			httpSrvData := demoHttpServerData{
 				serverAddr:        tt.srvAddr,
 				proxyprotoEnabled: false,
@@ -932,7 +939,6 @@ func TestPrintResponseDebug(t *testing.T) {
 
 			tr := &http.Transport{TLSClientConfig: &tls.Config{
 				RootCAs: caCertPool,
-				// InsecureSkipVerify: true,
 			}}
 
 			client := &http.Client{Transport: tr}
@@ -958,34 +964,18 @@ func TestPrintResponseDebug(t *testing.T) {
 			}
 
 			if tt.verbose {
-				assert.True(t,
-					bytes.Contains(buffer.Bytes(), []byte("Requested url:")),
-					"check PrintResponseDebug contains: Requested url",
-				)
-
-				assert.True(t,
-					bytes.Contains(buffer.Bytes(), []byte("Response dump:")),
-					"check PrintResponseDebug contains: Response dump",
-				)
-
-				assert.True(t,
-					bytes.Contains(buffer.Bytes(), []byte("DemoHTTPSServer Handler - client output")),
-					"check PrintResponseDebug contains: DemoHTTPSServer Handler - client output",
-				)
-
-				assert.True(t,
-					bytes.Contains(buffer.Bytes(), []byte("TLS:")),
-					"check PrintResponseDebug contains: TLS",
-				)
-
-				assert.True(t,
-					bytes.Contains(buffer.Bytes(), []byte("CipherSuite:")),
-					"check PrintResponseDebug contains: CipherSuite",
-				)
+				for _, output := range tt.outputs {
+					assert.True(t,
+						bytes.Contains(buffer.Bytes(), []byte(output)),
+						"check PrintResponseDebug contains: %s", output,
+					)
+				}
 			}
 		})
 	}
+}
 
+func TestPrintResponseDebug_nonTLS(t *testing.T) {
 	t.Run("non-TLS", func(t *testing.T) {
 		respURL := url.URL{Scheme: "http", Host: "localhost"}
 		req := http.Request{URL: &respURL}
