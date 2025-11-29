@@ -359,7 +359,7 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 
 			transport, ok := ti.(*http.Transport)
 			if !ok {
-				t.Errorf("expexcting *http.Transport, got %T", transport)
+				t.Errorf("expecting *http.Transport, got %T", transport)
 			}
 
 			assert.Equal(t,
