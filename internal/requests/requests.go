@@ -227,6 +227,10 @@ func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error 
 }
 
 func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
+	if resp == nil {
+		return
+	}
+
 	if r.ResponseDebug {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
