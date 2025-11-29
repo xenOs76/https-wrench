@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -600,6 +601,40 @@ func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
 	}
 }
 
+func TestNewRequestHTTPClient_SetCaCertsPool_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetCACertsPool(caCertPool)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetCACertsPool(caCertPool)
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
+}
+
 func TestNewRequestHTTPClient_SetInsecureSkipVerify_struct(t *testing.T) {
 	tests := []bool{true, false}
 	for _, tc := range tests {
@@ -662,6 +697,40 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 	}
 }
 
+func TestNewRequestHTTPClient_SetInsecureSkipVerify_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetInsecureSkipVerify(true)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetInsecureSkipVerify(true)
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
+}
+
 func TestNewRequestHTTPClient_SetMethod(t *testing.T) {
 	tests := []struct {
 		got  string
@@ -722,6 +791,39 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_struc(t *testin
 			}
 		})
 	}
+}
+
+func TestRequestHTTPClient_SetTransportOverride_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetTransportOverride("http://localhost")
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetTransportOverride("http://localhost")
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
 }
 
 // Test SetTransportOverride method for RequestHTTPClient.
@@ -925,6 +1027,57 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 			printResponseBody(res)
 		})
 	}
+}
+
+func TestRequestHTTPClient_SetProxyProtocolHeader_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		c := RequestHTTPClient{transportAddress: "127.0.0.1:443"}
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+		c.transportAddress = "127.0.0.1:443"
+		c.client = &incompleteClient
+
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
+
+	t.Run("noTransportAddress", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+		c.client = &incompleteClient
+
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"SetProxyProtocolHeader failed: transportOverrideURL not set",
+			err.Error(),
+		)
+	})
 }
 
 func TestPrintCmd(t *testing.T) {
