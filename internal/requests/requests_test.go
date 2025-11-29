@@ -985,8 +985,7 @@ func TestPrintResponseDebug(t *testing.T) {
 			fmt.Printf("got:\n%s\n", got)
 
 			if !tt.verbose && len(got) == 0 {
-				assert.Equal(t,
-					[]byte(nil),
+				assert.Empty(t,
 					buffer.Bytes(),
 					"check PrintResponseDebug with verbose False",
 				)
