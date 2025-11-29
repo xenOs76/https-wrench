@@ -7,9 +7,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -181,11 +184,13 @@ func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMeta
 	return r
 }
 
-func (r *RequestsMetaConfig) PrintCmd() {
+func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 	if r.RequestVerbose {
-		fmt.Println()
-		fmt.Println(style.LgSprintf(style.Cmd, "Requests"))
-		fmt.Println()
+		fmt.Fprintf(
+			w,
+			"\n%s\n",
+			style.LgSprintf(style.Cmd, "Requests"),
+		)
 	}
 }
 
@@ -201,50 +206,57 @@ func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	}
 }
 
-func (r *RequestConfig) PrintRequestDebug(req *http.Request) {
+func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error {
+	if req == nil {
+		return errors.New("nil pointer to http.Request")
+	}
+
 	if r.RequestDebug {
 		reqDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			fmt.Printf("Warning: failed to dump request: %v\n", err)
-			return
+			fmt.Fprintf(w, "Warning: failed to dump request: %v\n", err)
+			return err
 		}
 
-		fmt.Printf("Requesting url: %s\n", req.URL)
-		fmt.Printf("Request dump:\n%s\n", string(reqDump))
+		_, err = fmt.Fprintf(w, "Requesting url: %s\nRequest dump:\n%s\n", req.URL, string(reqDump))
+
+		return err
 	}
+
+	return nil
 }
 
-func (r *RequestConfig) PrintResponseDebug(resp *http.Response) {
+func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 	if r.ResponseDebug {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
-			fmt.Printf("Warning: failed to dump response: %v\n", err)
+			fmt.Fprintf(w, "Warning: failed to dump response: %v\n", err)
 			return
 		}
 
-		fmt.Printf("Requested url: %s\n", resp.Request.URL)
-		fmt.Printf("Response dump:\n%s\n", string(respDump))
+		fmt.Fprintf(w, "Requested url: %s\n", resp.Request.URL)
+		fmt.Fprintf(w, "Response dump:\n%s\n", string(respDump))
 
 		if resp.TLS != nil {
-			fmt.Println("TLS:")
-			fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
-			fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+			fmt.Fprintln(w, "TLS:")
+			fmt.Fprintf(w, "Version: %v\n", TLSVersionName(resp.TLS.Version))
+			fmt.Fprintf(w, "CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
 
 			for i, cert := range resp.TLS.PeerCertificates {
-				fmt.Printf("Certificate %d:\n", i)
+				fmt.Fprintf(w, "Certificate %d:\n", i)
 				certinfo.PrintCertInfo(cert, 1)
 			}
 
 			for i, chain := range resp.TLS.VerifiedChains {
-				fmt.Printf("Verified Chain %d:\n", i)
+				fmt.Fprintf(w, "Verified Chain %d:\n", i)
 
 				for j, cert := range chain {
-					fmt.Printf(" Cert %d:\n", j)
+					fmt.Fprintf(w, " Cert %d:\n", j)
 					certinfo.PrintCertInfo(cert, 2)
 				}
 			}
 		} else {
-			fmt.Println("TLS: Not available (non-TLS connection)")
+			fmt.Fprintln(w, "TLS: Not available (non-TLS connection)")
 		}
 	}
 }
@@ -273,6 +285,10 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 	if rc.client == nil {
 		return nil, errors.New(
 			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+	}
+
+	if _, err := url.Parse(serverName); err != nil {
+		return nil, fmt.Errorf("unable to parse serverName %s: %w", serverName, err)
 	}
 
 	transport, ok := rc.client.Transport.(*http.Transport)
@@ -563,7 +579,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				req.Header.Add(header.Key, header.Value)
 			}
 
-			r.PrintRequestDebug(req)
+			r.PrintRequestDebug(os.Stdout, req)
 
 			resp, err := reqClient.client.Do(req)
 			if err != nil {
@@ -580,7 +596,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				continue
 			}
 
-			r.PrintResponseDebug(resp)
+			r.PrintResponseDebug(os.Stdout, resp)
 
 			responseData.Response = resp
 
