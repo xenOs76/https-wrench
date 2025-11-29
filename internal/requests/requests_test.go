@@ -1022,6 +1022,52 @@ func TestPrintResponseDebug(t *testing.T) {
 	}
 }
 
+func TestPrintResponseDebug_Error(t *testing.T) {
+	t.Run("NilResponse", func(t *testing.T) {
+		rc := RequestConfig{ResponseDebug: true}
+		buffer := bytes.Buffer{}
+		rc.PrintResponseDebug(&buffer, nil)
+
+		got := buffer.String()
+		assert.Empty(t,
+			got,
+			"output should be empty when Response is nil",
+		)
+	})
+
+	// TODO: trigger error on malformed Response
+	//
+	// t.Run("MalformedResponse", func(t *testing.T) {
+	// 	httpTestHeader := http.Header{}
+	// 	httpTestHeader.Add("user-agent", "go-test")
+	//
+	// 	httpTestRequest := http.Request{
+	// 		// Method: http.MethodGet,
+	// 		// URL: &url.URL{Scheme: "https", Host: "localhost"},
+	// 		ContentLength: 300,
+	// 		Body:          nil,
+	// 	}
+	//
+	// 	response := http.Response{
+	// 		// Status:     "200 OK",
+	// 		// StatusCode: 200,
+	// 		// Header:     httpTestHeader,
+	// 		Request: &httpTestRequest,
+	// 	}
+	// 	rc := RequestConfig{ResponseDebug: true}
+	// 	buffer := bytes.Buffer{}
+	// 	rc.PrintResponseDebug(&buffer, &response)
+	//
+	// 	got := buffer.String()
+	// 	fmt.Printf("got:\n%s\n", got)
+	// 	assert.Contains(t,
+	// 		got,
+	// 		"Warning: failed to dump response:",
+	// 		"check PrintResponseDebug: MalformedResponse",
+	// 	)
+	// })
+}
+
 func TestPrintResponseDebug_nonTLS(t *testing.T) {
 	t.Run("non-TLS", func(t *testing.T) {
 		respURL := url.URL{Scheme: "http", Host: "localhost"}
