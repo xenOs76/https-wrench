@@ -283,11 +283,11 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 
 func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 	tests := []struct {
-		desc            string
-		reqConf         RequestConfig
-		serverName      string
-		pool            *x509.CertPool
-		tranportAddress string
+		desc             string
+		reqConf          RequestConfig
+		serverName       string
+		pool             *x509.CertPool
+		transportAddress string
 	}{
 		{
 			desc: "transpAddr",
@@ -298,8 +298,8 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				Insecure:             true,
 				RequestMethod:        http.MethodGet,
 			},
-			serverName:      "localhost",
-			tranportAddress: "localhost:45555",
+			serverName:       "localhost",
+			transportAddress: "localhost:45555",
 		},
 		{
 			desc: "proxyProto",
@@ -308,8 +308,8 @@ func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 				RequestMethod:         http.MethodHead,
 				EnableProxyProtocolV2: true,
 			},
-			serverName:      "localhost",
-			tranportAddress: "localhost:8443",
+			serverName:       "localhost",
+			transportAddress: "localhost:8443",
 		},
 		{
 			desc: "caPool",
@@ -980,7 +980,7 @@ func TestPrintResponseDebug(t *testing.T) {
 				assert.Equal(t,
 					[]byte(nil),
 					buffer.Bytes(),
-					"check PrintRequestDebug with verbose False",
+					"check PrintResponseDebug with verbose False",
 				)
 			}
 
