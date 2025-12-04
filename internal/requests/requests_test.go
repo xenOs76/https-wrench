@@ -1,14 +1,18 @@
 package requests
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +53,8 @@ func TestNewRequestsMetaConfig(t *testing.T) {
 func TestRequestsMetaConfig_SetVerbose(t *testing.T) {
 	tests := []bool{true, false}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetVerbose(%v)", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -64,7 +69,8 @@ func TestRequestsMetaConfig_SetVerbose(t *testing.T) {
 func TestRequestsMetaConfig_SetDebug(t *testing.T) {
 	tests := []bool{true, false}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetDebug(%v)", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -89,7 +95,8 @@ func TestRequestsMetaConfig_SetCaPoolFromYAML(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetCaPoolFromYAML(%v)", tt.desc)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -134,7 +141,8 @@ func TestRequestsMetaConfig_SetCaPoolFromFile(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("SetCaPoolFromFile(%v)", tt.desc)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -150,6 +158,45 @@ func TestRequestsMetaConfig_SetCaPoolFromFile(t *testing.T) {
 
 			if diff := cmp.Diff(tt.certPool, rmc.CACertsPool); diff != "" {
 				t.Errorf("CACertsPool mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRequestsMetaConfig_SetRequests(t *testing.T) {
+	hosts := []Host{
+		{Name: "www.example.com"},
+		{Name: "example.com", URIList: []URI{"/test", "test2"}},
+	}
+
+	requestConfigs := []RequestConfig{
+		{
+			Name:                 "first request",
+			Insecure:             true,
+			TransportOverrideURL: "localhost:443",
+		},
+		{
+			Name:                 "second request",
+			PrintResponseBody:    true,
+			TransportOverrideURL: "localhost:443",
+			Hosts:                hosts,
+		},
+	}
+
+	tests := [][]RequestConfig{requestConfigs}
+
+	for _, tc := range tests {
+		tt := tc // use a local copy of tc should be safer when using t.Parallel()
+		testname := fmt.Sprintf("SetRequests(%v)", tt[0].Name)
+		t.Run(testname, func(t *testing.T) {
+			t.Parallel()
+
+			rmc, err := NewRequestsMetaConfig()
+			require.NoError(t, err)
+			rmc.SetRequests(tt)
+
+			if diff := cmp.Diff(tt, rmc.Requests); diff != "" {
+				t.Errorf("Requests mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -197,18 +244,185 @@ func TestNewRequestHTTPClient(t *testing.T) {
 	})
 }
 
-func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
-	tests := []string{
-		"", "localhost", "127.0.0.1", "[::1]", "example.com", " a silly string ",
+func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
+	tests := []struct {
+		desc       string
+		reqConf    RequestConfig
+		serverName string
+		errMsg     string
+	}{
+		{
+			desc: "EnableProxyProtocolV2",
+			reqConf: RequestConfig{
+				EnableProxyProtocolV2: true,
+			},
+			serverName: "localhost",
+			errMsg:     "if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set",
+		},
+		{
+			desc: "EnableProxyProtoNoServerName",
+			reqConf: RequestConfig{
+				TransportOverrideURL:  "https://localhost:8443",
+				EnableProxyProtocolV2: true,
+			},
+			serverName: emptyString,
+			errMsg:     "SetServerName error: serverName cannot be empty",
+		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewHTTPClientFromRequestConfig(
+				tt.reqConf,
+				tt.serverName,
+				nil,
+			)
+			require.Error(t, err)
+			assert.Equal(t,
+				tt.errMsg,
+				err.Error(),
+			)
+		})
+	}
+}
+
+func TestNewHTTPClientFromRequestConfig(t *testing.T) {
+	tests := []struct {
+		desc             string
+		reqConf          RequestConfig
+		serverName       string
+		pool             *x509.CertPool
+		transportAddress string
+	}{
+		{
+			desc: "transpAddr",
+			reqConf: RequestConfig{
+				ClientTimeout:        3,
+				UserAgent:            "test1-ua",
+				TransportOverrideURL: "https://localhost:45555",
+				Insecure:             true,
+				RequestMethod:        http.MethodGet,
+			},
+			serverName:       "localhost",
+			transportAddress: "localhost:45555",
+		},
+		{
+			desc: "proxyProto",
+			reqConf: RequestConfig{
+				TransportOverrideURL:  "https://localhost:8443",
+				RequestMethod:         http.MethodHead,
+				EnableProxyProtocolV2: true,
+			},
+			serverName:       "localhost",
+			transportAddress: "localhost:8443",
+		},
+		{
+			desc: "caPool",
+			reqConf: RequestConfig{
+				RequestMethod: http.MethodPut,
+			},
+			serverName: "localhost",
+			pool:       caCertPool,
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			rcClient, err := NewHTTPClientFromRequestConfig(
+				tt.reqConf,
+				tt.serverName,
+				tt.pool,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var i any = rcClient.client
+
+			client, ok := i.(*http.Client)
+			if !ok {
+				t.Errorf("expecting *http.Client, got %T", client)
+			}
+
+			assert.Equal(t,
+				time.Duration(tt.reqConf.ClientTimeout)*time.Second,
+				client.Timeout,
+				"check client Timeout",
+			)
+
+			assert.Equal(t,
+				tt.reqConf.RequestMethod,
+				rcClient.method,
+				"check client Method",
+			)
+
+			assert.Equal(t,
+				tt.reqConf.EnableProxyProtocolV2,
+				rcClient.enableProxyProtoV2,
+				"check proxy proto enabled",
+			)
+
+			if tt.transportAddress != emptyString {
+				assert.Equal(t,
+					tt.transportAddress,
+					rcClient.transportAddress,
+					"check transportAddress",
+				)
+			}
+
+			var ti any = rcClient.client.Transport
+
+			transport, ok := ti.(*http.Transport)
+			if !ok {
+				t.Errorf("expecting *http.Transport, got %T", transport)
+			}
+
+			assert.Equal(t,
+				tt.reqConf.Insecure,
+				transport.TLSClientConfig.InsecureSkipVerify,
+				"check Insecure",
+			)
+
+			currPool := systemCertPool
+
+			if tt.pool != nil {
+				currPool = caCertPool
+			}
+
+			if diff := cmp.Diff(currPool, transport.TLSClientConfig.RootCAs); diff != "" {
+				t.Errorf("Client CA Pool mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
+	tests := []string{
+		"[::1]",
+		"localhost",
+		"127.0.0.1",
+		"example.com",
+		" a silly string ",
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
 			c := NewRequestHTTPClient()
-			c.SetServerName(tt)
+
+			_, err := c.SetServerName(tt)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// Extract the transport via type assertion
 			transport, ok := c.client.Transport.(*http.Transport)
@@ -216,16 +430,134 @@ func TestNewRequestHTTPClient_SetServerName(t *testing.T) {
 				t.Fatalf("expected *http.Transport, got %T", c.client.Transport)
 			}
 
-			if transport.TLSClientConfig == nil {
-				t.Fatal("TLSClientConfig is nil")
-			}
+			assert.NotNil(t,
+				transport.TLSClientConfig,
+				"check TLSClientConfig not nil",
+			)
 
-			if transport.TLSClientConfig.ServerName != tt {
-				t.Errorf("expected ServerName to be %s, got %s",
-					tt, transport.TLSClientConfig.ServerName)
-			}
+			assert.Equal(t,
+				tt,
+				transport.TLSClientConfig.ServerName,
+				"check ServerName in TLSClientConfig",
+			)
 		})
 	}
+}
+
+func TestNewRequestHTTPClient_SetServerName_clientError(t *testing.T) {
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		noTransportClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &noTransportClient
+
+		_, err := c.SetServerName("localhost")
+
+		require.Error(t, err)
+	})
+}
+
+func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
+	testsError := []struct {
+		desc       string
+		serverName string
+		errMsg     string
+	}{
+		{
+			"empty serverName",
+			emptyString,
+			"serverName cannot be empty",
+		},
+		{
+			"url as serverName",
+			"https://localhost",
+			"serverName should be a hostname, not a URL: https://localhost",
+		},
+	}
+
+	for _, tc := range testsError {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			c := NewRequestHTTPClient()
+			_, err := c.SetServerName(tt.serverName)
+			require.Error(t, err)
+			assert.Equal(t, tt.errMsg, err.Error())
+		})
+	}
+
+	t.Run("Error: Nil HTTP client", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetServerName("localhost")
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+}
+
+func TestNewRequestHTTPClient_SetClientTimeout(t *testing.T) {
+	tests := []int{
+		3, 0, 50,
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		testname := fmt.Sprintf("%v", tt)
+		t.Run(testname, func(t *testing.T) {
+			t.Parallel()
+
+			c := NewRequestHTTPClient()
+
+			_, err := c.SetClientTimeout(tt)
+			require.NoError(t, err)
+
+			var i any = c.client.Timeout
+
+			duration, ok := i.(time.Duration)
+			if !ok {
+				t.Fatalf("expected time.Duration, got %T", c.client.Timeout)
+			}
+
+			assert.Equal(t, time.Duration(tt)*time.Second, duration)
+		})
+	}
+}
+
+func TestNewRequestHTTPClient_SetClientTimeout_Error(t *testing.T) {
+	t.Run("Negative Timeout", func(t *testing.T) {
+		t.Parallel()
+
+		c := NewRequestHTTPClient()
+		timeout := -1
+
+		_, err := c.SetClientTimeout(timeout)
+		require.Error(t, err)
+		assert.Equal(t, "timeout value must be positive: -1 provided", err.Error())
+	})
+
+	t.Run("Nil Timeout", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		timeout := 10
+
+		_, err := c.SetClientTimeout(timeout)
+		require.Error(t, err)
+		assert.Equal(
+			t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
 }
 
 func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
@@ -245,7 +577,8 @@ func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
 		{"System Cert Pool", defaultCertPool, defaultCertPool},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.testname, func(t *testing.T) {
 			t.Parallel()
 
@@ -269,9 +602,44 @@ func TestNewRequestHTTPClient_SetCaCertsPool(t *testing.T) {
 	}
 }
 
+func TestNewRequestHTTPClient_SetCaCertsPool_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetCACertsPool(caCertPool)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetCACertsPool(caCertPool)
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
+}
+
 func TestNewRequestHTTPClient_SetInsecureSkipVerify_struct(t *testing.T) {
 	tests := []bool{true, false}
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 
 		t.Run(testname, func(t *testing.T) {
@@ -300,7 +668,8 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_struct(t *testing.T) {
 
 func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 	tests := []bool{true, false}
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt)
 
 		t.Run(testname, func(t *testing.T) {
@@ -322,11 +691,45 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 			}
 
 			if tt {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, http.StatusOK, res.StatusCode)
 			}
 		})
 	}
+}
+
+func TestNewRequestHTTPClient_SetInsecureSkipVerify_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetInsecureSkipVerify(true)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetInsecureSkipVerify(true)
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
 }
 
 func TestNewRequestHTTPClient_SetMethod(t *testing.T) {
@@ -348,7 +751,8 @@ func TestNewRequestHTTPClient_SetMethod(t *testing.T) {
 		{"post", http.MethodPost},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.got)
 
 		t.Run(testname, func(t *testing.T) {
@@ -374,7 +778,8 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_struc(t *testin
 		{"https://example.com", "example.com:443"},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.got)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -387,6 +792,39 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_struc(t *testin
 			}
 		})
 	}
+}
+
+func TestRequestHTTPClient_SetTransportOverride_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		var c RequestHTTPClient
+
+		_, err := c.SetTransportOverride("http://localhost")
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+
+		c.client = &incompleteClient
+
+		_, err := c.SetTransportOverride("http://localhost")
+
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
 }
 
 // Test SetTransportOverride method for RequestHTTPClient.
@@ -411,7 +849,8 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testi
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		testname := fmt.Sprintf("%v", tt.trasportURL)
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
@@ -507,7 +946,8 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
 		t.Run(tt.testname, func(t *testing.T) {
 			t.Parallel()
 
@@ -544,7 +984,7 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 
 			c := NewRequestHTTPClient()
 			c.SetTransportOverride(transportURL)
-			c.SetProxyProtocolV2(header)
+			c.SetProxyProtocolHeader(header)
 
 			// Extract the transport via type assertion
 			transport, ok := c.client.Transport.(*http.Transport)
@@ -586,6 +1026,462 @@ func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 				res.Request.Header.Values("User-Agent"))
 
 			printResponseBody(res)
+		})
+	}
+}
+
+func TestRequestHTTPClient_SetProxyProtocolHeader_Error(t *testing.T) {
+	t.Run("nilClient", func(t *testing.T) {
+		t.Parallel()
+
+		c := RequestHTTPClient{transportAddress: "127.0.0.1:443"}
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+
+		require.Error(t, err)
+		assert.Equal(t,
+			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
+			err.Error(),
+		)
+	})
+
+	t.Run("malformedClient", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+		c.transportAddress = "127.0.0.1:443"
+		c.client = &incompleteClient
+
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"expected *http.Transport, got <nil>",
+			err.Error(),
+		)
+	})
+
+	t.Run("noTransportAddress", func(t *testing.T) {
+		t.Parallel()
+
+		incompleteClient := http.Client{}
+		c := NewRequestHTTPClient()
+		c.client = &incompleteClient
+
+		header := proxyproto.Header{}
+		_, err := c.SetProxyProtocolHeader(header)
+		require.Error(t, err)
+
+		assert.Equal(t,
+			"SetProxyProtocolHeader failed: transportOverrideURL not set",
+			err.Error(),
+		)
+	})
+}
+
+func TestPrintCmd(t *testing.T) {
+	tests := []bool{true, false}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		testname := fmt.Sprintf("%v", tt)
+		t.Run(testname, func(t *testing.T) {
+			t.Parallel()
+
+			buffer := bytes.Buffer{}
+			r := RequestsMetaConfig{RequestVerbose: tt}
+			r.PrintCmd(&buffer)
+
+			got := buffer.String()
+			if tt {
+				assert.Contains(t, got,
+					"Requests",
+					"check PrintCmd when verbose",
+				)
+			} else {
+				assert.Empty(t,
+					got,
+					"check empty outputs from PrintCmd when not verbose",
+				)
+			}
+		})
+	}
+}
+
+func TestPrintResponseDebug(t *testing.T) {
+	tests := []struct {
+		desc    string
+		srvAddr string
+		verbose bool
+		outputs []string
+	}{
+		{
+			desc:    "verboseTrue",
+			srvAddr: "localhost:46010",
+			verbose: true,
+			outputs: []string{
+				"Requested url:",
+				"Response dump:",
+				"DemoHTTPSServer Handler - client output",
+				"TLS:",
+				"CipherSuite:",
+			},
+		},
+		{
+			desc:    "verboseFalse",
+			srvAddr: "localhost:46011",
+			verbose: false,
+			outputs: []string{emptyString},
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			httpSrvData := demoHttpServerData{
+				serverAddr:        tt.srvAddr,
+				proxyprotoEnabled: false,
+				serverName:        "localhost",
+			}
+
+			ts, err := NewHTTPSTestServer(httpSrvData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ts.Close()
+
+			tr := &http.Transport{TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			}}
+
+			client := &http.Client{Transport: tr}
+
+			res, err := client.Get(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rc := RequestConfig{ResponseDebug: tt.verbose}
+			buffer := bytes.Buffer{}
+			rc.PrintResponseDebug(&buffer, res)
+
+			got := buffer.String()
+			fmt.Printf("got:\n%s\n", got)
+
+			if !tt.verbose && len(got) == 0 {
+				assert.Empty(t,
+					buffer.Bytes(),
+					"check PrintResponseDebug with verbose False",
+				)
+			}
+
+			if tt.verbose {
+				for _, output := range tt.outputs {
+					assert.True(t,
+						bytes.Contains(buffer.Bytes(), []byte(output)),
+						"check PrintResponseDebug contains: %s", output,
+					)
+				}
+			}
+		})
+	}
+}
+
+func TestPrintResponseDebug_Error(t *testing.T) {
+	t.Run("NilResponse", func(t *testing.T) {
+		rc := RequestConfig{ResponseDebug: true}
+		buffer := bytes.Buffer{}
+		rc.PrintResponseDebug(&buffer, nil)
+
+		got := buffer.String()
+		assert.Empty(t,
+			got,
+			"output should be empty when Response is nil",
+		)
+	})
+
+	// TODO: trigger error on malformed Response
+	//
+	// t.Run("MalformedResponse", func(t *testing.T) {
+	// 	httpTestHeader := http.Header{}
+	// 	httpTestHeader.Add("user-agent", "go-test")
+	//
+	// 	httpTestRequest := http.Request{
+	// 		// Method: http.MethodGet,
+	// 		// URL: &url.URL{Scheme: "https", Host: "localhost"},
+	// 		ContentLength: 300,
+	// 		Body:          nil,
+	// 	}
+	//
+	// 	response := http.Response{
+	// 		// Status:     "200 OK",
+	// 		// StatusCode: 200,
+	// 		// Header:     httpTestHeader,
+	// 		Request: &httpTestRequest,
+	// 	}
+	// 	rc := RequestConfig{ResponseDebug: true}
+	// 	buffer := bytes.Buffer{}
+	// 	rc.PrintResponseDebug(&buffer, &response)
+	//
+	// 	got := buffer.String()
+	// 	fmt.Printf("got:\n%s\n", got)
+	// 	assert.Contains(t,
+	// 		got,
+	// 		"Warning: failed to dump response:",
+	// 		"check PrintResponseDebug: MalformedResponse",
+	// 	)
+	// })
+}
+
+func TestPrintResponseDebug_nonTLS(t *testing.T) {
+	t.Run("non-TLS", func(t *testing.T) {
+		respURL := url.URL{Scheme: "http", Host: "localhost"}
+		req := http.Request{URL: &respURL}
+		resp := http.Response{
+			StatusCode: 200,
+			Request:    &req,
+		}
+		rc := RequestConfig{ResponseDebug: true}
+		buffer := bytes.Buffer{}
+		rc.PrintResponseDebug(&buffer, &resp)
+
+		assert.True(t,
+			bytes.Contains(buffer.Bytes(), []byte("TLS: Not available")),
+			"check non-TLS connection",
+		)
+	})
+}
+
+func TestPrintRequestDebug(t *testing.T) {
+	httpTestHeader := http.Header{}
+	httpTestHeader.Add("user-agent", "go-test")
+	requestTest := http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Scheme: "https", Host: "localhost"},
+		Header: httpTestHeader,
+	}
+
+	requestTestIncomplete := http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Scheme: "https", Host: "localhost"},
+	}
+
+	var requestTestNilPointer *http.Request
+
+	expectedOutput := "Requesting url: https://localhost\nRequest dump:\nGET / "
+	expectedOutput += "HTTP/1.1\r\nHost: localhost\r\nUser-Agent: go-test\r\nAccept-Encoding: "
+	expectedOutput += "gzip\r\n\r\n\n"
+
+	expectedOutputIncomplete := "Warning: failed to dump request: http: nil Request.Header\n"
+
+	tests := []struct {
+		desc      string
+		verbose   bool
+		request   *http.Request
+		output    string
+		expectErr bool
+	}{
+		{
+			desc:    "verboseTrue",
+			verbose: true,
+			request: &requestTest,
+			output:  expectedOutput,
+		},
+
+		{
+			desc:    "verboseFalse",
+			verbose: false,
+			request: &requestTest,
+			output:  emptyString,
+		},
+		{
+			desc:      "nilRequestError",
+			verbose:   true,
+			request:   requestTestNilPointer,
+			output:    emptyString,
+			expectErr: true,
+		},
+		{
+			desc:      "incompleteRequestError",
+			verbose:   true,
+			request:   &requestTestIncomplete,
+			output:    expectedOutputIncomplete,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			buffer := bytes.Buffer{}
+			r := RequestConfig{RequestDebug: tt.verbose}
+
+			err := r.PrintRequestDebug(&buffer, tt.request)
+
+			if tt.expectErr {
+				require.Error(t, err, "PrintRequestDebug should return an error")
+			} else {
+				require.NoError(t, err, "PrintRequestDebug should not return an error")
+			}
+
+			got := buffer.String()
+			want := tt.output
+
+			assert.Equal(t, want, got, "check PrintRequestDebug")
+		})
+	}
+}
+
+func TestProcessHTTPRequestsByHost(t *testing.T) {
+	tests := []struct {
+		srvAddr        string
+		reqConf        RequestConfig
+		pool           *x509.CertPool
+		verbose        bool
+		respStatusCode int
+		errMsg         string
+	}{
+		{
+			srvAddr: "localhost:46001",
+			reqConf: RequestConfig{
+				Name:                 "StatusOK",
+				TransportOverrideURL: "https://localhost:46001",
+				UserAgent:            "test-ua",
+				RequestHeaders: []RequestHeader{
+					{Key: "testKey", Value: "testValue"},
+					{Key: "testKey2", Value: "testValue2"},
+				},
+				Hosts: []Host{
+					{Name: "example.com"},
+				},
+			},
+			pool:           caCertPool,
+			verbose:        false,
+			respStatusCode: http.StatusOK,
+		},
+
+		{
+			srvAddr: "localhost:46002",
+			reqConf: RequestConfig{
+				Name:                 "invalidServerName",
+				TransportOverrideURL: "https://localhost:46002",
+				Hosts: []Host{
+					{Name: "localhost"},
+				},
+			},
+			pool:           caCertPool,
+			verbose:        false,
+			respStatusCode: 0,
+			errMsg:         "Get \"https://localhost\": tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not localhost",
+		},
+
+		{
+			srvAddr: "localhost:46003",
+			reqConf: RequestConfig{
+				Name:                    "bodyRex",
+				ResponseBodyMatchRegexp: "DemoHTTPSServer Handler - client output",
+				PrintResponseBody:       true,
+				TransportOverrideURL:    "https://localhost:46003",
+				Hosts: []Host{
+					{Name: "example.com"},
+				},
+			},
+			pool:           caCertPool,
+			verbose:        true,
+			respStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc // safer when using t.Parallel()
+		t.Run(tt.reqConf.Name, func(t *testing.T) {
+			t.Parallel()
+
+			httpSrvData := demoHttpServerData{
+				serverAddr:        tt.srvAddr,
+				proxyprotoEnabled: false,
+				serverName:        "localhost",
+			}
+
+			ts, err := NewHTTPSTestServer(httpSrvData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ts.Close()
+
+			respList, err := processHTTPRequestsByHost(
+				tt.reqConf,
+				tt.pool,
+				tt.verbose,
+			)
+			if err != nil {
+				t.Error(err)
+			}
+
+			for _, r := range respList {
+				fmt.Printf("resp type: %T\n", r)
+
+				assert.Equal(t,
+					tt.srvAddr,
+					r.TransportAddress,
+					"check TransportAddress",
+				)
+
+				if tt.respStatusCode == 0 {
+					assert.Equal(t,
+						tt.errMsg,
+						r.Error.Error(),
+						"check Response Error",
+					)
+				}
+
+				// if expecting and error from the request do not
+				// check values from the response
+				if tt.respStatusCode != 0 {
+					require.NoError(t,
+						r.Error,
+						"check NoError in ResponseData",
+					)
+
+					ua := httpUserAgent
+
+					if tt.reqConf.UserAgent != emptyString {
+						ua = tt.reqConf.UserAgent
+					}
+
+					assert.Equal(t,
+						ua,
+						r.Response.Request.Header.Get("user-agent"),
+						"check UserAgent",
+					)
+
+					assert.Equal(t,
+						len(tt.reqConf.ResponseBodyMatchRegexp) > 0,
+						r.ResponseBodyRegexpMatched,
+						"check body rex match",
+					)
+
+					assert.Equal(t,
+						tt.respStatusCode,
+						r.Response.StatusCode,
+						"check StatusCode",
+					)
+
+					for _, headers := range tt.reqConf.RequestHeaders {
+						assert.Equal(t,
+							headers.Value,
+							r.Response.Request.Header.Get(headers.Key),
+							"check RequestHeaders Key",
+						)
+					}
+				}
+			}
 		})
 	}
 }

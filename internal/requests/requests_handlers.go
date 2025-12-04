@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -205,7 +206,7 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
 	responseDataMap := make(map[string][]ResponseData)
 
-	cfg.PrintCmd()
+	cfg.PrintCmd(os.Stdout)
 
 	for _, r := range cfg.Requests {
 		responseDataList, err := processHTTPRequestsByHost(

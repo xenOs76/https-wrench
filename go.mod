@@ -1,6 +1,6 @@
 module github.com/xenos76/https-wrench
 
-go 1.24.4
+go 1.24.9
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0

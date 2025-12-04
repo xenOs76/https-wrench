@@ -7,9 +7,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strings"
 	"time"
 
@@ -181,11 +183,13 @@ func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMeta
 	return r
 }
 
-func (r *RequestsMetaConfig) PrintCmd() {
+func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 	if r.RequestVerbose {
-		fmt.Println()
-		fmt.Println(style.LgSprintf(style.Cmd, "Requests"))
-		fmt.Println()
+		fmt.Fprintf(
+			w,
+			"\n%s\n",
+			style.LgSprintf(style.Cmd, "Requests"),
+		)
 	}
 }
 
@@ -201,50 +205,62 @@ func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	}
 }
 
-func (r *RequestConfig) PrintRequestDebug(req *http.Request) {
+func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error {
+	if req == nil {
+		return errors.New("nil pointer to http.Request")
+	}
+
 	if r.RequestDebug {
 		reqDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			fmt.Printf("Warning: failed to dump request: %v\n", err)
-			return
+			fmt.Fprintf(w, "Warning: failed to dump request: %v\n", err)
+			return err
 		}
 
-		fmt.Printf("Requesting url: %s\n", req.URL)
-		fmt.Printf("Request dump:\n%s\n", string(reqDump))
+		_, err = fmt.Fprintf(w, "Requesting url: %s\nRequest dump:\n%s\n", req.URL, string(reqDump))
+
+		return err
 	}
+
+	return nil
 }
 
-func (r *RequestConfig) PrintResponseDebug(resp *http.Response) {
+func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
+	// TODO: return an error
+	if resp == nil {
+		return
+	}
+
 	if r.ResponseDebug {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
-			fmt.Printf("Warning: failed to dump response: %v\n", err)
+			fmt.Fprintf(w, "Warning: failed to dump response: %v\n", err)
 			return
 		}
 
-		fmt.Printf("Requested url: %s\n", resp.Request.URL)
-		fmt.Printf("Response dump:\n%s\n", string(respDump))
+		fmt.Fprintf(w, "Requested url: %s\n", resp.Request.URL)
+		fmt.Fprintf(w, "Response dump:\n%s\n", string(respDump))
 
 		if resp.TLS != nil {
-			fmt.Println("TLS:")
-			fmt.Printf("Version: %v\n", TLSVersionName(resp.TLS.Version))
-			fmt.Printf("CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+			fmt.Fprintln(w, "TLS:")
+			fmt.Fprintf(w, "Version: %v\n", TLSVersionName(resp.TLS.Version))
+			fmt.Fprintf(w, "CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
 
 			for i, cert := range resp.TLS.PeerCertificates {
-				fmt.Printf("Certificate %d:\n", i)
+				fmt.Fprintf(w, "Certificate %d:\n", i)
 				certinfo.PrintCertInfo(cert, 1)
 			}
 
 			for i, chain := range resp.TLS.VerifiedChains {
-				fmt.Printf("Verified Chain %d:\n", i)
+				fmt.Fprintf(w, "Verified Chain %d:\n", i)
 
 				for j, cert := range chain {
-					fmt.Printf(" Cert %d:\n", j)
+					fmt.Fprintf(w, " Cert %d:\n", j)
 					certinfo.PrintCertInfo(cert, 2)
 				}
 			}
 		} else {
-			fmt.Println("TLS: Not available (non-TLS connection)")
+			fmt.Fprintln(w, "TLS: Not available (non-TLS connection)")
 		}
 	}
 }
@@ -273,6 +289,14 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 	if rc.client == nil {
 		return nil, errors.New(
 			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+	}
+
+	if serverName == emptyString {
+		return nil, errors.New("serverName cannot be empty")
+	}
+
+	if strings.Contains(serverName, "://") {
+		return nil, fmt.Errorf("serverName should be a hostname, not a URL: %s", serverName)
 	}
 
 	transport, ok := rc.client.Transport.(*http.Transport)
@@ -406,9 +430,15 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	return rc, nil
 }
 
-func (rc *RequestHTTPClient) SetProxyProtocolV2(header proxyproto.Header) (*RequestHTTPClient, error) {
+func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) *RequestHTTPClient {
+	rc.enableProxyProtoV2 = enable
+
+	return rc
+}
+
+func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
-		return nil, errors.New("SetProxyProtocolV2 failed: transportOverrideURL not set")
+		return nil, errors.New("SetProxyProtocolHeader failed: transportOverrideURL not set")
 	}
 
 	if rc.client == nil {
@@ -457,6 +487,10 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
 	}
 
+	if timeout < 0 {
+		return nil, fmt.Errorf("timeout value must be positive: %v provided", timeout)
+	}
+
 	t := time.Duration(timeout) * time.Second
 	rc.client.Timeout = t
 
@@ -464,11 +498,6 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 }
 
 func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *x509.CertPool) (*RequestHTTPClient, error) {
-	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
-		return nil, errors.New(
-			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
-	}
-
 	reqClient := NewRequestHTTPClient()
 
 	_, err := reqClient.SetCACertsPool(caPool)
@@ -501,15 +530,22 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 		return nil, fmt.Errorf("SetTransportOverride error: %w", err)
 	}
 
+	reqClient.SetProxyProtocolV2(r.EnableProxyProtocolV2)
+
+	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
+		return nil, errors.New(
+			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
+	}
+
 	if r.EnableProxyProtocolV2 && reqClient.transportAddress != emptyString {
 		header, err := proxyProtoHeaderFromRequest(r, serverName)
 		if err != nil {
 			return nil, fmt.Errorf("error creating proxyproto Header: %w", err)
 		}
 
-		_, err = reqClient.SetProxyProtocolV2(header)
+		_, err = reqClient.SetProxyProtocolHeader(header)
 		if err != nil {
-			return nil, fmt.Errorf("SetProxyProtocolV2 error: %w", err)
+			return nil, fmt.Errorf("SetProxyProtocolHeader error: %w", err)
 		}
 	}
 
@@ -563,7 +599,9 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				req.Header.Add(header.Key, header.Value)
 			}
 
-			r.PrintRequestDebug(req)
+			if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
+			}
 
 			resp, err := reqClient.client.Do(req)
 			if err != nil {
@@ -580,7 +618,7 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 				continue
 			}
 
-			r.PrintResponseDebug(resp)
+			r.PrintResponseDebug(os.Stdout, resp)
 
 			responseData.Response = resp
 
