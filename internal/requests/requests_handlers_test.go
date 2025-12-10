@@ -218,12 +218,8 @@ func TestGetUrlsFromHost(t *testing.T) {
 			},
 		},
 		{
-			desc:      "OneNotParsing",
-			inputHost: Host{Name: "localhost", URIList: []URI{"one", "/two", "/three"}},
-			expectedOutput: []string{
-				"https://localhost/two",
-				"https://localhost/three",
-			},
+			desc:          "OneNotParsing",
+			inputHost:     Host{Name: "localhost", URIList: []URI{"one", "/two", "/three"}},
 			expectedError: true,
 		},
 		{

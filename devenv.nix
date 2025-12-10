@@ -5,6 +5,7 @@
   inputs,
   ...
 }: let
+  # TODO: align go version between nixos/nixvim and devenv
   pkgsStable = import inputs.nixpkgsStable {system = pkgs.stdenv.system;};
 in {
   env = {
