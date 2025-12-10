@@ -4,7 +4,9 @@
   config,
   inputs,
   ...
-}: {
+}: let
+  pkgsStable = import inputs.nixpkgsStable {system = pkgs.stdenv.system;};
+in {
   env = {
     GUM_FORMAT_THEME = "tokyo-night";
     CAROOT = "tests/certs";
@@ -49,7 +51,12 @@
     };
   };
 
-  # languages.go.enable = true;
+  # https://devenv.sh/reference/options/#languagesgoenable
+  # TODO: align go related versions used by vim to this before enabling
+  # languages.go = {
+  #   enable = true;
+  #   package = pkgs.go;
+  # };
 
   services.nginx = {
     enable = true;
