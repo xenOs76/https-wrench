@@ -94,7 +94,7 @@ Examples:
 			fmt.Print(err)
 		}
 
-		responseMap, err := requests.HandleRequests(requestsCfg)
+		responseMap, err := requests.HandleRequests(os.Stdout, requestsCfg)
 		if err != nil {
 			fmt.Print(err)
 		}

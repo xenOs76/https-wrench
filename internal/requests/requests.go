@@ -568,7 +568,10 @@ func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose
 			return nil, err
 		}
 
-		urlList := getUrlsFromHost(host)
+		urlList, err := getUrlsFromHost(host)
+		if err != nil {
+			return nil, err
+		}
 
 		for _, reqURL := range urlList {
 			responseData := ResponseData{

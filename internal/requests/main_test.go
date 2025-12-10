@@ -36,6 +36,8 @@ type demoHttpServerData struct {
 	serverAddr        string
 	proxyprotoEnabled bool
 	serverName        string
+	tlsCipherSuites   []uint16
+	tlsMaxVersion     uint16
 }
 
 var (
@@ -209,7 +211,30 @@ func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 		return nil, err
 	}
 
-	ts.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	// Set default TLS CipherSuites to TLS 1.3 cipher suites
+	// https://pkg.go.dev/crypto/tls#pkg-constants
+	tlsCipherSuites := []uint16{
+		tls.TLS_AES_128_GCM_SHA256,
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+	}
+
+	if len(data.tlsCipherSuites) > 0 {
+		tlsCipherSuites = data.tlsCipherSuites
+	}
+
+	// Set default TLS MaxVersion to 1.3
+	var tlsMaxVersion uint16 = tls.VersionTLS13
+
+	if data.tlsMaxVersion > 0 {
+		tlsMaxVersion = data.tlsMaxVersion
+	}
+
+	ts.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		CipherSuites: tlsCipherSuites,
+		MaxVersion:   tlsMaxVersion,
+	}
 
 	ts.StartTLS()
 
