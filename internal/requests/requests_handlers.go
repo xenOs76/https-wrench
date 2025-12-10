@@ -27,6 +27,7 @@ func (h ResponseHeader) String() string {
 }
 
 func (u URI) Parse() bool {
+	// URIs must start with a slash as in /uri
 	matched, err := regexp.Match(`^\/.*`, []byte(u))
 	if err != nil {
 		return false
@@ -54,14 +55,14 @@ func TLSVersionName(v uint16) string {
 
 func cipherSuiteName(id uint16) string {
 	cs := tls.CipherSuiteName(id)
-	if cs == "" {
+	if strings.Contains(cs, "0x") {
 		return fmt.Sprintf("Unknown (0x%x)", id)
 	}
 
 	return cs
 }
 
-func parseResponseHeaders(headers http.Header, filter []string) string {
+func filterResponseHeaders(headers http.Header, filter []string) string {
 	var outputStr string
 
 	var outputMap map[string][]string
@@ -94,41 +95,39 @@ func parseResponseHeaders(headers http.Header, filter []string) string {
 	return outputStr
 }
 
-func getUrlsFromHost(h Host) []string {
+func getUrlsFromHost(h Host) ([]string, error) {
 	var list []string
 
 	if len(h.URIList) == 0 {
 		s := httpClientDefaultScheme + "://" + h.Name
 		list = append(list, s)
 
-		return list
+		return list, nil
 	}
 
 	for _, uri := range h.URIList {
 		if parsed := uri.Parse(); !parsed {
-			fmt.Printf("Invalid uri %s for host %s", uri, h.Name)
-
-			break
+			return nil, fmt.Errorf("invalid uri %s for host %s", uri, h.Name)
 		}
 
 		s := fmt.Sprintf("%s://%s%s", httpClientDefaultScheme, h.Name, uri)
 		list = append(list, s)
 	}
 
-	return list
-}
-
-func transportAddressFromRequest(r RequestConfig) (string, error) {
-	addr, err := transportAddressFromURLString(r.TransportOverrideURL)
-	if err != nil {
-		return emptyString, err
-	}
-
-	return addr, nil
+	return list, nil
 }
 
 func transportAddressFromURLString(transportURL string) (string, error) {
 	var addr string
+
+	if transportURL == emptyString {
+		return emptyString, errors.New("empty string provided as transportURL")
+	}
+
+	// Add HTTPS scheme if missing from transportURL
+	if match, _ := regexp.MatchString("^https://", transportURL); !match {
+		transportURL = "https://" + transportURL
+	}
 
 	overrideURL, err := url.Parse(transportURL)
 	if err != nil {
@@ -137,6 +136,7 @@ func transportAddressFromURLString(transportURL string) (string, error) {
 
 	addr = overrideURL.Host
 
+	// Add default HTTPS port if a port is missing from transportURL
 	if match, _ := regexp.MatchString("\\:\\d+$", addr); !match {
 		addr += ":443"
 	}
@@ -203,10 +203,10 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	return header, nil
 }
 
-func HandleRequests(cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
+func HandleRequests(w io.Writer, cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
 	responseDataMap := make(map[string][]ResponseData)
 
-	cfg.PrintCmd(os.Stdout)
+	cfg.PrintCmd(w)
 
 	for _, r := range cfg.Requests {
 		responseDataList, err := processHTTPRequestsByHost(
@@ -304,11 +304,11 @@ func (rd ResponseData) PrintResponseData(isVerbose bool) {
 			style.StatusCodeParse(rd.Response.StatusCode)))
 
 		if rd.Request.PrintResponseCertificates {
-			RenderTLSData(rd.Response)
+			RenderTLSData(os.Stdout, rd.Response)
 		}
 
 		if rd.Request.PrintResponseHeaders {
-			headersStr := parseResponseHeaders(
+			headersStr := filterResponseHeaders(
 				rd.Response.Header,
 				rd.Request.ResponseHeadersFilter)
 
@@ -330,26 +330,36 @@ func (rd ResponseData) PrintResponseData(isVerbose bool) {
 	}
 }
 
-func RenderTLSData(r *http.Response) {
+func RenderTLSData(w io.Writer, r *http.Response) {
 	respTLS := r.TLS
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
 
-	fmt.Println(style.LgSprintf(style.ItemKeyP3, "TLS:"))
+	fmt.Fprintln(w, style.LgSprintf(style.ItemKeyP3, "TLS:"))
 
 	if respTLS == nil {
-		fmt.Println(style.LgSprintf(style.CertKeyP4,
-			"%s",
-			style.Error.Render("No TLS connection state available")))
+		fmt.Fprintln(
+			w,
+			style.LgSprintf(style.CertKeyP4,
+				"%s",
+				style.Error.Render("No TLS connection state available"),
+			),
+		)
 
 		return
 	}
 
 	t := table.New().Border(style.LGDefBorder)
-	t.Row(sl("Version"), sv(TLSVersionName(respTLS.Version)))
-	t.Row(sl("CipherSuite"), sv(cipherSuiteName(respTLS.CipherSuite)))
-	fmt.Println(t.Render())
+	t.Row(
+		sl("Version"),
+		sv(TLSVersionName(respTLS.Version)),
+	)
+	t.Row(
+		sl("CipherSuite"),
+		sv(cipherSuiteName(respTLS.CipherSuite)),
+	)
+	fmt.Fprintln(w, t.Render())
 	t.ClearRows()
 
-	certinfo.CertsToTables(respTLS.PeerCertificates)
+	certinfo.CertsToTables(w, respTLS.PeerCertificates)
 }

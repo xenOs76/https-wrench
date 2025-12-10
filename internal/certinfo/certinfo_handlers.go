@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -62,7 +63,7 @@ func (c *CertinfoConfig) PrintData() {
 			))
 		}
 
-		CertsToTables(c.CertsBundle)
+		CertsToTables(os.Stdout, c.CertsBundle)
 	}
 
 	if len(c.TLSEndpointCerts) > 0 {
@@ -96,7 +97,7 @@ func (c *CertinfoConfig) PrintData() {
 			))
 		}
 
-		CertsToTables(c.TLSEndpointCerts)
+		CertsToTables(os.Stdout, c.TLSEndpointCerts)
 	}
 
 	if len(c.CACertsFilePath) > 0 {
@@ -116,7 +117,7 @@ func (c *CertinfoConfig) PrintData() {
 			return
 		}
 
-		CertsToTables(rootCerts)
+		CertsToTables(os.Stdout, rootCerts)
 	}
 }
 
@@ -162,7 +163,7 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	}
 }
 
-func CertsToTables(certs []*x509.Certificate) {
+func CertsToTables(w io.Writer, certs []*x509.Certificate) {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
 	svn := style.CertValueNotice.Render
@@ -214,7 +215,7 @@ func CertsToTables(certs []*x509.Certificate) {
 		t.Row(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
 		t.Row(sl("SerialNumber"), sv(serialNumber))
 		t.Row(sl("Fingerprint SHA-256"), sv(fingerprintSha256))
-		fmt.Println(t.Render())
+		fmt.Fprintln(w, t.Render())
 		t.ClearRows()
 	}
 }
