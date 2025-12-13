@@ -253,7 +253,12 @@ func GetKeyFromFile(keyFilePath string, inputReader Reader) (crypto.PrivateKey, 
 		return nil, err
 	}
 
-	key, err := ParsePrivateKey(keyPEM, privateKeyPwEnvVar, inputReader)
+	// TODO: get pwEnvKey from function's arguments
+	key, err := ParsePrivateKey(
+		keyPEM,
+		privateKeyPwEnvVar,
+		inputReader,
+	)
 	if err != nil {
 		return nil, err
 	}

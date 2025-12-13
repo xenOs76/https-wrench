@@ -342,6 +342,41 @@ func TestCertinfo_GetKeyFromFile(t *testing.T) {
 	})
 }
 
+func TestCertinfo_ParsePrivateKey(t *testing.T) {
+	// ParsePrivateKey calls getPassphraseIfNeeded
+	// if the key in encrypted. It then evaluates the returned error.
+	// We want to trigger that error in this test.
+	// Skip passing password via ENV, this way getPassphraseIfNeeded
+	// will read from stdin.
+	// Need to use and encrypted key's PEM
+	// t.Run("stdin pw read error", func(t *testing.T) {
+	// 	key, err := GetKeyFromFile(
+	// 		RSASamplePKCS1EncryptedPrivateKey,
+	// 		inputReader,
+	// 	)
+	// 	require.NoError(t, err)
+	//
+	// 	var i any = key
+	//
+	// 	rsaKey, ok := i.(*rsa.PrivateKey)
+	//
+	// 	require.True(t, ok, "the key must be of type *rsa.PrivateKey")
+	//
+	// 	rsaKeyPEM := RSAPrivateKeyToPEM(rsaKey)
+	//
+	// 	_, err = ParsePrivateKey(
+	// 		rsaKeyPEM,
+	// 		privateKeyPwEnvVar,
+	// 		mockErrReader,
+	// 	)
+	// 	require.Error(t, err)
+	// 	assert.EqualError(t,
+	// 		err,
+	// 		"error reading passphrase: inappropriate ioctl for device",
+	// 	)
+	// })
+}
+
 func TestCertinfo_IsPrivateKeyEncrypted(t *testing.T) {
 	t.Run("No PEM encoded file", func(t *testing.T) {
 		sampleText, err := inputReader.ReadFile(sampleTextFile)
@@ -377,7 +412,7 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t,
 			err,
-			"error reading passphrase: unable to read password",
+			"error reading passphrase: mockErrReader: unable to read password",
 		)
 	})
 

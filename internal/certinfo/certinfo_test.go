@@ -43,13 +43,15 @@ func TestCertinfo_SetCaPoolFromFile(t *testing.T) {
 		assert.Equal(t,
 			"failed to read CA bundle file: unable to read file testdata/unreadable-file.txt",
 			errNoRead.Error(),
+			"check unreadableFile",
 		)
 
 		errNoExist := cc.SetCaPoolFromFile("testdata/not-exist", inputReader)
 		require.Error(t, errNoExist, "error file not-exist")
 		assert.Equal(t,
-			"unable to create CertPool from file",
+			"failed to read CA bundle file: open testdata/not-exist: no such file or directory",
 			errNoExist.Error(),
+			"read not-exist file",
 		)
 
 		errWrongCert := cc.SetCaPoolFromFile(RSACaCertKeyFile, inputReader)
@@ -57,6 +59,7 @@ func TestCertinfo_SetCaPoolFromFile(t *testing.T) {
 		assert.Equal(t,
 			"unable to create CertPool from file",
 			errWrongCert.Error(),
+			"check wrong cert",
 		)
 
 		// TODO: complete, compare struct data with input
