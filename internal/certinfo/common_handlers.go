@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/youmark/pkcs8"
-	"golang.org/x/term"
 )
 
 func PrintCertInfo(cert *x509.Certificate, depth int) {
@@ -32,55 +31,6 @@ func PrintCertInfo(cert *x509.Certificate, depth int) {
 	fmt.Printf("%sPublic Key Algorithm: %s\n", prefix, cert.PublicKeyAlgorithm)
 	fmt.Printf("%sSignature Algorithm: %s\n", prefix, cert.SignatureAlgorithm)
 	fmt.Println()
-}
-
-func printKeyInfo(privKey crypto.PrivateKey) {
-	fmt.Println("----- Private Key Info -----")
-
-	switch k := privKey.(type) {
-	case *rsa.PrivateKey:
-		fmt.Println("Type: RSA")
-		fmt.Printf("Key Size: %d bits\n", k.N.BitLen())
-	case *ecdsa.PrivateKey:
-		fmt.Println("Type: ECDSA")
-		fmt.Printf("Curve: %s\n", k.Curve.Params().Name)
-	case ed25519.PrivateKey:
-		fmt.Println("Type: Ed25519")
-		fmt.Printf("Key Size: %d bytes\n", len(k))
-	default:
-		fmt.Println("Unknown key type")
-	}
-
-	fmt.Println()
-}
-
-// Check if the first Certificate from a slice has been created with the
-// PrivateKey passed as argument.
-func certsFromPrivateKey(c []*x509.Certificate, key crypto.PrivateKey) (bool, error) {
-	if len(c) == 0 {
-		return false, errors.New("empty Certificate slice provided")
-	}
-
-	match := false
-
-	switch pub := c[0].PublicKey.(type) {
-	case *rsa.PublicKey:
-		if k, ok := key.(*rsa.PrivateKey); ok && k.PublicKey.N.Cmp(pub.N) == 0 && k.PublicKey.E == pub.E {
-			match = true
-		}
-	case *ecdsa.PublicKey:
-		if k, ok := key.(*ecdsa.PrivateKey); ok && k.PublicKey.X.Cmp(pub.X) == 0 && k.PublicKey.Y.Cmp(pub.Y) == 0 {
-			match = true
-		}
-	case ed25519.PublicKey:
-		if k, ok := key.(ed25519.PrivateKey); ok && k.Public().(ed25519.PublicKey).Equal(pub) {
-			match = true
-		}
-	default:
-		return false, errors.New("unsupported public key type in certificate")
-	}
-
-	return match, nil
 }
 
 // Check if the PublicKey of a Certificate matches the PrivateKey.
@@ -115,35 +65,43 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 	return match, nil
 }
 
-// TODO: add comment explaining why returning an empty pool in case of empty string
-func GetRootCertsFromFile(caBundlePath string) (*x509.CertPool, error) {
-	rootCAPool := x509.NewCertPool()
+func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPool, error) {
+	if caBundlePath == emptyString {
+		return nil, errors.New("empty string provided as caBundlePath")
+	}
 
-	certsFromFile, err := os.ReadFile(caBundlePath)
+	certsFromFile, err := fileReader.ReadFile(caBundlePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CA bundle file: %w", err)
 	}
 
+	rootCAPool := x509.NewCertPool()
 	if ok := rootCAPool.AppendCertsFromPEM(certsFromFile); !ok {
-		fmt.Println("Certs from file not appended, using system certs only")
+		return nil, errors.New("unable to create CertPool from file")
 	}
 
 	return rootCAPool, nil
 }
 
 func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
+	if caBundleString == emptyString {
+		return nil, errors.New("empty string provided as caBundleString")
+	}
+
 	rootCAPool := x509.NewCertPool()
-	if caBundleString != "" {
-		if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
-			return nil, errors.New("no valid certs in caBundle config string")
-		}
+	if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
+		return nil, errors.New("no valid certs in caBundle config string")
 	}
 
 	return rootCAPool, nil
 }
 
-func GetCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
-	certPEM, err := os.ReadFile(certBundlePath)
+func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certificate, error) {
+	if certBundlePath == emptyString {
+		return nil, errors.New("empty string provided as caBundlePath")
+	}
+
+	certPEM, err := fileReader.ReadFile(certBundlePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading certificate file: %w", err)
 	}
@@ -180,15 +138,6 @@ func GetCertsFromBundle(certBundlePath string) ([]*x509.Certificate, error) {
 	return certs, nil
 }
 
-func readFile(path string) ([]byte, error) {
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("error reading file: %w", err)
-	}
-
-	return bytes, nil
-}
-
 // IsPrivateKeyEncrypted checks if the given PEM key is encrypted.
 // It returns true if encrypted, false otherwise, and an error if decoding fails.
 func IsPrivateKeyEncrypted(key []byte) (bool, error) {
@@ -208,7 +157,7 @@ func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 	}
 }
 
-func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string) ([]byte, error) {
+func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) ([]byte, error) {
 	if !isEncrypted {
 		return nil, nil
 	}
@@ -220,7 +169,7 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string) ([]byte, error) {
 
 	fmt.Print("Private key is encrypted, please enter passphrase: ")
 
-	pw, trErr := term.ReadPassword(int(os.Stdin.Fd()))
+	pw, trErr := pwReader.ReadPassword(int(os.Stdin.Fd()))
 
 	fmt.Println()
 
@@ -246,7 +195,7 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string) ([]byte, error) {
 //
 // The function returns a descriptive error if the PEM cannot be decoded, decryption/parsing fails,
 // or the key format is unsupported.
-func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) {
+func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.PrivateKey, error) {
 	keyBlock, _ := pem.Decode(keyPEM)
 	if keyBlock == nil {
 		return nil, errors.New("failed to decode PEM")
@@ -254,7 +203,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) 
 
 	isEncrypted, _ := IsPrivateKeyEncrypted(keyPEM)
 
-	pass, err := getPassphraseIfNeeded(isEncrypted, pwEnvKey)
+	pass, err := getPassphraseIfNeeded(isEncrypted, pwEnvKey, pwReader)
 	if err != nil {
 		return nil, err
 	}
@@ -294,13 +243,17 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string) (crypto.PrivateKey, error) 
 	return nil, errors.New("unsupported key format or invalid password")
 }
 
-func GetKeyFromFile(keyFilePath string) (crypto.PrivateKey, error) {
-	keyPEM, err := readFile(keyFilePath)
+func GetKeyFromFile(keyFilePath string, inputReader Reader) (crypto.PrivateKey, error) {
+	if keyFilePath == emptyString {
+		return nil, errors.New("empty string provided as keyFilePath")
+	}
+
+	keyPEM, err := inputReader.ReadFile(keyFilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	key, err := ParsePrivateKey(keyPEM, privateKeyPwEnvVar)
+	key, err := ParsePrivateKey(keyPEM, privateKeyPwEnvVar, inputReader)
 	if err != nil {
 		return nil, err
 	}

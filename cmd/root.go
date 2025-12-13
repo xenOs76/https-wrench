@@ -35,6 +35,7 @@ import (
 	_ "github.com/breml/rootcerts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/xenos76/https-wrench/internal/certinfo"
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 	caBundlePath   string
 	certBundlePath string
 	keyFilePath    string
+	fileReader     certinfo.InputReader
 )
 
 var rootCmd = &cobra.Command{

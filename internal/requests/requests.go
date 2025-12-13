@@ -165,9 +165,12 @@ func (r *RequestsMetaConfig) SetCaPoolFromYAML(s string) error {
 	return nil
 }
 
-func (r *RequestsMetaConfig) SetCaPoolFromFile(filePath string) error {
+func (r *RequestsMetaConfig) SetCaPoolFromFile(filePath string, fileReader certinfo.Reader) error {
 	if filePath != "" {
-		caCertsPool, err := certinfo.GetRootCertsFromFile(filePath)
+		caCertsPool, err := certinfo.GetRootCertsFromFile(
+			filePath,
+			fileReader,
+		)
 		if err != nil {
 			return err
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/certinfo"
 )
 
 func TestNewRequestsMetaConfig(t *testing.T) {
@@ -26,7 +27,7 @@ func TestNewRequestsMetaConfig(t *testing.T) {
 			require.Error(t, err, "error when calling NewRequestsMetaConfig()")
 		}
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var i any = rmc
 
@@ -147,8 +148,10 @@ func TestRequestsMetaConfig_SetCaPoolFromFile(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
+			var fr certinfo.InputReader
+
 			rmc, _ := NewRequestsMetaConfig()
-			err := rmc.SetCaPoolFromFile(tt.certFile)
+			err := rmc.SetCaPoolFromFile(tt.certFile, fr)
 			require.NoError(t, err)
 
 			var pool any = rmc.CACertsPool
