@@ -35,8 +35,8 @@ Verifying - Enter pass phrase for rsa-pkcs1-encrypted-private-key.pem:
 Proc-Type: 4,ENCRYPTED
 DEK-Info: AES-128-CBC,314A1EF1E544F10E9741F8A9C57384C8
 
-8CpkWf5vuUxv15p6c7LJPgNO2gc1M3K+1ncRmJOblOGrpjv/Z5P1kE5wjEMIl/8Q
-3BcapXsV+yuAnA+eBglHKBIrUf3Em6KxjjlcHP95qKSitvj7iOXtGBTJtkkswgR5
+(REDACTED PEM Block)
+(REDACTED PEM Block)
 ```
 
 Decrypt the key: 
@@ -65,8 +65,8 @@ Verifying - Enter PEM pass phrase:
 
 > head -n 3  rsa-pkcs8-encrypted-private-key.pem
 -----BEGIN ENCRYPTED PRIVATE KEY-----
-MIIJtTBfBgkqhkiG9w0BBQ0wUjAxBgkqhkiG9w0BBQwwJAQQ188U9zxSGVXQrj4+
-8z3z1QICCAAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEDutok8Bf7Wu5Pc6
+(REDACTED PEM Block)
+(REDACTED PEM Block)
 ```
 
 Decrypt the key: 
@@ -78,8 +78,7 @@ writing RSA key
 
 > head -n 3 rsa-pkcs8-plaintext-private-key.pem
 -----BEGIN PRIVATE KEY-----
-MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQC2O/PumNzqJcUd
-4I0SBD0WP/AsCtDZGa6qF7YuqjO3hXx8jx66KRUQLFccgXRwOgmZ3Jj2hTvVUpbe
+(REDACTED PEM Block)
 ```
 ## Create sample RSA certificates
 
@@ -110,7 +109,7 @@ Create the plaintext key:
 
 > head -n 2 ecdsa-plaintext-private-key.pem
 -----BEGIN EC PRIVATE KEY-----
-MHcCAQEEILVvywgqKFoKYCDNLNehJSbvwxCdtDr1UT+QID0hxqa+oAoGCCqGSM49
+(REDACTED PEM Block)
 ```
 
 Encrypt the key: 
@@ -123,8 +122,8 @@ Encrypt the key:
 Proc-Type: 4,ENCRYPTED
 DEK-Info: AES-256-CBC,B1D5B0AFFB8F76B80B16373F8D81F9C3
 
-1+K+hCOmodqpbb5s+GlWnW9J5VlnaR4gHyD/WKmIy5xo8iu/0OTHX4FjOc0TpMqi
-UqHGMOYI078StHO7kexCwUC26QaU61RVx1P6AQX21ErSfJaSpO/48fkI+/3mgAK+
+(REDACTED PEM Block)
+(REDACTED PEM Block)
 ```
 
 ## Create sample ECDSA certificate
@@ -142,7 +141,7 @@ Create the plaintext key:
 
 > head -n2 ed25519-plaintext-private-key.pem
 -----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIEGYgM/XLll7BGmu+g7BdEOD21o+B7w/lZ6YbMOAiJ2s
+(REDACTED PEM Block)
 ```
 
 Encrypt the key: 
@@ -152,13 +151,11 @@ Encrypt the key:
 
 > head -n 3 ed25519-encrypted-private-key.pem
 -----BEGIN ENCRYPTED PRIVATE KEY-----
-MIGjMF8GCSqGSIb3DQEFDTBSMDEGCSqGSIb3DQEFDDAkBBAbN/Oyvx9FWCW4Cq/Y
-Ea20AgIIADAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQaUVczU8lT61K28bk
+(REDACTED PEM Block)
+(REDACTED PEM Block)
 ```
 ## Create sample ED25519 certificate
 
 ```shell
 > openssl req -new -x509 -key ed25519-plaintext-private-key.pem -days 3650 -out ed25519-crt.pem -subj "/CN=example.com/O=Example Org"
 ```
-
-
