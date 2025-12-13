@@ -70,6 +70,10 @@ func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPoo
 		return nil, errors.New("empty string provided as caBundlePath")
 	}
 
+	if fileReader == nil {
+		return nil, errors.New("nil Reader provided")
+	}
+
 	certsFromFile, err := fileReader.ReadFile(caBundlePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CA bundle file: %w", err)
@@ -99,6 +103,10 @@ func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certificate, error) {
 	if certBundlePath == emptyString {
 		return nil, errors.New("empty string provided as certBundlePath")
+	}
+
+	if fileReader == nil {
+		return nil, errors.New("nil Reader provided")
 	}
 
 	certPEM, err := fileReader.ReadFile(certBundlePath)
@@ -160,6 +168,10 @@ func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) ([]byte, error) {
 	if !isEncrypted {
 		return nil, nil
+	}
+
+	if pwReader == nil {
+		return nil, errors.New("nil Reader provided")
 	}
 
 	pkeyEnvPw := os.Getenv(pwEnvKey)
@@ -243,9 +255,17 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.Pr
 	return nil, errors.New("unsupported key format or invalid password")
 }
 
-func GetKeyFromFile(keyFilePath string, keyPwEnvVar string, inputReader Reader) (crypto.PrivateKey, error) {
+func GetKeyFromFile(
+	keyFilePath string,
+	keyPwEnvVar string,
+	inputReader Reader,
+) (crypto.PrivateKey, error) {
 	if keyFilePath == emptyString {
 		return nil, errors.New("empty string provided as keyFilePath")
+	}
+
+	if inputReader == nil {
+		return nil, errors.New("nil Reader provided")
 	}
 
 	keyPEM, err := inputReader.ReadFile(keyFilePath)
