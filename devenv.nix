@@ -40,6 +40,7 @@ in {
       ".gitignore"
       ".envrc"
       "internal/certinfo/common_handlers.go"
+      "internal/certinfo/testdata"
       "completions"
     ];
     hooks = {
