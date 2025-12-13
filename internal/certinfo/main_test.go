@@ -99,8 +99,6 @@ func TestMain(m *testing.M) {
 
 	generateRSACertificateData()
 
-	m.Run()
-
 	// Cleanup
 	defer func() {
 		filesToDel := []string{
@@ -120,6 +118,8 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}()
+
+	m.Run()
 }
 
 func (MockInputReader) ReadPassword(_ int) ([]byte, error) {
@@ -298,18 +298,23 @@ func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, er
 	return certPEM, certificate, nil
 }
 
-func createTmpFileWithContent(tempDir string, filePattern string, fileContent []byte) (string, error) {
+func createTmpFileWithContent(
+	tempDir string,
+	filePattern string,
+	fileContent []byte,
+) (filePath string, err error) {
 	f, err := os.CreateTemp(tempDir, filePattern)
 	if err != nil {
 		return emptyString, err
 	}
 
 	defer func() {
-		err = errors.Join(err, f.Close())
+		if closeErr := f.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
 	}()
 
-	err = os.WriteFile(f.Name(), fileContent, 0644)
-	if err != nil {
+	if err = os.WriteFile(f.Name(), fileContent, 0644); err != nil {
 		return emptyString, err
 	}
 
