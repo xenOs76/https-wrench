@@ -26,13 +26,9 @@ type (
 		parent      *x509.Certificate
 	}
 
-	MockErrReader struct {
-		readError error
-	}
+	MockErrReader struct{}
 
-	MockInputReader struct {
-		readError error
-	}
+	MockInputReader struct{}
 )
 
 var (
@@ -126,23 +122,29 @@ func TestMain(m *testing.M) {
 	}()
 }
 
-func (mir MockInputReader) ReadPassword(fd int) ([]byte, error) {
+func (MockInputReader) ReadPassword(_ int) ([]byte, error) {
 	return []byte(samplePrivateKeyPassword), nil
 }
 
-func (mir MockInputReader) ReadFile(name string) ([]byte, error) {
-	mir.readError = fmt.Errorf("unable to read file %s", name)
-	return nil, mir.readError
+func (MockInputReader) ReadFile(name string) ([]byte, error) {
+	return nil, fmt.Errorf("unable to read file %s", name)
 }
 
-func (mr MockErrReader) ReadFile(name string) ([]byte, error) {
-	mr.readError = fmt.Errorf("unable to read file %s", name)
-	return nil, mr.readError
+func (MockErrReader) ReadFile(name string) ([]byte, error) {
+	return nil, fmt.Errorf("unable to read file %s", name)
 }
 
-func (mr MockErrReader) ReadPassword(fd int) ([]byte, error) {
-	mr.readError = errors.New("unable to read password")
-	return nil, mr.readError
+func (MockErrReader) ReadPassword(fd int) ([]byte, error) {
+	// WARN: when used a replacement of term.ReadPassword()
+	// this function will trigger a returned error of type:
+	// "error reading passphrase: inappropriate ioctl for device"
+	// instead of
+	// "error reading passphrase: unable to read password".
+	// The function still serves the purpose of injecting an error
+	// but this show the incomplete mocking of the original function
+	return func(_ int) ([]byte, error) {
+		return []byte{}, errors.New("mockErrReader: unable to read password")
+	}(fd)
 }
 
 func generateRSACertificateData() {

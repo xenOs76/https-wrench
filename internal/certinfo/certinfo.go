@@ -42,9 +42,7 @@ type (
 		ReadPassword(fd int) ([]byte, error)
 	}
 
-	InputReader struct {
-		readError error
-	}
+	InputReader struct{}
 )
 
 var (
@@ -53,18 +51,16 @@ var (
 	inputReader   InputReader
 )
 
-func (ir InputReader) ReadFile(name string) ([]byte, error) {
-	ir.readError = nil
-
+func (InputReader) ReadFile(name string) ([]byte, error) {
 	file, err := os.ReadFile(name)
 	if err != nil {
-		return nil, ir.readError
+		return nil, err
 	}
 
 	return file, nil
 }
 
-func (ir InputReader) ReadPassword(fd int) ([]byte, error) {
+func (InputReader) ReadPassword(fd int) ([]byte, error) {
 	return term.ReadPassword(fd)
 }
 
