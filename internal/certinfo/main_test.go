@@ -135,13 +135,6 @@ func (MockErrReader) ReadFile(name string) ([]byte, error) {
 }
 
 func (MockErrReader) ReadPassword(fd int) ([]byte, error) {
-	// WARN: when used a replacement of term.ReadPassword()
-	// this function will trigger a returned error of type:
-	// "error reading passphrase: inappropriate ioctl for device"
-	// instead of
-	// "error reading passphrase: unable to read password".
-	// The function still serves the purpose of injecting an error
-	// but this show the incomplete mocking of the original function
 	return func(_ int) ([]byte, error) {
 		return []byte{}, errors.New("mockErrReader: unable to read password")
 	}(fd)
@@ -264,7 +257,7 @@ func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, er
 	certParent := tpl.parent
 	signingKey := tpl.caKey
 
-	// in case of CA cert we udpate the template with the proper fields
+	// in case of CA cert we update the template with the proper fields
 	// 	use the CA cert key for signing
 	// and do not reference any previuous parent Certificate
 	if tpl.isCA {

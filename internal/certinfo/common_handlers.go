@@ -98,7 +98,7 @@ func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 
 func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certificate, error) {
 	if certBundlePath == emptyString {
-		return nil, errors.New("empty string provided as caBundlePath")
+		return nil, errors.New("empty string provided as certBundlePath")
 	}
 
 	certPEM, err := fileReader.ReadFile(certBundlePath)

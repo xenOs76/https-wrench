@@ -102,7 +102,7 @@ func TestCertinfo_GetCertsFromBundle(t *testing.T) {
 		)
 		require.Error(t, errEmptyString)
 		assert.Equal(t,
-			"empty string provided as caBundlePath",
+			"empty string provided as certBundlePath",
 			errEmptyString.Error(),
 		)
 
