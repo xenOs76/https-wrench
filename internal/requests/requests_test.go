@@ -23,10 +23,6 @@ func TestNewRequestsMetaConfig(t *testing.T) {
 		t.Parallel()
 
 		rmc, err := NewRequestsMetaConfig()
-		if err != nil {
-			require.Error(t, err, "error when calling NewRequestsMetaConfig()")
-		}
-
 		require.NoError(t, err)
 
 		var i any = rmc
