@@ -1,6 +1,7 @@
 package certinfo
 
 import (
+	"crypto"
 	"crypto/x509"
 	"testing"
 
@@ -144,22 +145,155 @@ func TestCertinfo_GetCertsFromBundle(t *testing.T) {
 	})
 }
 
-func TestCertinfo_GetKeyFromFile(t *testing.T) {
+func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
+	tests := []struct {
+		desc        string
+		expectError bool
+		keyFile     string
+		expectMsg   string
+		needEnv     bool
+		keyPw       string
+	}{
+		{
+			desc:        "wrong file",
+			expectError: true,
+			keyFile:     RSACaCertFile,
+			expectMsg:   "unsupported key format or invalid password",
+		},
+		{
+			desc:        "emptyString",
+			expectError: true,
+			keyFile:     emptyString,
+			expectMsg:   "empty string provided as keyFilePath",
+		},
+		{
+			desc:        "No PEM encoded file",
+			expectError: true,
+			keyFile:     sampleTextFile,
+			expectMsg:   "failed to decode PEM",
+		},
+		{
+			desc:        "Plain RSA PKCS1 key import",
+			expectError: false,
+			keyFile:     RSASamplePKCS1PlaintextPrivateKey,
+		},
+		{
+			desc:        "Encrypted RSA PKCS1 key import",
+			expectError: false,
+			keyFile:     RSASamplePKCS1EncryptedPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Encrypted RSA PKCS1 key import with wrong password",
+			expectError: true,
+			expectMsg:   "PEM block decryption failed: x509: decryption password incorrect",
+			keyFile:     RSASamplePKCS1EncryptedPrivateKey,
+			needEnv:     true,
+			keyPw:       "wrong pass",
+		},
+		{
+			desc:        "Encrypted broken RSA PKCS1 key import",
+			expectError: true,
+			expectMsg:   "unsupported key format or invalid password",
+			keyFile:     RSASamplePKCS1EncBrokenPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Plain RSA/4096 PKCS8 key import",
+			expectError: false,
+			keyFile:     RSASamplePKCS8PlaintextPrivateKey,
+		},
+		{
+			desc:        "Encrypted RSA/4096 PkCS8 key import",
+			expectError: false,
+			keyFile:     RSASamplePKCS8EncryptedPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Encrypted broken RSA/4096 PKCS8 key import",
+			expectError: true,
+			expectMsg:   "PKCS8 decryption failed: pkcs8: incorrect password",
+			keyFile:     RSASamplePKCS8EncBrokenPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Plain ECSA key import",
+			expectError: false,
+			keyFile:     ECDSASamplePlaintextPrivateKey,
+		},
+		{
+			desc:        "Encrypted ECDSA key import",
+			expectError: false,
+			keyFile:     ECDSASampleEncryptedPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Encrypted broken ECSA key import",
+			expectError: true,
+			keyFile:     ECDSASampleEncBrokenPrivateKey,
+			expectMsg:   "unsupported key format or invalid password",
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Plain ED25519 key import",
+			expectError: false,
+			keyFile:     ED25519SamplePlaintextPrivateKey,
+		},
+		{
+			desc:        "Encrypted ED25519 key import",
+			expectError: false,
+			keyFile:     ED25519SampleEncryptedPrivateKey,
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+		{
+			desc:        "Encrypted broken ED25519 key import",
+			expectError: true,
+			keyFile:     ED25519SampleEncBrokenPrivateKey,
+			expectMsg:   "PKCS8 decryption failed: pkcs8: incorrect password",
+			needEnv:     true,
+			keyPw:       samplePrivateKeyPassword,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if tt.needEnv {
+				t.Setenv(privateKeyPwEnvVar, tt.keyPw)
+			}
+
+			_, err := GetKeyFromFile(
+				tt.keyFile,
+				privateKeyPwEnvVar,
+				inputReader,
+			)
+
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Equal(t,
+					tt.expectMsg,
+					err.Error(),
+				)
+			}
+
+			if !tt.expectError {
+				require.NoError(t, err)
+			}
+		})
+	}
+
 	t.Run("FileReadErrors", func(t *testing.T) {
 		t.Parallel()
 
-		_, errEmptyString := GetKeyFromFile(
-			emptyString,
-			inputReader,
-		)
-		require.Error(t, errEmptyString)
-		assert.Equal(t,
-			"empty string provided as keyFilePath",
-			errEmptyString.Error(),
-		)
-
 		_, errNoRead := GetKeyFromFile(
 			unreadableFile,
+			privateKeyPwEnvVar,
 			mockErrReader,
 		)
 		require.Error(t, errNoRead)
@@ -167,21 +301,14 @@ func TestCertinfo_GetKeyFromFile(t *testing.T) {
 			"unable to read file testdata/unreadable-file.txt",
 			errNoRead.Error(),
 		)
-
-		_, errWrongFile := GetKeyFromFile(
-			RSACaCertFile,
-			inputReader,
-		)
-		require.Error(t, errWrongFile)
-		assert.Equal(t,
-			"unsupported key format or invalid password",
-			errWrongFile.Error(),
-		)
 	})
+}
 
+func TestCertinfo_GetKeyFromFile(t *testing.T) {
 	t.Run("Plain RSA key import", func(t *testing.T) {
 		got, err := GetKeyFromFile(
 			RSACaCertKeyFile,
+			privateKeyPwEnvVar,
 			inputReader,
 		)
 		require.NoError(t, err)
@@ -193,153 +320,6 @@ func TestCertinfo_GetKeyFromFile(t *testing.T) {
 			)
 		}
 	})
-
-	t.Run("No PEM encoded text import", func(t *testing.T) {
-		_, err := GetKeyFromFile(
-			sampleTextFile,
-			inputReader,
-		)
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to decode PEM")
-	})
-
-	t.Run("Plain RSA PKCS1 key import", func(t *testing.T) {
-		_, err := GetKeyFromFile(
-			RSASamplePKCS1PlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted RSA PKCS1 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			RSASamplePKCS1EncryptedPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted RSA PKCS1 key import with wrong password", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, "wrong password")
-
-		_, err := GetKeyFromFile(
-			RSASamplePKCS1EncryptedPrivateKey,
-			inputReader,
-		)
-		require.Error(t, err)
-		assert.EqualError(t,
-			err,
-			"PEM block decryption failed: x509: decryption password incorrect",
-		)
-	})
-
-	t.Run("Encrypted broken RSA PKCS1 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			RSASamplePKCS1EncBrokenPrivateKey,
-			inputReader,
-		)
-		require.Error(t, err)
-		require.Equal(t,
-			"unsupported key format or invalid password",
-			err.Error())
-	})
-
-	t.Run("Plain RSA/4096 PKCS8 key import", func(t *testing.T) {
-		_, err := GetKeyFromFile(
-			RSASamplePKCS8PlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted RSA/4096 PKCS8 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			RSASamplePKCS8EncryptedPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted broken RSA/4096 PKCS8 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			RSASamplePKCS8EncBrokenPrivateKey,
-			inputReader,
-		)
-		require.Error(t, err)
-		assert.Equal(t,
-			"PKCS8 decryption failed: pkcs8: incorrect password",
-			err.Error())
-	})
-
-	t.Run("Plain ECDSA key import", func(t *testing.T) {
-		_, err := GetKeyFromFile(
-			ECDSASamplePlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted ECDSA key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			ECDSASampleEncryptedPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted broken ECDSA key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			ECDSASampleEncBrokenPrivateKey,
-			inputReader,
-		)
-		require.Error(t, err)
-		assert.Equal(t,
-			"unsupported key format or invalid password",
-			err.Error())
-	})
-
-	t.Run("Plain ED25519 key import", func(t *testing.T) {
-		_, err := GetKeyFromFile(
-			ED25519SamplePlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted ED25519 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			ED25519SampleEncryptedPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-	})
-
-	t.Run("Encrypted broken ED25519 key import", func(t *testing.T) {
-		t.Setenv(privateKeyPwEnvVar, samplePrivateKeyPassword)
-
-		_, err := GetKeyFromFile(
-			ED25519SampleEncBrokenPrivateKey,
-			inputReader,
-		)
-		require.Error(t, err)
-		assert.Equal(t,
-			"PKCS8 decryption failed: pkcs8: incorrect password",
-			err.Error())
-	})
 }
 
 func TestCertinfo_ParsePrivateKey(t *testing.T) {
@@ -348,33 +328,23 @@ func TestCertinfo_ParsePrivateKey(t *testing.T) {
 	// We want to trigger that error in this test.
 	// Skip passing password via ENV, this way getPassphraseIfNeeded
 	// will read from stdin.
+	// The mockErrReader will inject an error at this point.
 	// Need to use and encrypted key's PEM
-	// t.Run("stdin pw read error", func(t *testing.T) {
-	// 	key, err := GetKeyFromFile(
-	// 		RSASamplePKCS1EncryptedPrivateKey,
-	// 		inputReader,
-	// 	)
-	// 	require.NoError(t, err)
-	//
-	// 	var i any = key
-	//
-	// 	rsaKey, ok := i.(*rsa.PrivateKey)
-	//
-	// 	require.True(t, ok, "the key must be of type *rsa.PrivateKey")
-	//
-	// 	rsaKeyPEM := RSAPrivateKeyToPEM(rsaKey)
-	//
-	// 	_, err = ParsePrivateKey(
-	// 		rsaKeyPEM,
-	// 		privateKeyPwEnvVar,
-	// 		mockErrReader,
-	// 	)
-	// 	require.Error(t, err)
-	// 	assert.EqualError(t,
-	// 		err,
-	// 		"error reading passphrase: inappropriate ioctl for device",
-	// 	)
-	// })
+	t.Run("stdin pw read error", func(t *testing.T) {
+		keyPEM, err := inputReader.ReadFile(RSASamplePKCS1EncryptedPrivateKey)
+		require.NoError(t, err)
+
+		_, err = ParsePrivateKey(
+			keyPEM,
+			"notSet",
+			mockErrReader,
+		)
+		require.Error(t, err)
+		assert.EqualError(t,
+			err,
+			"error reading passphrase: mockErrReader: unable to read password",
+		)
+	})
 }
 
 func TestCertinfo_IsPrivateKeyEncrypted(t *testing.T) {
@@ -430,103 +400,90 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 	})
 }
 
-func TestCertinfo_certMatchPrivateKey(t *testing.T) {
-	t.Run("RSA PKCS8 match True", func(t *testing.T) {
-		match, err := certMatchPrivateKey(
-			RSACaCertParent,
-			RSACaCertKey,
-		)
-		require.NoError(t, err)
-		assert.True(t, match, "matchTrue")
-	})
+func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
+	matchFalseTests := []struct {
+		desc string
+		cert *x509.Certificate
+		key  crypto.PrivateKey
+	}{
+		{
+			desc: "key cert mismatch",
+			cert: RSACaCertParent,
+			key:  RSASampleCertKey,
+		},
+		{
+			desc: "cert nil",
+			cert: nil,
+			key:  RSASampleCertKey,
+		},
+		{
+			desc: "key nil",
+			cert: RSACaCertParent,
+			key:  nil,
+		},
+	}
 
-	t.Run("RSA PKCS1 match True", func(t *testing.T) {
-		certs, err := GetCertsFromBundle(
-			RSASamplePKCS1Certificate,
-			inputReader,
-		)
-		require.NoError(t, err)
+	for _, tt := range matchFalseTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			match, err := certMatchPrivateKey(
+				tt.cert,
+				tt.key,
+			)
+			require.NoError(t, err)
+			assert.False(t, match)
+		})
+	}
+}
 
-		key, err := GetKeyFromFile(
-			RSASamplePKCS1PlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
+func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
+	matchTruetests := []struct {
+		desc     string
+		certFile string
+		keyFile  string
+	}{
+		{
+			desc:     "RSA PKCS1",
+			certFile: RSASamplePKCS1Certificate,
+			keyFile:  RSASamplePKCS1PlaintextPrivateKey,
+		},
+		{
+			desc:     "RSA PKCS8",
+			certFile: RSASamplePKCS8Certificate,
+			keyFile:  RSASamplePKCS8PlaintextPrivateKey,
+		},
+		{
+			desc:     "ECSA",
+			certFile: ECDSASampleCertificate,
+			keyFile:  ECDSASamplePlaintextPrivateKey,
+		},
+		{
+			desc:     "ED25519",
+			certFile: ED25519SampleCertificate,
+			keyFile:  ED25519SamplePlaintextPrivateKey,
+		},
+	}
 
-		match, err := certMatchPrivateKey(
-			certs[0],
-			key,
-		)
-		require.NoError(t, err)
-		assert.True(t, match)
-	})
+	for _, tt := range matchTruetests {
+		t.Run(tt.desc+" match True", func(t *testing.T) {
+			certs, err := GetCertsFromBundle(
+				tt.certFile,
+				inputReader,
+			)
+			require.NoError(t, err)
 
-	t.Run("ECDSA match True", func(t *testing.T) {
-		certs, err := GetCertsFromBundle(
-			ECDSASampleCertificate,
-			inputReader,
-		)
-		require.NoError(t, err)
+			key, err := GetKeyFromFile(
+				tt.keyFile,
+				privateKeyPwEnvVar,
+				inputReader,
+			)
+			require.NoError(t, err)
 
-		key, err := GetKeyFromFile(
-			ECDSASamplePlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-
-		match, err := certMatchPrivateKey(
-			certs[0],
-			key,
-		)
-		require.NoError(t, err)
-		assert.True(t, match)
-	})
-
-	t.Run("ED25519 match True", func(t *testing.T) {
-		certs, err := GetCertsFromBundle(
-			ED25519SampleCertificate,
-			inputReader,
-		)
-		require.NoError(t, err)
-
-		key, err := GetKeyFromFile(
-			ED25519SamplePlaintextPrivateKey,
-			inputReader,
-		)
-		require.NoError(t, err)
-
-		match, err := certMatchPrivateKey(
-			certs[0],
-			key,
-		)
-		require.NoError(t, err)
-		assert.True(t, match)
-	})
-
-	t.Run("matchFalse", func(t *testing.T) {
-		match, err := certMatchPrivateKey(
-			RSACaCertParent,
-			RSASampleCertKey,
-		)
-		require.NoError(t, err)
-		assert.False(t, match)
-	})
-
-	t.Run("Cert nil False match", func(t *testing.T) {
-		match, err := certMatchPrivateKey(
-			nil,
-			RSASampleCertKey,
-		)
-		require.NoError(t, err)
-		assert.False(t, match)
-	})
-
-	t.Run("Key nil False match", func(t *testing.T) {
-		match, err := certMatchPrivateKey(
-			RSACaCertParent,
-			nil,
-		)
-		require.NoError(t, err)
-		assert.False(t, match)
-	})
+			match, err := certMatchPrivateKey(
+				certs[0],
+				key,
+			)
+			require.NoError(t, err)
+			assert.True(t, match)
+		})
+	}
 }
