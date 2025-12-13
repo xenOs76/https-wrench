@@ -243,7 +243,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.Pr
 	return nil, errors.New("unsupported key format or invalid password")
 }
 
-func GetKeyFromFile(keyFilePath string, inputReader Reader) (crypto.PrivateKey, error) {
+func GetKeyFromFile(keyFilePath string, keyPwEnvVar string, inputReader Reader) (crypto.PrivateKey, error) {
 	if keyFilePath == emptyString {
 		return nil, errors.New("empty string provided as keyFilePath")
 	}
@@ -253,10 +253,9 @@ func GetKeyFromFile(keyFilePath string, inputReader Reader) (crypto.PrivateKey, 
 		return nil, err
 	}
 
-	// TODO: get pwEnvKey from function's arguments
 	key, err := ParsePrivateKey(
 		keyPEM,
-		privateKeyPwEnvVar,
+		keyPwEnvVar,
 		inputReader,
 	)
 	if err != nil {
