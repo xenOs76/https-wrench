@@ -87,19 +87,11 @@ var (
 func TestMain(m *testing.M) {
 	fmt.Printf("Certinfo TestMain - check test data dir: %s\n", testdataDir)
 
-	if errDataDir := os.Mkdir(testdataDir, os.ModePerm); errDataDir != nil {
-		fmt.Println(errDataDir)
+	if errDataDir := os.MkdirAll(testdataDir, 0o755); errDataDir != nil {
+		panic(errDataDir)
 	}
 
-	systemCertPool, _ = x509.SystemCertPool()
-	caCertPool = x509.NewCertPool()
-
-	generateRSACaData()
-	caCertPool.AppendCertsFromPEM(RSACaCertPEM)
-
-	generateRSACertificateData()
-
-	// Cleanup
+	// Cleanup (register early so panics in setup still clean up what was created)
 	defer func() {
 		filesToDel := []string{
 			RSACaCertKeyFile,
@@ -118,6 +110,14 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}()
+
+	systemCertPool, _ = x509.SystemCertPool()
+	caCertPool = x509.NewCertPool()
+
+	generateRSACaData()
+	caCertPool.AppendCertsFromPEM(RSACaCertPEM)
+
+	generateRSACertificateData()
 
 	m.Run()
 }
@@ -259,7 +259,7 @@ func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, er
 
 	// in case of CA cert we update the template with the proper fields
 	// 	use the CA cert key for signing
-	// and do not reference any previuous parent Certificate
+	// and do not reference any previous parent Certificate
 	if tpl.isCA {
 		certParent = &template
 		signingKey = tpl.key
