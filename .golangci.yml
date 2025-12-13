@@ -54,6 +54,13 @@ linters:
           exclude: [""]
           arguments: [15]
 
+        # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md#cyclomatic
+        - name: cyclomatic
+          severity: warning
+          disabled: false
+          exclude: [""]
+          arguments: [15]
+
   exclusions:
     generated: lax
     presets:

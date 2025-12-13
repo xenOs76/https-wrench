@@ -1,7 +1,8 @@
 .direnv
 dist
 tests
-testdata
+internal/requests/testdata
+internal/certinfo/testdata/*Cert*
 manpages
 
 # ---> Go

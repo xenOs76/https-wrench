@@ -110,7 +110,10 @@ func (c *CertinfoConfig) PrintData() {
 			),
 		)
 
-		rootCerts, err := GetCertsFromBundle(c.CACertsFilePath)
+		rootCerts, err := GetCertsFromBundle(
+			c.CACertsFilePath,
+			inputReader,
+		)
 		if err != nil {
 			fmt.Printf("unable for read Root certificates from %s: %s", c.CACertsFilePath, err)
 
