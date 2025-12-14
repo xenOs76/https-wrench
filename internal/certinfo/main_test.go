@@ -261,7 +261,6 @@ func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, er
 	// 	use the CA cert key for signing
 	// and do not reference any previous parent Certificate
 	if tpl.isCA {
-		certParent = &template
 		signingKey = tpl.key
 		template = x509.Certificate{
 			SerialNumber: serialNumber,
@@ -278,6 +277,7 @@ func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, er
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 			BasicConstraintsValid: true,
 		}
+		certParent = &template
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader,
