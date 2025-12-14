@@ -59,6 +59,15 @@ func TestCertinfo_GetRootCertsFromFile(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("nil Reader error", func(t *testing.T) {
+		_, err := GetRootCertsFromFile(
+			RSACaCertFile,
+			nil,
+		)
+		require.Error(t, err)
+		require.EqualError(t, err, "nil Reader provided")
+	})
 }
 
 func TestCertinfo_GetRootCertsFromString(t *testing.T) {
@@ -142,6 +151,15 @@ func TestCertinfo_GetCertsFromBundle(t *testing.T) {
 				diff,
 			)
 		}
+	})
+
+	t.Run("nil Reader error", func(t *testing.T) {
+		_, err := GetCertsFromBundle(
+			RSACaCertFile,
+			nil,
+		)
+		require.Error(t, err)
+		require.EqualError(t, err, "nil Reader provided")
 	})
 }
 
@@ -302,6 +320,21 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			errNoRead.Error(),
 		)
 	})
+
+	t.Run("nil Reader error", func(t *testing.T) {
+		t.Parallel()
+
+		_, errNoRead := GetKeyFromFile(
+			RSASamplePKCS1PlaintextPrivateKey,
+			privateKeyPwEnvVar,
+			nil,
+		)
+		require.Error(t, errNoRead)
+		assert.Equal(t,
+			"nil Reader provided",
+			errNoRead.Error(),
+		)
+	})
 }
 
 func TestCertinfo_GetKeyFromFile(t *testing.T) {
@@ -383,6 +416,19 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 		assert.EqualError(t,
 			err,
 			"error reading passphrase: mockErrReader: unable to read password",
+		)
+	})
+
+	t.Run("nil Reader error", func(t *testing.T) {
+		_, err := getPassphraseIfNeeded(
+			true,
+			privateKeyPwEnvVar,
+			nil,
+		)
+		require.Error(t, err)
+		assert.EqualError(t,
+			err,
+			"nil Reader provided",
 		)
 	})
 
