@@ -568,7 +568,7 @@ func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
 }
 
 func TestCertinfo_PrintCertInfo(t *testing.T) {
-	t.Run("RSA Sample Certtificate", func(t *testing.T) {
+	t.Run("RSA Sample Certificate", func(t *testing.T) {
 		buffer := bytes.Buffer{}
 		PrintCertInfo(RSACaCertParent, 1, &buffer)
 
