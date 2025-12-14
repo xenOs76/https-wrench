@@ -9,28 +9,29 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/youmark/pkcs8"
 )
 
-func PrintCertInfo(cert *x509.Certificate, depth int) {
+func PrintCertInfo(cert *x509.Certificate, depth int, w io.Writer) {
 	prefix := ""
 	for range depth {
 		prefix += "  "
 	}
 
-	fmt.Printf("%sSubject: %s\n", prefix, cert.Subject)
-	fmt.Printf("%sIssuer:  %s\n", prefix, cert.Issuer)
-	fmt.Printf("%sValid From: %s\n", prefix, cert.NotBefore.Format(time.RFC1123))
-	fmt.Printf("%sValid To:   %s\n", prefix, cert.NotAfter.Format(time.RFC1123))
-	fmt.Printf("%sDNS Names: %v\n", prefix, cert.DNSNames)
-	fmt.Printf("%sIs CA: %v\n", prefix, cert.IsCA)
-	fmt.Printf("%sSerial Number: %s\n", prefix, cert.SerialNumber)
-	fmt.Printf("%sPublic Key Algorithm: %s\n", prefix, cert.PublicKeyAlgorithm)
-	fmt.Printf("%sSignature Algorithm: %s\n", prefix, cert.SignatureAlgorithm)
-	fmt.Println()
+	fmt.Fprintf(w, "%sSubject: %s\n", prefix, cert.Subject)
+	fmt.Fprintf(w, "%sIssuer:  %s\n", prefix, cert.Issuer)
+	fmt.Fprintf(w, "%sValid From: %s\n", prefix, cert.NotBefore.Format(time.RFC1123))
+	fmt.Fprintf(w, "%sValid To:   %s\n", prefix, cert.NotAfter.Format(time.RFC1123))
+	fmt.Fprintf(w, "%sDNS Names: %v\n", prefix, cert.DNSNames)
+	fmt.Fprintf(w, "%sIs CA: %v\n", prefix, cert.IsCA)
+	fmt.Fprintf(w, "%sSerial Number: %s\n", prefix, cert.SerialNumber)
+	fmt.Fprintf(w, "%sPublic Key Algorithm: %s\n", prefix, cert.PublicKeyAlgorithm)
+	fmt.Fprintf(w, "%sSignature Algorithm: %s\n", prefix, cert.SignatureAlgorithm)
+	fmt.Fprintln(w)
 }
 
 // Check if the PublicKey of a Certificate matches the PrivateKey.

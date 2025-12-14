@@ -251,7 +251,7 @@ func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 
 			for i, cert := range resp.TLS.PeerCertificates {
 				fmt.Fprintf(w, "Certificate %d:\n", i)
-				certinfo.PrintCertInfo(cert, 1)
+				certinfo.PrintCertInfo(cert, 1, os.Stdout)
 			}
 
 			for i, chain := range resp.TLS.VerifiedChains {
@@ -259,7 +259,7 @@ func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 
 				for j, cert := range chain {
 					fmt.Fprintf(w, " Cert %d:\n", j)
-					certinfo.PrintCertInfo(cert, 2)
+					certinfo.PrintCertInfo(cert, 2, os.Stdout)
 				}
 			}
 		} else {
