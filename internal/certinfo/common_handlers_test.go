@@ -1,6 +1,7 @@
 package certinfo
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 	"testing"
@@ -564,4 +565,23 @@ func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
 			assert.True(t, match)
 		})
 	}
+}
+
+func TestCertinfo_PrintCertInfo(t *testing.T) {
+	t.Run("RSA Sample Certtificate", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		PrintCertInfo(RSACaCertParent, 1, &buffer)
+
+		got := buffer.String()
+
+		require.Contains(t, got, "Subject")
+		require.Contains(t, got, "Issuer")
+		require.Contains(t, got, "Valid From:")
+		require.Contains(t, got, "Valid To:")
+		require.Contains(t, got, "DNS Names:")
+		require.Contains(t, got, "Is CA:")
+		require.Contains(t, got, "Serial Number:")
+		require.Contains(t, got, "Public Key Algorithm:")
+		require.Contains(t, got, "Signature Algorithm:")
+	})
 }
