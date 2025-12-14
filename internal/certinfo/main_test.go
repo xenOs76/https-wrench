@@ -314,7 +314,7 @@ func createTmpFileWithContent(
 		}
 	}()
 
-	if err = os.WriteFile(f.Name(), fileContent, 0644); err != nil {
+	if err = os.WriteFile(f.Name(), fileContent, 0o600); err != nil {
 		return emptyString, err
 	}
 
