@@ -5,13 +5,17 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"os"
 	"time"
+
+	"golang.org/x/term"
 )
 
 const (
 	TLSTimeout         = 3 * time.Second
 	CertExpWarnDays    = 40
 	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
+	emptyString        = ""
 )
 
 type CertinfoConfig struct {
@@ -32,14 +36,33 @@ type CertinfoConfig struct {
 	TLSInsecure             bool
 }
 
+type (
+	Reader interface {
+		ReadFile(name string) ([]byte, error)
+		ReadPassword(fd int) ([]byte, error)
+	}
+
+	InputReader struct{}
+)
+
 var (
-	// TODO: remove
-	// certsBundle   []*x509.Certificate
-	// privKey       any
-	// tlsEndpoint   string
 	TlsServerName string
 	TlsInsecure   bool
+	inputReader   InputReader
 )
+
+func (InputReader) ReadFile(name string) ([]byte, error) {
+	file, err := os.ReadFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (InputReader) ReadPassword(fd int) ([]byte, error) {
+	return term.ReadPassword(fd)
+}
 
 func NewCertinfoConfig() (*CertinfoConfig, error) {
 	defaultCertPool, err := x509.SystemCertPool()
@@ -54,9 +77,12 @@ func NewCertinfoConfig() (*CertinfoConfig, error) {
 	return &c, nil
 }
 
-func (c *CertinfoConfig) SetCaPoolFromFile(filePath string) error {
-	if filePath != "" {
-		caCertsPool, err := GetRootCertsFromFile(filePath)
+func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) error {
+	if filePath != emptyString {
+		caCertsPool, err := GetRootCertsFromFile(
+			filePath,
+			fileReader,
+		)
 		if err != nil {
 			return err
 		}
@@ -68,9 +94,9 @@ func (c *CertinfoConfig) SetCaPoolFromFile(filePath string) error {
 	return nil
 }
 
-func (c *CertinfoConfig) SetCertsFromFile(filePath string) error {
-	if filePath != "" {
-		certs, err := GetCertsFromBundle(filePath)
+func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) error {
+	if filePath != emptyString {
+		certs, err := GetCertsFromBundle(filePath, fileReader)
 		if err != nil {
 			return err
 		}
@@ -82,9 +108,13 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string) error {
 	return nil
 }
 
-func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string) error {
-	if filePath != "" {
-		keyFromFile, err := GetKeyFromFile(filePath)
+func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, fileReader Reader) error {
+	if filePath != emptyString {
+		keyFromFile, err := GetKeyFromFile(
+			filePath,
+			privateKeyPwEnvVar,
+			fileReader,
+		)
 		if err != nil {
 			return err
 		}

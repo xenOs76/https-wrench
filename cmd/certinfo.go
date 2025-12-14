@@ -71,11 +71,11 @@ Examples:
 
 		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
 
-		if err := certinfoCfg.SetCaPoolFromFile(caBundleValue); err != nil {
+		if err := certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
 			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
 
-		if err := certinfoCfg.SetCertsFromFile(certBundleValue); err != nil {
+		if err := certinfoCfg.SetCertsFromFile(certBundleValue, fileReader); err != nil {
 			fmt.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
@@ -83,7 +83,7 @@ Examples:
 			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}
 
-		if err := certinfoCfg.SetPrivateKeyFromFile(keyFileValue); err != nil {
+		if err := certinfoCfg.SetPrivateKeyFromFile(keyFileValue, fileReader); err != nil {
 			fmt.Printf("Error importing key from file: %s", err)
 		}
 

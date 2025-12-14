@@ -90,7 +90,7 @@ Examples:
 			fmt.Print(err)
 		}
 
-		if err := requestsCfg.SetCaPoolFromFile(caBundlePath); err != nil {
+		if err := requestsCfg.SetCaPoolFromFile(caBundlePath, fileReader); err != nil {
 			fmt.Print(err)
 		}
 
