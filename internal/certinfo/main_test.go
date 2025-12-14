@@ -51,6 +51,7 @@ var (
 	RSASamplePKCS8EncryptedPrivateKey = testdataDir + "/rsa-pkcs8-encrypted-private-key.pem"
 	RSASamplePKCS8EncBrokenPrivateKey = testdataDir + "/rsa-pkcs8-encrypted-broken-private-key.pem"
 	RSASamplePKCS8Certificate         = testdataDir + "/rsa-pkcs8-crt.pem"
+	RSASamplePKCS8BrokenCertificate   = testdataDir + "/rsa-pkcs8-broken-crt.pem"
 
 	ECDSASamplePlaintextPrivateKey = testdataDir + "/ecdsa-plaintext-private-key.pem"
 	ECDSASampleEncryptedPrivateKey = testdataDir + "/ecdsa-encrypted-private-key.pem"

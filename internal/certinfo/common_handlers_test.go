@@ -102,39 +102,59 @@ func TestCertinfo_GetRootCertsFromString(t *testing.T) {
 }
 
 func TestCertinfo_GetCertsFromBundle(t *testing.T) {
-	t.Run("FileReadErrors", func(t *testing.T) {
-		t.Parallel()
+	readErrorTests := []struct {
+		desc        string
+		certPath    string
+		reader      Reader
+		expectedMsg string
+	}{
+		{
+			desc:        "emptyString",
+			certPath:    emptyString,
+			reader:      inputReader,
+			expectedMsg: "empty string provided as certBundlePath",
+		},
+		{
+			desc:        "unreadableFile",
+			certPath:    unreadableFile,
+			reader:      mockErrReader,
+			expectedMsg: "error reading certificate file: unable to read file testdata/unreadable-file.txt",
+		},
+		{
+			desc:        "wrong file",
+			certPath:    RSACaCertKeyFile,
+			reader:      inputReader,
+			expectedMsg: "no valid certificates found in file " + RSACaCertKeyFile,
+		},
+		{
+			desc:        "nil Reader",
+			certPath:    RSACaCertFile,
+			reader:      nil,
+			expectedMsg: "nil Reader provided",
+		},
+		{
+			desc:        "broken cert file",
+			certPath:    RSASamplePKCS8BrokenCertificate,
+			reader:      inputReader,
+			expectedMsg: "error parsing certificate: x509: inner and outer signature algorithm identifiers don't match",
+		},
+	}
 
-		_, errEmptyString := GetCertsFromBundle(
-			emptyString,
-			inputReader,
-		)
-		require.Error(t, errEmptyString)
-		assert.Equal(t,
-			"empty string provided as certBundlePath",
-			errEmptyString.Error(),
-		)
+	for _, tt := range readErrorTests {
+		t.Run("Read error "+tt.desc, func(t *testing.T) {
+			t.Parallel()
 
-		_, errNoRead := GetCertsFromBundle(
-			unreadableFile,
-			mockErrReader,
-		)
-		require.Error(t, errNoRead)
-		assert.Equal(t,
-			"error reading certificate file: unable to read file testdata/unreadable-file.txt",
-			errNoRead.Error(),
-		)
-
-		_, errWrongFile := GetCertsFromBundle(
-			RSACaCertKeyFile,
-			inputReader,
-		)
-		require.Error(t, errWrongFile)
-		assert.Equal(t,
-			"no valid certificates found in file "+RSACaCertKeyFile,
-			errWrongFile.Error(),
-		)
-	})
+			_, err := GetCertsFromBundle(
+				tt.certPath,
+				tt.reader,
+			)
+			require.Error(t, err)
+			assert.Equal(t,
+				tt.expectedMsg,
+				err.Error(),
+			)
+		})
+	}
 
 	t.Run("CertImportValidation", func(t *testing.T) {
 		gotCerts, errCaString := GetCertsFromBundle(
@@ -151,15 +171,6 @@ func TestCertinfo_GetCertsFromBundle(t *testing.T) {
 				diff,
 			)
 		}
-	})
-
-	t.Run("nil Reader error", func(t *testing.T) {
-		_, err := GetCertsFromBundle(
-			RSACaCertFile,
-			nil,
-		)
-		require.Error(t, err)
-		require.EqualError(t, err, "nil Reader provided")
 	})
 }
 
@@ -447,11 +458,25 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 }
 
 func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
+	uncompleteCert := x509.Certificate{
+		IsCA: false,
+	}
+
 	matchFalseTests := []struct {
-		desc string
-		cert *x509.Certificate
-		key  crypto.PrivateKey
+		desc      string
+		cert      *x509.Certificate
+		key       crypto.PrivateKey
+		expectErr bool
+		expectMsg string
 	}{
+		{
+			desc:      "uncomplete cert",
+			cert:      &uncompleteCert,
+			key:       RSASampleCertKey,
+			expectErr: true,
+			expectMsg: "unsupported public key type in certificate",
+		},
+
 		{
 			desc: "key cert mismatch",
 			cert: RSACaCertParent,
@@ -475,8 +500,15 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 				tt.cert,
 				tt.key,
 			)
-			require.NoError(t, err)
-			assert.False(t, match)
+			if !tt.expectErr {
+				require.NoError(t, err)
+				assert.False(t, match)
+			}
+
+			if tt.expectErr {
+				require.Error(t, err)
+				require.EqualError(t, err, tt.expectMsg)
+			}
 		})
 	}
 }
