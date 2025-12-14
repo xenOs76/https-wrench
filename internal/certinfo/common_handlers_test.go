@@ -458,7 +458,7 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 }
 
 func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
-	uncompleteCert := x509.Certificate{
+	incompleteCert := x509.Certificate{
 		IsCA: false,
 	}
 
@@ -471,7 +471,7 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 	}{
 		{
 			desc:      "uncomplete cert",
-			cert:      &uncompleteCert,
+			cert:      &incompleteCert,
 			key:       RSASampleCertKey,
 			expectErr: true,
 			expectMsg: "unsupported public key type in certificate",
