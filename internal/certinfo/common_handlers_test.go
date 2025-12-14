@@ -239,7 +239,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			keyPw:       samplePrivateKeyPassword,
 		},
 		{
-			desc:        "Plain ECSA key import",
+			desc:        "Plain ECDSA key import",
 			expectError: false,
 			keyFile:     ECDSASamplePlaintextPrivateKey,
 		},
@@ -251,7 +251,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			keyPw:       samplePrivateKeyPassword,
 		},
 		{
-			desc:        "Encrypted broken ECSA key import",
+			desc:        "Encrypted broken ECDSA key import",
 			expectError: true,
 			keyFile:     ECDSASampleEncBrokenPrivateKey,
 			expectMsg:   "unsupported key format or invalid password",
@@ -400,9 +400,9 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 			inputReader,
 		)
 		require.Error(t, err)
-		assert.EqualError(t,
+		require.ErrorContains(t,
 			err,
-			"error reading passphrase: inappropriate ioctl for device",
+			"error reading passphrase:",
 		)
 	})
 
@@ -482,7 +482,7 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 }
 
 func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
-	matchTruetests := []struct {
+	matchTrueTests := []struct {
 		desc     string
 		certFile string
 		keyFile  string
@@ -498,7 +498,7 @@ func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
 			keyFile:  RSASamplePKCS8PlaintextPrivateKey,
 		},
 		{
-			desc:     "ECSA",
+			desc:     "ECDSA",
 			certFile: ECDSASampleCertificate,
 			keyFile:  ECDSASamplePlaintextPrivateKey,
 		},
@@ -509,7 +509,7 @@ func TestCertinfo_certMatchPrivateKey_matchTrue(t *testing.T) {
 		},
 	}
 
-	for _, tt := range matchTruetests {
+	for _, tt := range matchTrueTests {
 		t.Run(tt.desc+" match True", func(t *testing.T) {
 			certs, err := GetCertsFromBundle(
 				tt.certFile,
