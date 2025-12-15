@@ -274,7 +274,7 @@ func TestCertinfo_SetPrivateKeyFromFile(t *testing.T) {
 
 		if diff := cmp.Diff(wantKey, cc.PrivKey); diff != "" {
 			t.Errorf(
-				"SetCertsFromFile: pool mismatch (-want +got):\n%s",
+				"SetPrivateKeyFromFile: key mismatch (-want +got):\n%s",
 				diff,
 			)
 		}
@@ -307,7 +307,7 @@ func TestCertinfo_SetTLSInsecure(t *testing.T) {
 	}
 }
 
-func TestCertinfo_SetTLSServeName(t *testing.T) {
+func TestCertinfo_SetTLSServerName(t *testing.T) {
 	tests := []string{
 		emptyString,
 		"test",
