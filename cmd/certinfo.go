@@ -16,6 +16,7 @@ var (
 	tlsEndpoint   string
 	tlsServerName string
 	tlsInsecure   bool
+	keyPwEnvVar   = "CERTINFO_PKEY_PW"
 )
 
 var certinfoCmd = &cobra.Command{
@@ -83,7 +84,11 @@ Examples:
 			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}
 
-		if err := certinfoCfg.SetPrivateKeyFromFile(keyFileValue, fileReader); err != nil {
+		if err := certinfoCfg.SetPrivateKeyFromFile(
+			keyFileValue,
+			keyPwEnvVar,
+			fileReader,
+		); err != nil {
 			fmt.Printf("Error importing key from file: %s", err)
 		}
 

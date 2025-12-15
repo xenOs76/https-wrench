@@ -108,11 +108,11 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 	return nil
 }
 
-func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, fileReader Reader) error {
+func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, keyPwEnvVar string, fileReader Reader) error {
 	if filePath != emptyString {
 		keyFromFile, err := GetKeyFromFile(
 			filePath,
-			privateKeyPwEnvVar,
+			keyPwEnvVar,
 			fileReader,
 		)
 		if err != nil {
