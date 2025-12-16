@@ -324,3 +324,87 @@ func TestCertinfo_SetTLSServerName(t *testing.T) {
 		})
 	}
 }
+
+func TestCertinfo_SetTLSEndpoint(t *testing.T) {
+	tests := []struct {
+		desc          string
+		endpoint      string
+		expectEnpoint string
+		expectHost    string
+		expectPort    string
+		processErr    bool
+		expectMsg     string
+	}{
+		{
+			desc:          "success",
+			endpoint:      "localhost:443",
+			expectEnpoint: "localhost:443",
+			expectHost:    "localhost",
+			expectPort:    "443",
+		},
+		{
+			desc:          "success IPV6",
+			endpoint:      "[::1]:443",
+			expectEnpoint: "[::1]:443",
+			expectHost:    "::1",
+			expectPort:    "443",
+		},
+		{
+			desc:          "success IPV4",
+			endpoint:      "127.0.0.1:443",
+			expectEnpoint: "127.0.0.1:443",
+			expectHost:    "127.0.0.1",
+			expectPort:    "443",
+		},
+		{
+			desc:       "error malformed host",
+			endpoint:   "localh#$%ost:443",
+			processErr: true,
+			expectMsg:  "unable to get endpoint certificates: TLS handshake failed: dial tcp: lookup localh#$%ost: no such host",
+		},
+		{
+			desc:       "error missing port",
+			endpoint:   "localhost",
+			processErr: true,
+			expectMsg:  "invalid TLS endpoint \"\": address localhost: missing port in address",
+		},
+		{
+			desc:       "error missing host",
+			endpoint:   ":80443",
+			processErr: true,
+			expectMsg:  "unable to get endpoint certificates: TLS handshake failed: dial tcp: address 80443: invalid port",
+		},
+		{
+			desc:       "error endpoint includes scheme",
+			endpoint:   "https://localhost:80443",
+			processErr: true,
+			expectMsg:  "invalid TLS endpoint \"\": address https://localhost:80443: too many colons in address",
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			cc, errNew := NewCertinfoConfig()
+			require.NoError(t, errNew)
+
+			err := cc.SetTLSEndpoint(tt.endpoint)
+
+			if !tt.processErr {
+				// skip requiring NoError since SetTLSEndpoint will always return network errors
+				// in this case. See tests related to GetRemoteCerts for more
+
+				// require.NoError(t, err)
+				require.Equal(t, tt.expectEnpoint, cc.TLSEndpoint, "check TLSEndpoint")
+				require.Equal(t, tt.expectHost, cc.TLSEndpointHost, "check TLSEndpointHost")
+				require.Equal(t, tt.expectPort, cc.TLSEndpointPort, "check TLSEndpointPort")
+
+				return
+			}
+
+			require.EqualError(t, err, tt.expectMsg)
+		})
+	}
+}
