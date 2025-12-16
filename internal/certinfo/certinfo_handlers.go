@@ -124,11 +124,13 @@ func (c *CertinfoConfig) PrintData() {
 	}
 }
 
-// TODO: return an error on fails
-func (c *CertinfoConfig) GetRemoteCerts() {
-	tlsConfig := &tls.Config{RootCAs: c.CACertsPool, InsecureSkipVerify: c.TLSInsecure}
+func (c *CertinfoConfig) GetRemoteCerts() error {
+	tlsConfig := &tls.Config{
+		RootCAs:            c.CACertsPool,
+		InsecureSkipVerify: c.TLSInsecure,
+	}
 
-	if c.TLSServerName != "" {
+	if c.TLSServerName != emptyString {
 		tlsConfig.ServerName = c.TLSServerName
 	}
 
@@ -138,13 +140,21 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 		Timeout: TLSTimeout,
 	}
 
-	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
+	conn, err := tls.DialWithDialer(
+		dialer,
+		"tcp",
+		serverAddr,
+		tlsConfig,
+	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "TLS handshake failed: %v\n", err)
-
-		return
+		return fmt.Errorf("TLS handshake failed: %w", err)
 	}
 	defer conn.Close()
+
+	// do not verify server certificates if TLSInsecure
+	if c.TLSInsecure {
+		return nil
+	}
 
 	cs := conn.ConnectionState()
 	c.TLSEndpointCerts = cs.PeerCertificates
@@ -160,10 +170,10 @@ func (c *CertinfoConfig) GetRemoteCerts() {
 	}
 
 	if _, err := c.TLSEndpointCerts[0].Verify(opts); err != nil {
-		fmt.Println(err)
-	} else {
-		c.TLSEndpointCertsValid = true
+		return fmt.Errorf("certificate verify: %w", err)
 	}
+
+	return nil
 }
 
 func CertsToTables(w io.Writer, certs []*x509.Certificate) {
