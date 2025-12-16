@@ -3,6 +3,7 @@ package certinfo
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -10,9 +11,13 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/pires/go-proxyproto"
 )
 
 type (
@@ -26,9 +31,19 @@ type (
 		parent      *x509.Certificate
 	}
 
-	MockErrReader struct{}
+	demoHTTPServerConfig struct {
+		serverAddr        string
+		proxyprotoEnabled bool
+		serverName        string
+		tlsCipherSuites   []uint16
+		tlsMaxVersion     uint16
+		serverCertFile    string
+		serverKeyFile     string
+	}
 
+	MockErrReader   struct{}
 	MockInputReader struct{}
+	mockReader      struct{}
 )
 
 var (
@@ -139,6 +154,10 @@ func (MockErrReader) ReadPassword(fd int) ([]byte, error) {
 	return func(_ int) ([]byte, error) {
 		return []byte{}, errors.New("mockErrReader: unable to read password")
 	}(fd)
+}
+
+func (mockReader) ReadFile(name string) ([]byte, error) {
+	return nil, fmt.Errorf("unable to read file %s", name)
 }
 
 func generateRSACertificateData() {
@@ -341,4 +360,76 @@ func RSAPrivateKeyToPEM(key *rsa.PrivateKey) []byte {
 	keyPEM := pem.EncodeToMemory(&keyBlock)
 
 	return keyPEM
+}
+
+func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "DemoHTTPSServer Handler - client output\n")
+		fmt.Fprint(w, "Host requested: ", r.Host, "\n")
+
+		fmt.Println("DemoHTTPSServer Handler - shell output")
+	})
+
+	ts := httptest.NewUnstartedServer(handler)
+	ts.EnableHTTP2 = true
+
+	if cfg.serverAddr != emptyString && !cfg.proxyprotoEnabled {
+		listener, err := net.Listen("tcp", cfg.serverAddr)
+		if err != nil {
+			return nil, fmt.Errorf("error creating listener: %w", err)
+		}
+
+		ts.Listener = listener
+	}
+
+	if cfg.serverAddr != emptyString && cfg.proxyprotoEnabled {
+		ln, err := net.Listen("tcp", cfg.serverAddr)
+		if err != nil {
+			return nil, fmt.Errorf("error creating proxyproto enabled listener: %w", err)
+		}
+
+		proxyListener := &proxyproto.Listener{
+			Listener:          ln,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+
+		ts.Listener = proxyListener
+	}
+
+	cert, err := tls.LoadX509KeyPair(
+		cfg.serverCertFile,
+		cfg.serverKeyFile,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set default TLS CipherSuites to TLS 1.3 cipher suites
+	// https://pkg.go.dev/crypto/tls#pkg-constants
+	tlsCipherSuites := []uint16{
+		tls.TLS_AES_128_GCM_SHA256,
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+	}
+
+	if len(cfg.tlsCipherSuites) > 0 {
+		tlsCipherSuites = cfg.tlsCipherSuites
+	}
+
+	// Set default TLS MaxVersion to 1.3
+	var tlsMaxVersion uint16 = tls.VersionTLS13
+
+	if cfg.tlsMaxVersion > 0 {
+		tlsMaxVersion = cfg.tlsMaxVersion
+	}
+
+	ts.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		CipherSuites: tlsCipherSuites,
+		MaxVersion:   tlsMaxVersion,
+	}
+
+	ts.StartTLS()
+
+	return ts, nil
 }

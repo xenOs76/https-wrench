@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -54,7 +55,7 @@ func BoolStyle(b bool) string {
 	return LgSprintf(BoolFalse, "false")
 }
 
-func PrintKeyInfoStyle(privKey crypto.PrivateKey) {
+func PrintKeyInfoStyle(w io.Writer, privKey crypto.PrivateKey) {
 	sl := CertKeyP4.Render
 	sv := CertValue.Render
 	t := table.New().Border(lipgloss.HiddenBorder())
@@ -73,7 +74,7 @@ func PrintKeyInfoStyle(privKey crypto.PrivateKey) {
 		t.Row(sl("Curve"), sv(curve))
 
 	case ed25519.PrivateKey:
-		t.Row(sl("Type"), sv("Ed25519"))
+		t.Row(sl("Type"), sv("ED25519"))
 
 		size := fmt.Sprintf("%d bytes", len(k))
 		t.Row(sl("Key Size"), sv(size))
@@ -83,7 +84,7 @@ func PrintKeyInfoStyle(privKey crypto.PrivateKey) {
 		t.Row(sv(unknMsg))
 	}
 
-	fmt.Println(t.Render())
+	fmt.Fprintln(w, t.Render())
 	t.ClearRows()
 }
 

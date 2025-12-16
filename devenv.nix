@@ -452,65 +452,65 @@ in {
   '';
 
   scripts.test-certinfo-tlsendpoint.exec = ''
-    gum format "## test certinfo tlsEnpoint"
+    gum format "## test certinfo tlsEndpoint"
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443
   '';
 
   scripts.test-certinfo-tlsendpoint-wrong-ca-file.exec = ''
-    gum format "## test certinfo tlsEnpoint with wrong CA file"
+    gum format "## test certinfo tlsEndpoint with wrong CA file"
     set +o pipefail
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443 --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
   '';
 
   scripts.test-certinfo-tlsendpoint-servername.exec = ''
-    gum format "## test certinfo tlsEnpoint servername"
+    gum format "## test certinfo tlsEndpoint servername"
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:443 --tls-servername www.os76.xyz
   '';
 
   scripts.test-certinfo-tlsendpoint-timeout.exec = ''
-    gum format "## test certinfo tlsEnpoint timeout"
+    gum format "## test certinfo tlsEndpoint timeout"
     set +o pipefail
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz:344 2>&1 | grep timeout
   '';
 
   scripts.test-certinfo-tlsendpoint-malformed.exec = ''
-    gum format "## test certinfo tlsEnpoint malformed (missing port)"
+    gum format "## test certinfo tlsEndpoint malformed (missing port)"
     set +o pipefail
     ./dist/https-wrench certinfo --tls-endpoint repo.os76.xyz | grep 'missing port in address'
   '';
 
   scripts.test-certinfo-tlsendpoint-insecure.exec = ''
-    gum format "## test certinfo tlsEnpoint Insecure"
+    gum format "## test certinfo tlsEndpoint Insecure"
     ./dist/https-wrench certinfo --tls-endpoint localhost:9443 --tls-insecure | grep 'certificate signed by unknown authority'
   '';
 
   scripts.test-certinfo-tlsendpoint-ca-bundle.exec = ''
-    gum format "## test certinfo tlsEnpoint + ca-bundle"
+    gum format "## test certinfo tlsEndpoint + ca-bundle"
     ./dist/https-wrench certinfo --tls-endpoint localhost:9443 --ca-bundle $CAROOT/rootCA.pem
   '';
 
   scripts.test-certinfo-tlsendpoint-ca-bundle-ipv4.exec = ''
-    gum format "## test certinfo IPv4 tlsEnpoint + ca-bundle"
+    gum format "## test certinfo IPv4 tlsEndpoint + ca-bundle"
     ./dist/https-wrench certinfo --tls-endpoint 127.0.0.1:9443 --ca-bundle $CAROOT/rootCA.pem
   '';
 
   scripts.test-certinfo-tlsendpoint-ca-bundle-ipv6.exec = ''
-    gum format "## test certinfo IPV6 tlsEnpoint + ca-bundle "
+    gum format "## test certinfo IPV6 tlsEndpoint + ca-bundle "
     ./dist/https-wrench certinfo --tls-endpoint [::1]:9443 --ca-bundle $CAROOT/rootCA.pem
   '';
 
   scripts.test-certinfo-tlsendpoint-rsa-key-cert.exec = ''
-    gum format "## test certinfo tlsEnpoint: RSA key + cert"
+    gum format "## test certinfo tlsEndpoint: RSA key + cert"
     ./dist/https-wrench certinfo --tls-endpoint localhost:9443 --tls-insecure --tls-servername example.com --key-file $CAROOT/key.pem | grep 'PrivateKey match: true'
   '';
 
   scripts.test-certinfo-tlsendpoint-ecdsa-key-cert.exec = ''
-    gum format "## test certinfo tlsEnpoint: ECDSA key + cert"
+    gum format "## test certinfo tlsEndpoint: ECDSA key + cert"
     ./dist/https-wrench certinfo --tls-endpoint localhost:9446 --tls-insecure --tls-servername example.com --key-file $ECDSA_DIR/ecdsa.key | grep 'PrivateKey match: true'
   '';
 
   scripts.test-certinfo-tlsendpoint-ed25519-key-cert.exec = ''
-    gum format "## test certinfo tlsEnpoint: ED25519 key + cert"
+    gum format "## test certinfo tlsEndpoint: ED25519 key + cert"
     ./dist/https-wrench certinfo --tls-endpoint localhost:9445 --tls-insecure --tls-servername example.com --key-file $ED25519_DIR/ed25519.key | grep 'PrivateKey match: true'
   '';
 

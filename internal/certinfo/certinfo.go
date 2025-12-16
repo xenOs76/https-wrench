@@ -31,7 +31,6 @@ type CertinfoConfig struct {
 	TLSEndpointPort         string
 	TLSEndpointCerts        []*x509.Certificate
 	TLSEndpointCertsFromKey bool
-	TLSEndpointCertsValid   bool
 	TLSServerName           string
 	TLSInsecure             bool
 }
@@ -96,7 +95,10 @@ func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) e
 
 func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
-		certs, err := GetCertsFromBundle(filePath, fileReader)
+		certs, err := GetCertsFromBundle(
+			filePath,
+			fileReader,
+		)
 		if err != nil {
 			return err
 		}
@@ -108,11 +110,15 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 	return nil
 }
 
-func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, fileReader Reader) error {
+func (c *CertinfoConfig) SetPrivateKeyFromFile(
+	filePath string,
+	keyPwEnvVar string,
+	fileReader Reader,
+) error {
 	if filePath != emptyString {
 		keyFromFile, err := GetKeyFromFile(
 			filePath,
-			privateKeyPwEnvVar,
+			keyPwEnvVar,
 			fileReader,
 		)
 		if err != nil {
@@ -126,31 +132,34 @@ func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, fileReader Reade
 	return nil
 }
 
-func (c *CertinfoConfig) SetTLSEndpoint(e string) error {
-	if e != "" {
-		c.TLSEndpoint = e
-
-		eHost, ePort, err := net.SplitHostPort(c.TLSEndpoint)
+func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
+	if hostport != emptyString {
+		eHost, ePort, err := net.SplitHostPort(hostport)
 		if err != nil {
-			return fmt.Errorf("invalid TLS endpoint %q: %w", c.TLSEndpoint, err)
+			return fmt.Errorf("invalid TLS endpoint %q: %w", hostport, err)
 		}
 
+		c.TLSEndpoint = hostport
 		c.TLSEndpointHost = eHost
 		c.TLSEndpointPort = ePort
-		c.GetRemoteCerts()
+
+		err = c.GetRemoteCerts()
+		if err != nil {
+			return fmt.Errorf("unable to get endpoint certificates: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func (c *CertinfoConfig) SetTLSInsecure(b bool) *CertinfoConfig {
-	c.TLSInsecure = b
+func (c *CertinfoConfig) SetTLSInsecure(skipVerify bool) *CertinfoConfig {
+	c.TLSInsecure = skipVerify
 	return c
 }
 
-func (c *CertinfoConfig) SetTLSServerName(s string) *CertinfoConfig {
-	if s != "" {
-		c.TLSServerName = s
+func (c *CertinfoConfig) SetTLSServerName(serverName string) *CertinfoConfig {
+	if serverName != emptyString {
+		c.TLSServerName = serverName
 	}
 
 	return c
