@@ -136,7 +136,7 @@ func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
 	if hostport != emptyString {
 		eHost, ePort, err := net.SplitHostPort(hostport)
 		if err != nil {
-			return fmt.Errorf("invalid TLS endpoint %q: %w", c.TLSEndpoint, err)
+			return fmt.Errorf("invalid TLS endpoint %q: %w", hostport, err)
 		}
 
 		c.TLSEndpoint = hostport

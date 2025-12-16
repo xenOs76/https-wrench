@@ -327,34 +327,34 @@ func TestCertinfo_SetTLSServerName(t *testing.T) {
 
 func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 	tests := []struct {
-		desc          string
-		endpoint      string
-		expectEnpoint string
-		expectHost    string
-		expectPort    string
-		processErr    bool
-		expectMsg     string
+		desc           string
+		endpoint       string
+		expectEndpoint string
+		expectHost     string
+		expectPort     string
+		processErr     bool
+		expectMsg      string
 	}{
 		{
-			desc:          "success",
-			endpoint:      "localhost:443",
-			expectEnpoint: "localhost:443",
-			expectHost:    "localhost",
-			expectPort:    "443",
+			desc:           "success",
+			endpoint:       "localhost:443",
+			expectEndpoint: "localhost:443",
+			expectHost:     "localhost",
+			expectPort:     "443",
 		},
 		{
-			desc:          "success IPV6",
-			endpoint:      "[::1]:443",
-			expectEnpoint: "[::1]:443",
-			expectHost:    "::1",
-			expectPort:    "443",
+			desc:           "success IPV6",
+			endpoint:       "[::1]:443",
+			expectEndpoint: "[::1]:443",
+			expectHost:     "::1",
+			expectPort:     "443",
 		},
 		{
-			desc:          "success IPV4",
-			endpoint:      "127.0.0.1:443",
-			expectEnpoint: "127.0.0.1:443",
-			expectHost:    "127.0.0.1",
-			expectPort:    "443",
+			desc:           "success IPV4",
+			endpoint:       "127.0.0.1:443",
+			expectEndpoint: "127.0.0.1:443",
+			expectHost:     "127.0.0.1",
+			expectPort:     "443",
 		},
 		{
 			desc:       "error malformed host",
@@ -366,7 +366,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			desc:       "error missing port",
 			endpoint:   "localhost",
 			processErr: true,
-			expectMsg:  "invalid TLS endpoint \"\": address localhost: missing port in address",
+			expectMsg:  "invalid TLS endpoint \"localhost\": address localhost: missing port in address",
 		},
 		{
 			desc:       "error missing host",
@@ -378,7 +378,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			desc:       "error endpoint includes scheme",
 			endpoint:   "https://localhost:80443",
 			processErr: true,
-			expectMsg:  "invalid TLS endpoint \"\": address https://localhost:80443: too many colons in address",
+			expectMsg:  "invalid TLS endpoint \"https://localhost:80443\": address https://localhost:80443: too many colons in address",
 		},
 	}
 
@@ -397,7 +397,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 				// in this case. See tests related to GetRemoteCerts for more
 
 				// require.NoError(t, err)
-				require.Equal(t, tt.expectEnpoint, cc.TLSEndpoint, "check TLSEndpoint")
+				require.Equal(t, tt.expectEndpoint, cc.TLSEndpoint, "check TLSEndpoint")
 				require.Equal(t, tt.expectHost, cc.TLSEndpointHost, "check TLSEndpointHost")
 				require.Equal(t, tt.expectPort, cc.TLSEndpointPort, "check TLSEndpointPort")
 

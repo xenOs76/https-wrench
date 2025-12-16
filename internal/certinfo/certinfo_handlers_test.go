@@ -45,7 +45,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 		},
 
 		{
-			desc: "Malfomed Server Certificate",
+			desc: "Malformed Server Certificate",
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "localhost:46303",
 				serverName:     "example.com",
@@ -99,7 +99,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 			expectSrvPort: "46306",
 		},
 		{
-			desc: "IPV6 Enpoint RSA Cert Success",
+			desc: "IPV6 Endpoint RSA Cert Success",
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "[::1]:46307",
 				serverName:     "example.com",
@@ -290,7 +290,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyCertMatch: true,
 		},
 		{
-			desc:         "local key and remote TLS Enpoint",
+			desc:         "local key and remote TLS Endpoint",
 			keyFile:      RSASampleCertKeyFile,
 			caCertFile:   RSACaCertFile,
 			keyCertMatch: true,
