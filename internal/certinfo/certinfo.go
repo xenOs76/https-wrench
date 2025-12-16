@@ -31,7 +31,6 @@ type CertinfoConfig struct {
 	TLSEndpointPort         string
 	TLSEndpointCerts        []*x509.Certificate
 	TLSEndpointCertsFromKey bool
-	TLSEndpointCertsValid   bool
 	TLSServerName           string
 	TLSInsecure             bool
 }
@@ -126,18 +125,21 @@ func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, keyPwEnvVar stri
 	return nil
 }
 
-func (c *CertinfoConfig) SetTLSEndpoint(e string) error {
-	if e != "" {
-		c.TLSEndpoint = e
-
-		eHost, ePort, err := net.SplitHostPort(c.TLSEndpoint)
+func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
+	if hostport != emptyString {
+		eHost, ePort, err := net.SplitHostPort(hostport)
 		if err != nil {
 			return fmt.Errorf("invalid TLS endpoint %q: %w", c.TLSEndpoint, err)
 		}
 
+		c.TLSEndpoint = hostport
 		c.TLSEndpointHost = eHost
 		c.TLSEndpointPort = ePort
-		c.GetRemoteCerts()
+
+		err = c.GetRemoteCerts()
+		if err != nil {
+			return fmt.Errorf("unable to get endpoint certificates: %w", err)
+		}
 	}
 
 	return nil
