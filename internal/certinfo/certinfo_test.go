@@ -8,15 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockReader struct {
-	readError error
-}
-
-func (mr mockReader) ReadFile(name string) ([]byte, error) {
-	mr.readError = fmt.Errorf("unable to read file %s", name)
-	return nil, mr.readError
-}
-
 func TestNewCertinfoConfig(t *testing.T) {
 	t.Run("NewCertinfoConfig", func(t *testing.T) {
 		t.Parallel()
