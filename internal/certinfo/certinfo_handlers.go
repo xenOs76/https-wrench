@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -22,29 +21,29 @@ import (
 	"github.com/xenos76/https-wrench/internal/style"
 )
 
-func (c *CertinfoConfig) PrintData() {
+func (c *CertinfoConfig) PrintData(w io.Writer) error {
 	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
 	sl := style.CertKeyP4.Bold(true)
 	sv := style.CertValue.Bold(false)
 
-	fmt.Println()
-	fmt.Println(style.LgSprintf(style.Cmd, "Certinfo"))
-	fmt.Println()
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, style.LgSprintf(style.Cmd, "Certinfo"))
+	fmt.Fprintln(w)
 
 	if c.PrivKey != nil {
-		fmt.Println(style.LgSprintf(ks, "PrivateKey"))
-		fmt.Println(style.LgSprintf(
+		fmt.Fprintln(w, style.LgSprintf(ks, "PrivateKey"))
+		fmt.Fprintln(w, style.LgSprintf(
 			sl.PaddingTop(1),
 			"PrivateKey file: %v",
 			sv.Render(c.PrivKeyFilePath),
 		))
-		style.PrintKeyInfoStyle(c.PrivKey)
+		style.PrintKeyInfoStyle(w, c.PrivKey)
 	}
 
 	if len(c.CertsBundle) > 0 {
-		fmt.Println(style.LgSprintf(ks, "Certificates"))
+		fmt.Fprintln(w, style.LgSprintf(ks, "Certificates"))
 
-		fmt.Println(style.LgSprintf(
+		fmt.Fprintln(w, style.LgSprintf(
 			sl.PaddingTop(1),
 			"Certificate bundle file: %v",
 			sv.Render(c.CertsBundleFilePath),
@@ -53,31 +52,34 @@ func (c *CertinfoConfig) PrintData() {
 		if c.PrivKey != nil {
 			certMatch, err := certMatchPrivateKey(c.CertsBundle[0], c.PrivKey)
 			if err != nil {
-				fmt.Print(err)
+				return fmt.Errorf(
+					"unable to check if private key matches local certificate: %w",
+					err,
+				)
 			}
 
-			fmt.Println(style.LgSprintf(
+			fmt.Fprintln(w, style.LgSprintf(
 				sl,
 				"PrivateKey match: %v",
 				style.BoolStyle(certMatch),
 			))
 		}
 
-		CertsToTables(os.Stdout, c.CertsBundle)
+		CertsToTables(w, c.CertsBundle)
 	}
 
 	if len(c.TLSEndpointCerts) > 0 {
 		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
 
-		fmt.Println(style.LgSprintf(ks, "TLSEndpoint Certificates"))
-		fmt.Println(style.LgSprintf(
+		fmt.Fprintln(w, style.LgSprintf(ks, "TLSEndpoint Certificates"))
+		fmt.Fprintln(w, style.LgSprintf(
 			sl.PaddingTop(1),
 			"Endpoint: %v",
 			endpoint,
 		))
 
-		if c.TLSServerName != "" {
-			fmt.Println(style.LgSprintf(
+		if c.TLSServerName != emptyString {
+			fmt.Fprintln(w, style.LgSprintf(
 				sl,
 				"ServerName: %v",
 				sv.Render(c.TLSServerName),
@@ -87,22 +89,25 @@ func (c *CertinfoConfig) PrintData() {
 		if c.PrivKey != nil {
 			tlsMatch, err := certMatchPrivateKey(c.TLSEndpointCerts[0], c.PrivKey)
 			if err != nil {
-				fmt.Print(err)
+				return fmt.Errorf(
+					"unable to check if private key matches remote TLS Endpoint certificate: %w",
+					err,
+				)
 			}
 
-			fmt.Println(style.LgSprintf(
+			fmt.Fprintln(w, style.LgSprintf(
 				sl,
 				"PrivateKey match: %v",
 				style.BoolStyle(tlsMatch),
 			))
 		}
 
-		CertsToTables(os.Stdout, c.TLSEndpointCerts)
+		CertsToTables(w, c.TLSEndpointCerts)
 	}
 
 	if len(c.CACertsFilePath) > 0 {
-		fmt.Println(style.LgSprintf(ks, "CA Certificates"))
-		fmt.Println(
+		fmt.Fprintln(w, style.LgSprintf(ks, "CA Certificates"))
+		fmt.Fprintln(w,
 			style.LgSprintf(
 				sl.PaddingTop(1).PaddingBottom(1),
 				"CA Certificates file: %v",
@@ -115,13 +120,16 @@ func (c *CertinfoConfig) PrintData() {
 			inputReader,
 		)
 		if err != nil {
-			fmt.Printf("unable for read Root certificates from %s: %s", c.CACertsFilePath, err)
-
-			return
+			return fmt.Errorf(
+				"unable for read Root certificates from %s: %w",
+				c.CACertsFilePath,
+				err,
+			)
 		}
 
-		CertsToTables(os.Stdout, rootCerts)
+		CertsToTables(w, rootCerts)
 	}
+	return nil
 }
 
 func (c *CertinfoConfig) GetRemoteCerts() error {

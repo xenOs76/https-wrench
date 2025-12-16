@@ -95,7 +95,10 @@ func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) e
 
 func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
-		certs, err := GetCertsFromBundle(filePath, fileReader)
+		certs, err := GetCertsFromBundle(
+			filePath,
+			fileReader,
+		)
 		if err != nil {
 			return err
 		}
@@ -107,7 +110,11 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 	return nil
 }
 
-func (c *CertinfoConfig) SetPrivateKeyFromFile(filePath string, keyPwEnvVar string, fileReader Reader) error {
+func (c *CertinfoConfig) SetPrivateKeyFromFile(
+	filePath string,
+	keyPwEnvVar string,
+	fileReader Reader,
+) error {
 	if filePath != emptyString {
 		keyFromFile, err := GetKeyFromFile(
 			filePath,
@@ -145,14 +152,14 @@ func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
 	return nil
 }
 
-func (c *CertinfoConfig) SetTLSInsecure(b bool) *CertinfoConfig {
-	c.TLSInsecure = b
+func (c *CertinfoConfig) SetTLSInsecure(skipVerify bool) *CertinfoConfig {
+	c.TLSInsecure = skipVerify
 	return c
 }
 
-func (c *CertinfoConfig) SetTLSServerName(s string) *CertinfoConfig {
-	if s != "" {
-		c.TLSServerName = s
+func (c *CertinfoConfig) SetTLSServerName(serverName string) *CertinfoConfig {
+	if serverName != emptyString {
+		c.TLSServerName = serverName
 	}
 
 	return c

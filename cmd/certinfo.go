@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,19 +73,19 @@ Examples:
 
 		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
 
-		if err := certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
+		if err = certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
 			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
 
-		if err := certinfoCfg.SetCertsFromFile(certBundleValue, fileReader); err != nil {
+		if err = certinfoCfg.SetCertsFromFile(certBundleValue, fileReader); err != nil {
 			fmt.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
-		if err := certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
+		if err = certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
 			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}
 
-		if err := certinfoCfg.SetPrivateKeyFromFile(
+		if err = certinfoCfg.SetPrivateKeyFromFile(
 			keyFileValue,
 			keyPwEnvVar,
 			fileReader,
@@ -93,7 +94,9 @@ Examples:
 		}
 
 		// dump.Print(certinfoCfg)
-		certinfoCfg.PrintData()
+		if err = certinfoCfg.PrintData(os.Stdout); err != nil {
+			fmt.Printf("error printing Certinfo data: %s", err)
+		}
 	},
 }
 
