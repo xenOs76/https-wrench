@@ -2,12 +2,8 @@
   pkgs,
   lib,
   config,
-  inputs,
   ...
-}: let
-  # TODO: align go version between nixos/nixvim and devenv
-  pkgsStable = import inputs.nixpkgsStable {system = pkgs.stdenv.system;};
-in {
+}: {
   env = {
     GUM_FORMAT_THEME = "tokyo-night";
     CAROOT = "tests/certs";
@@ -20,13 +16,17 @@ in {
     OS76_DOCKER_USER = "xeno";
   };
 
+  languages.go = {
+    enable = true;
+    package = pkgs.go;
+  };
+
   packages = with pkgs; [
     git
     openssl
     mkcert
     gum
     goreleaser
-    # golangci-lint
     govulncheck
     curl
     jq
@@ -52,13 +52,6 @@ in {
       commitizen.enable = true;
     };
   };
-
-  # https://devenv.sh/reference/options/#languagesgoenable
-  # TODO: align go related versions used by vim to this before enabling
-  # languages.go = {
-  #   enable = true;
-  #   package = pkgs.go;
-  # };
 
   services.nginx = {
     enable = true;
@@ -164,6 +157,8 @@ in {
     go get -u
     gum format "## running go mod tidy..."
     go mod tidy
+    gum format "## running go mod vendor..."
+    go mod vendor
     gum format "## running govulncheck..."
     govulncheck ./...
   '';
@@ -171,6 +166,7 @@ in {
   scripts.build.exec = ''
     set -e
     gum format "## building..."
+    go mod vendor
     test -d dist || mkdir dist
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
         GO_MODULE_NAME=$(go list -m) &&
