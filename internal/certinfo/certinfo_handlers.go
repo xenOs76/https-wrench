@@ -159,13 +159,13 @@ func (c *CertinfoConfig) GetRemoteCerts() error {
 	}
 	defer conn.Close()
 
+	cs := conn.ConnectionState()
+	c.TLSEndpointCerts = cs.PeerCertificates
+
 	// do not verify server certificates if TLSInsecure
 	if c.TLSInsecure {
 		return nil
 	}
-
-	cs := conn.ConnectionState()
-	c.TLSEndpointCerts = cs.PeerCertificates
 
 	opts := x509.VerifyOptions{
 		DNSName:       c.TLSServerName,

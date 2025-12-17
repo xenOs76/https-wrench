@@ -71,8 +71,6 @@ Examples:
 			return
 		}
 
-		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
-
 		if err = certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
 			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
@@ -81,6 +79,11 @@ Examples:
 			fmt.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
+		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
+
+		// SetTLSEndpoint may need the SNI/ServerName and insecure options to be set
+		// before being able to ask details about the certificate we want to a
+		// webserver using self-signed and valid certificates
 		if err = certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
 			fmt.Printf("Error setting TLS endpoint: %s", err)
 		}

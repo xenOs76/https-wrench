@@ -267,14 +267,18 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 }
 
 func TestCertinfo_PrintData(t *testing.T) {
-	noErrorsTests := []struct {
-		desc         string
-		keyFile      string
-		certFile     string
-		caCertFile   string
-		keyCertMatch bool
-		tlsEndpoint  string
-		srvCfg       demoHTTPServerConfig
+	tests := []struct {
+		desc                string
+		keyFile             string
+		certFile            string
+		caCertFile          string
+		keyCertMatch        bool
+		tlsEndpoint         string
+		tlsInsecure         bool
+		tlsServerName       string
+		srvCfg              demoHTTPServerConfig
+		expectCertsFetchErr bool
+		expectCertsFetcMsg  string
 	}{
 		{
 			desc:         "local CA cert and key",
@@ -290,11 +294,12 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyCertMatch: true,
 		},
 		{
-			desc:         "local key and remote TLS Endpoint",
-			keyFile:      RSASampleCertKeyFile,
-			caCertFile:   RSACaCertFile,
-			keyCertMatch: true,
-			tlsEndpoint:  "localhost:46401",
+			desc:          "local key and remote TLS Endpoint, certs validated",
+			keyFile:       RSASampleCertKeyFile,
+			caCertFile:    RSACaCertFile,
+			keyCertMatch:  true,
+			tlsEndpoint:   "localhost:46401",
+			tlsServerName: "example.com",
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "localhost:46401",
 				serverName:     "example.com",
@@ -302,9 +307,69 @@ func TestCertinfo_PrintData(t *testing.T) {
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
 		},
+		{
+			desc:          "local key and remote TLS Endpoint, certs NOT validated",
+			keyFile:       RSASampleCertKeyFile,
+			caCertFile:    emptyString,
+			tlsEndpoint:   "localhost:46402",
+			tlsServerName: "example.com",
+			srvCfg: demoHTTPServerConfig{
+				serverAddr:     "localhost:46402",
+				serverName:     "example.com",
+				serverCertFile: RSASampleCertFile,
+				serverKeyFile:  RSASampleCertKeyFile,
+			},
+			expectCertsFetchErr: true,
+			expectCertsFetcMsg:  "unable to get endpoint certificates: TLS handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority",
+		},
+
+		{
+			desc:          "local key and remote TLS Endpoint, TLS Insecure",
+			keyFile:       RSASampleCertKeyFile,
+			caCertFile:    emptyString,
+			keyCertMatch:  true,
+			tlsEndpoint:   "localhost:46403",
+			tlsInsecure:   true,
+			tlsServerName: "example.com",
+			srvCfg: demoHTTPServerConfig{
+				serverAddr:     "localhost:46403",
+				serverName:     "example.com",
+				serverCertFile: RSASampleCertFile,
+				serverKeyFile:  RSASampleCertKeyFile,
+			},
+		},
+		{
+			desc:          "local key and remote TLS Endpoint, missing TLS ServerName",
+			keyFile:       RSASampleCertKeyFile,
+			caCertFile:    RSACaCertFile,
+			tlsEndpoint:   "localhost:46404",
+			tlsServerName: emptyString,
+			srvCfg: demoHTTPServerConfig{
+				serverAddr:     "localhost:46404",
+				serverName:     "example.com",
+				serverCertFile: RSASampleCertFile,
+				serverKeyFile:  RSASampleCertKeyFile,
+			},
+			expectCertsFetchErr: true,
+			expectCertsFetcMsg:  "unable to get endpoint certificates: TLS handshake failed: tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not localhost",
+		},
+		{
+			desc:          "local key and remote TLS Endpoint, no key match",
+			keyFile:       ED25519SamplePlaintextPrivateKey,
+			caCertFile:    RSACaCertFile,
+			keyCertMatch:  false,
+			tlsEndpoint:   "localhost:46405",
+			tlsServerName: "example.com",
+			srvCfg: demoHTTPServerConfig{
+				serverAddr:     "localhost:46405",
+				serverName:     "example.com",
+				serverCertFile: RSASampleCertFile,
+				serverKeyFile:  RSASampleCertKeyFile,
+			},
+		},
 	}
 
-	for _, tc := range noErrorsTests {
+	for _, tc := range tests {
 		tt := tc
 		t.Run("No errors test - "+tt.desc, func(t *testing.T) {
 			t.Parallel()
@@ -324,32 +389,32 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 				defer ts.Close()
 
-				cc.SetTLSServerName(tt.srvCfg.serverName)
-				cc.SetTLSEndpoint(tt.tlsEndpoint)
+				cc.SetTLSServerName(tt.tlsServerName)
+				cc.SetTLSInsecure(tt.tlsInsecure)
+
+				// in most of these test cases SetTLSEndpoint depends
+				// on SetTLSServerName and/or SetTLSInsecure to be set
+				// before being able to fetch certificates from the TLS
+				// endpoint.
+				// The dependency is addressed with the order of method calls
+				// in cmd/certinfo.go.
+				// In this test, we call SetTLSServerName and SetTLSInsecure before
+				// SetTLSEndpoint to be sure the dependency is being addressed the
+				// same way.
+				err = cc.SetTLSEndpoint(tt.tlsEndpoint)
+				if !tt.expectCertsFetchErr {
+					require.NoError(t, err, "SetTLSEndpoint require NoError")
+				}
+
+				if tt.expectCertsFetchErr {
+					require.EqualError(t, err, tt.expectCertsFetcMsg)
+				}
 			}
 
 			errPrint := cc.PrintData(&buffer)
 			require.NoError(t, errPrint)
 
 			got := buffer.String()
-			for _, want := range []string{
-				"Certinfo",
-				"Certificate",
-				"Subject",
-				"Issuer",
-				"NotBefore",
-				"NotAfter",
-				"Expiration",
-				"IsCA",
-				"AuthorityKeyId",
-				"SubjectKeyId",
-				"PublicKeyAlgorithm",
-				"SignatureAlgorithm",
-				"SerialNumber",
-				"Fingerprint SHA-256",
-			} {
-				require.Contains(t, got, want)
-			}
 
 			if tt.keyFile != emptyString {
 				require.Contains(t, got, "PrivateKey file: "+tt.keyFile)
@@ -363,16 +428,37 @@ func TestCertinfo_PrintData(t *testing.T) {
 				require.Contains(t, got, "CA Certificates file: "+tt.caCertFile)
 			}
 
-			if tt.keyFile != emptyString && tt.keyCertMatch {
-				require.Contains(t, got, "PrivateKey match: true")
-			} else {
-				require.Contains(t, got, "PrivateKey match: false")
-			}
+			if !tt.expectCertsFetchErr {
+				for _, want := range []string{
+					"Certinfo",
+					"Certificate",
+					"Subject",
+					"Issuer",
+					"NotBefore",
+					"NotAfter",
+					"Expiration",
+					"IsCA",
+					"AuthorityKeyId",
+					"SubjectKeyId",
+					"PublicKeyAlgorithm",
+					"SignatureAlgorithm",
+					"SerialNumber",
+					"Fingerprint SHA-256",
+				} {
+					require.Contains(t, got, want)
+				}
 
-			if tt.tlsEndpoint != emptyString {
-				require.Contains(t, got, "TLSEndpoint Certificates")
-				require.Contains(t, got, "Endpoint: "+tt.tlsEndpoint)
-				require.Contains(t, got, "ServerName: "+tt.srvCfg.serverName)
+				if tt.keyFile != emptyString && tt.keyCertMatch {
+					require.Contains(t, got, "PrivateKey match: true")
+				} else {
+					require.Contains(t, got, "PrivateKey match: false")
+				}
+
+				if tt.tlsEndpoint != emptyString {
+					require.Contains(t, got, "TLSEndpoint Certificates")
+					require.Contains(t, got, "Endpoint: "+tt.tlsEndpoint)
+					require.Contains(t, got, "ServerName: "+tt.tlsServerName)
+				}
 			}
 		})
 	}
