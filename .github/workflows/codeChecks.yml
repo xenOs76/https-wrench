@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/codeChecks.yml"
+      - ".goreleaser.yaml"
       - "devenv.*"
       - "cmd/**"
       - "internal/**"
