@@ -11,7 +11,7 @@ on:
       - "*.go"
       - "go.*"
 jobs:
-  code_check_job:
+  code_checks:
 
     runs-on: ubuntu-latest
     strategy:
