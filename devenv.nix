@@ -578,7 +578,6 @@
     test-certinfo-rsa-cert
     test-certinfo-ed25519-cert
     test-certinfo-ecdsa-cert
-    exit 1
   '';
 
   scripts.run-go-tests.exec = ''
