@@ -1,18 +1,23 @@
 ---
-name: code checks
+name: CodeChecks
 on:
   push:
     paths:
+      - ".github/workflows/codeChecks.yml"
+      - "devenv.*"
       - "cmd/**"
       - "internal/**"
       - "pkg/**"
       - "*.go"
       - "go.*"
+
 jobs:
-  code_check_job:
+
+  code_checks:
 
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         go-version: ['1.24', '1.25']
 
@@ -40,3 +45,18 @@ jobs:
           go-version-input: ${{ matrix.go-version }}
           go-package: ./...
           work-dir: .
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+
+      - name: Install devenv.sh
+        run: nix profile add nixpkgs#devenv
+
+      - name: Build the devenv shell and run any pre-commit hooks
+        run: devenv test
+        timeout-minutes: 15
