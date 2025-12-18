@@ -18,7 +18,7 @@ before:
   hooks:
     - go mod download
     - go mod tidy
-    - go test
+    - go test ./...
     - rm -rf completions
     - mkdir completions
     - sh -c 'go run . completion bash > completions/https-wrench.bash'

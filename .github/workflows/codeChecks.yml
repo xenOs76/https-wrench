@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/codeChecks.yml"
+      - ".goreleaser.yaml"
       - "devenv.*"
       - "cmd/**"
       - "internal/**"
@@ -13,8 +14,7 @@ on:
 
 jobs:
 
-  code_checks:
-
+  go_tests:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
@@ -46,6 +46,14 @@ jobs:
           go-package: ./...
           work-dir: .
 
+  devenv_test:
+    needs: go_tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
@@ -60,3 +68,28 @@ jobs:
       - name: Build the devenv shell and run any pre-commit hooks
         run: devenv test
         timeout-minutes: 15
+
+  goreleaser_test:
+    needs: devenv_test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Run GoReleaser test
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> 2"
+          args: release --snapshot --clean
+          workdir: .
