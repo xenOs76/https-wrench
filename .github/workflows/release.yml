@@ -1,16 +1,21 @@
 ---
-name: release
+name: Release
 on:
   push:
     tags:
       - "*"
+  workflow_run:
+    workflows: [CodeChecks]
+    branches: [main]
+    types:
+      - completed
+
 permissions:
   contents: write
+
 jobs:
 
   goreleaser:
-
-    needs: code_checks
 
     runs-on: ubuntu-latest
     strategy:
