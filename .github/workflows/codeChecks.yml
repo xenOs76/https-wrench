@@ -45,7 +45,7 @@ jobs:
           go-package: ./...
           work-dir: .
 
-  devenv_tests:
+  devenv_test:
     needs: go_tests
     runs-on: ubuntu-latest
 
@@ -69,7 +69,7 @@ jobs:
         timeout-minutes: 15
 
   goreleaser_test:
-    needs: devenv_tests
+    needs: devenv_test
     runs-on: ubuntu-latest
 
     steps:
@@ -86,14 +86,9 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Run GoReleaser
+      - name: Run GoReleaser test
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> 2"
-          args: release --clean
+          args: release --snapshot --clean
           workdir: .
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_GORELEASER_TOKEN }}
-
-      - name: Refresh Go Report Card
-        uses: creekorful/goreportcard-action@v1.0
