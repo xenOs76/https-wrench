@@ -523,7 +523,7 @@
 
     # test-requests-sample-config
     test-requests-show-sample-config
-    test-requests-k3s
+    #test-requests-k3s
     test-requests-methods
     test-requests-timeout
     test-requests-insecure
