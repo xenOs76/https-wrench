@@ -67,3 +67,33 @@ jobs:
       - name: Build the devenv shell and run any pre-commit hooks
         run: devenv test
         timeout-minutes: 15
+
+  goreleaser_test:
+    needs: devenv_tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> 2"
+          args: release --clean
+          workdir: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_GORELEASER_TOKEN }}
+
+      - name: Refresh Go Report Card
+        uses: creekorful/goreportcard-action@v1.0
