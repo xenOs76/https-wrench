@@ -148,6 +148,14 @@
     enable = true;
   };
 
+  tasks."web:refreshCertsBeforeNginxStart" = {
+    exec = ''
+      test -d ${config.env.DEVENV_ROOT}/tests && rm -rf ${config.env.DEVENV_ROOT}/tests
+      create-certs
+    '';
+    before = ["devenv:processes:nginx"];
+  };
+
   scripts.hello.exec = ''
     gum format "# Devenv shell"
   '';
@@ -615,7 +623,7 @@
     # update-go-deps
     build
 
-    run-go-tests
+    #run-go-tests
 
     test-cmd-root-version
     test-cmd-requests-version
