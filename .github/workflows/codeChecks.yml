@@ -3,6 +3,8 @@ name: code checks
 on:
   push:
     paths:
+      - ".github/workflows/codeChecks.yml"
+      - "devenv.*"
       - "cmd/**"
       - "internal/**"
       - "pkg/**"
