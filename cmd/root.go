@@ -69,7 +69,7 @@ https://github.com/xenOs76/https-wrench`,
 	Run: func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
 		if showVersion {
-			fmt.Println(version)
+			cmd.Println(version)
 
 			return
 		}

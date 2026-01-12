@@ -45,12 +45,12 @@ Examples:
 		versionRequested := viper.GetBool("version")
 
 		if versionRequested {
-			fmt.Print(version)
+			cmd.Print(version)
 			return
 		}
 
 		if showSampleConfig {
-			fmt.Print(sampleYamlConfig)
+			cmd.Print(sampleYamlConfig)
 			return
 		}
 
