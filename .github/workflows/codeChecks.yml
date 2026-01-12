@@ -92,3 +92,18 @@ jobs:
           version: "~> 2"
           args: release --snapshot --clean
           workdir: .
+
+  go_test_coverage_check:
+    needs: goreleaser_test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+
+      - name: generate test coverage
+        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+
+      - name: check test coverage
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./.testcoverage.yml
