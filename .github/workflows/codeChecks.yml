@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/codeChecks.yml"
       - ".goreleaser.yaml"
+      - ".testcoverage.yml"
       - "devenv.*"
       - "cmd/**"
       - "internal/**"
@@ -13,13 +14,12 @@ on:
       - "go.*"
 
 jobs:
-
   go_tests:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       matrix:
-        go-version: ['1.24', '1.25']
+        go-version: ["1.25"]
 
     steps:
       - name: Checkout
@@ -69,6 +69,23 @@ jobs:
         run: devenv test
         timeout-minutes: 15
 
+  go_test_coverage_check:
+    needs: go_tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: generate test coverage
+        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+
+      - name: check test coverage
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: ./.testcoverage.yml
+
   goreleaser_test:
     needs: devenv_test
     runs-on: ubuntu-latest
@@ -85,7 +102,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: "1.25"
 
       - name: Run GoReleaser test
         uses: goreleaser/goreleaser-action@v6

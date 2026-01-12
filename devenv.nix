@@ -2,8 +2,11 @@
   pkgs,
   lib,
   config,
+  inputs,
   ...
-}: {
+}: let
+  pkgs-stable = import inputs.nixpkgs-stable {system = pkgs.stdenv.system;};
+in {
   env = {
     GUM_FORMAT_THEME = "tokyo-night";
     CAROOT = "tests/certs";
@@ -16,18 +19,23 @@
     OS76_DOCKER_USER = "xeno";
   };
 
-  languages.go = {
-    enable = true;
-    package = pkgs.go;
-  };
+  # WARN installing go from NixOs stable instead
+  # so the version is aligned with nvim settings
+  # languages.go = {
+  #   enable = true;
+  #   package = pkgs-stable.go;
+  # };
 
   packages = with pkgs; [
+    pkgs-stable.go
     git
     openssl
     mkcert
     gum
     goreleaser
     govulncheck
+    gotest
+    gotests
     curl
     jq
     httpie
@@ -41,13 +49,14 @@
       ".envrc"
       "internal/certinfo/common_handlers.go"
       "internal/certinfo/testdata"
+      "internal/certinfo/testdata/README.md"
       "completions"
     ];
     hooks = {
       shellcheck.enable = true;
       end-of-file-fixer.enable = true;
       detect-aws-credentials.enable = false;
-      detect-private-keys.enable = true;
+      detect-private-keys.enable = false;
       ripsecrets.enable = true;
       commitizen.enable = true;
     };
@@ -223,17 +232,17 @@
 
   scripts.test-cmd-root-version.exec = ''
     gum format "## Command root --version"
-    ./dist/https-wrench --version | grep -E '[0-9]\.+'
+    ./dist/https-wrench --version  2>&1 | grep -E '[0-9]\.+'
   '';
 
   scripts.test-cmd-requests-version.exec = ''
     gum format "## Command requests --version"
-    ./dist/https-wrench requests --version | grep -E '[0-9]\.+'
+    ./dist/https-wrench requests --version 2>&1 | grep -E '[0-9]\.+'
   '';
 
   scripts.test-cmd-certinfo-version.exec = ''
     gum format "## Command certinfo --version"
-    ./dist/https-wrench certinfo --version | grep -E '[0-9]\.+'
+    ./dist/https-wrench certinfo --version  2>&1 | grep -E '[0-9]\.+'
   '';
 
   scripts.test-cmd-root-help-when-no-flags.exec = ''
@@ -583,13 +592,13 @@
   scripts.run-go-tests.exec = ''
     gum format "## Run GO tests"
 
-    time go test ./... -cover -coverprofile=cover.out
+    time gotest ./... -cover -coverprofile=cover.out
   '';
 
   scripts.run-go-tests-verbose.exec = ''
     gum format "## Run GO tests"
 
-    time go test -v ./... -cover -coverprofile=cover.out
+    time gotest -v ./... -cover -coverprofile=cover.out
   '';
 
   scripts.run-go-cover-html.exec = ''

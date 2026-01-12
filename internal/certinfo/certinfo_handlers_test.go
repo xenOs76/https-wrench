@@ -165,6 +165,12 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	rsaExpiredCert, err := GetCertsFromBundle(
+		RSASamplePKCS8ExpiredCertificate,
+		inputReader,
+	)
+	require.NoError(t, err)
+
 	ecdsaCert, err := GetCertsFromBundle(
 		ECDSASampleCertificate,
 		inputReader,
@@ -187,7 +193,6 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 		publicKeyAlgorithm string
 		signatureAlgorithm string
 	}{
-		// TODO: add expired cert case
 		{
 			desc:               "RSA CA Cert",
 			cert:               RSACaCertParent,
@@ -208,6 +213,17 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			publicKeyAlgorithm: "PublicKeyAlgorithm  RSA",
 			signatureAlgorithm: "SignatureAlgorithm  SHA256-RSA",
 		},
+		{
+			desc:               "RSA Expired Cert",
+			cert:               rsaExpiredCert[0],
+			subject:            "Subject             CN=example.com,O=example Ltd,L=Berlin,ST=Some-State,C=DE",
+			isCA:               "IsCA                false",
+			expiration:         "ago",
+			dnsNames:           "DNSNames            []",
+			publicKeyAlgorithm: "PublicKeyAlgorithm  RSA",
+			signatureAlgorithm: "SignatureAlgorithm  SHA256-RSA",
+		},
+
 		{
 			desc:               "ECDSA CA Cert",
 			cert:               ecdsaCert[0],
@@ -259,6 +275,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 				tt.dnsNames,
 				tt.publicKeyAlgorithm,
 				tt.signatureAlgorithm,
+				tt.expiration,
 			} {
 				require.Contains(t, got, want)
 			}
