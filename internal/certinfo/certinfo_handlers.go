@@ -129,6 +129,7 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 
 		CertsToTables(w, rootCerts)
 	}
+
 	return nil
 }
 
