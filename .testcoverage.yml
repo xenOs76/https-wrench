@@ -1,0 +1,6 @@
+profile: cover.out
+
+threshold:
+  file: 70
+  package: 80
+  total: 90
