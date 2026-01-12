@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/codeChecks.yml"
       - ".goreleaser.yaml"
+      - ".testcoverage.yml"
       - "devenv.*"
       - "cmd/**"
       - "internal/**"
