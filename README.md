@@ -125,22 +125,22 @@ Sample output of the commands:
 
 <details>
 <summary>HTTPS Wrench requests, (long) sample configuration output</summary>
-![HTTPS Wrench requests - sample config output](/assets/img/https-wrench_requests_sample-config.png "HTTPS Wrench - sample config output")
+![HTTPS Wrench requests - sample config output](./assets/img/https-wrench_requests_sample-config.png "HTTPS Wrench - sample config output")
 </details>
 
 <details>
 <summary>HTTPS Wrench requests, sample requests against a K3s cluster</summary>
-![HTTPS Wrench - k3s output](/assets/img/https-wrench_requests_k3s.png "HTTPS Wrench - K3s requests output")
+![HTTPS Wrench - k3s output](./assets/img/https-wrench_requests_k3s.png "HTTPS Wrench - K3s requests output")
 </details>
 
 <details>
 <summary>HTTPS Wrench certinfo, certificate and key</summary>
-![HTTPS Wrench certinfo - certificate and key](/assets/img/https-wrench_certinfo_cert_and_key.png "HTTPS Wrench certinfo - certificate and key")
+![HTTPS Wrench certinfo - certificate and key](./assets/img/https-wrench_certinfo_cert_and_key.png "HTTPS Wrench certinfo - certificate and key")
 </details>
 
 <details>
 <summary>HTTPS Wrench certinfo, TLS Endpoint</summary>
-![HTTPS Wrench certinfo - TLS Endpoint](/assets/img/https-wrench_certinfo_tls_endpoint.png "HTTPS Wrench certinfo - TLS Endpoint")
+![HTTPS Wrench certinfo - TLS Endpoint](./assets/img/https-wrench_certinfo_tls_endpoint.png "HTTPS Wrench certinfo - TLS Endpoint")
 </details>
 
 ## How to install
