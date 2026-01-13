@@ -22,9 +22,9 @@ var (
 
 var certinfoCmd = &cobra.Command{
 	Use:   "certinfo",
-	Short: "Shows information about PEM certificates and keys",
+	Short: "Shows information about x.509 certificates and keys",
 	Long: `
-HTTPS Wrench certinfo: shows information about PEM certificates and keys.
+HTTPS Wrench certinfo: shows information about PEM encoded x.509 certificates and keys.
 
 https-wrench certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a 
 private key matches any of the certificates.

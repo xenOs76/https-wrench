@@ -11,12 +11,13 @@
     </a>
 </p>
 
-**HTTPS Wrench** is a Golang CLI program to make HTTPS requests based on a YAML configuration file.   
-**HTTPS Wrench** was born from the desire of a disposable Bash script to become a reliable tool 
-for mechanics of the World Wide Web.  
-`https-wrench` will, one day, take the place of `curl` in the hearts and the eyes of whoever is about 
-to migrate a DNS record from a webserver to a load balancer, reverse proxy, Ingress Gateway, 
-CloudFront distribution.   
+**HTTPS Wrench** is a CLI program to make Yaml defined HTTPS requests and to
+inspect x.509 certificates and keys.\
+**HTTPS Wrench** was born from the desire of a disposable Bash script to become
+a reliable tool for mechanics of the World Wide Web.\
+`https-wrench` will, one day, take the place of `curl` in the hearts and the
+eyes of whoever is about to migrate a DNS record from a webserver to a load
+balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 ## How to use
 
@@ -24,14 +25,28 @@ Check the help:
 
 ```bash
 ❯ https-wrench -h
-HTTPS Wrench, a tool to make HTTPS requests based on a YAML configuration file
+
+HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file and to inspect x.509 certificates and keys.
+
+https-wrench has two subcommands: requests and certinfo.
+
+requests is the subcommand that does HTTPS requests according to the configuration provided
+by the --config flag.
+
+certinfo is a subcommand that reads information from PEM encoded x.509 certificates and keys. The certificates
+can be read from local files or TLS enabled endpoints.
+
+certinfo can compare public keys extracted from certificates and private keys to check if they match.
+
+HTTPS Wrench is distributed with an open source license and available at the following address:
+https://github.com/xenOs76/https-wrench
 
 Usage:
   https-wrench [flags]
   https-wrench [command]
 
 Available Commands:
-  certinfo    Show info about PEM certificates and keys
+  certinfo    Shows information about x.509 certificates and keys
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
   requests    Make HTTPS requests defined in the YAML configuration file
@@ -45,8 +60,9 @@ Use "https-wrench [command] --help" for more information about a command.
 ```
 
 Generate a sample config file:
+
 ```bash
-https-wrench requests --show-sample-config > sample-wrench.yaml
+https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
 ```
 
 <details>
@@ -99,46 +115,61 @@ requests:
 
 </details>
 
-
 Make the HTTPS requests defined in the YAML file:
+
 ```bash
-https-wrench requests --config sample-wrench.yaml 
+https-wrench requests --config https-wrench-sample-config.yaml
 ```
 
+Sample output of the commands:
+
 <details>
-<summary>Output of the commands</summary>
+<summary>HTTPS Wrench requests, (long) sample configuration output</summary>
+![HTTPS Wrench requests - sample config output](/assets/img/https-wrench_requests_sample-config.png "HTTPS Wrench - sample config output")
+</details>
 
-The output should look like this:  
+<details>
+<summary>HTTPS Wrench requests, sample requests against a K3s cluster</summary>
+![HTTPS Wrench - k3s output](/assets/img/https-wrench_requests_k3s.png "HTTPS Wrench - K3s requests output")
+</details>
 
-![HTTPS Wrench - sample output](./assets/img/https-wrench-demo-sample-conf.gif "HTTPS Wrench - sample config output")
+<details>
+<summary>HTTPS Wrench certinfo, certificate and key</summary>
+![HTTPS Wrench certinfo - certificate and key](/assets/img/https-wrench_certinfo_cert_and_key.png "HTTPS Wrench certinfo - certificate and key")
+</details>
 
-Or like this, if you customize one of the files in the [examples](./assets/examples/https-wrench-k3s.yaml) folder:  
-
-![HTTPS Wrench - k3s output](./assets/img/https-wrench-demo-k3s-example.gif "HTTPS Wrench - K3s requests output")
-
+<details>
+<summary>HTTPS Wrench certinfo, TLS Endpoint</summary>
+![HTTPS Wrench certinfo - TLS Endpoint](/assets/img/https-wrench_certinfo_tls_endpoint.png "HTTPS Wrench certinfo - TLS Endpoint")
 </details>
 
 ## How to install
 
 ### Go install
 
-HTTPS Wrench is "go gettable", so it can be installed with the following command when having a proper `go` setup:  
+HTTPS Wrench is "go gettable", so it can be installed with the following command
+when having a proper `go` setup:
+
 ```bash
 go install github.com/xenos76/https-wrench@latest
 ```
 
 ### Manual download
 
-Release binaries and DEB, RPM, APK packages can be downloaded from the [repo's releases section](https://github.com/xenOs76/https-wrench/releases).  
-Binaries and packages are built for Linux and MacOS, `amd64` and `arm64`.   
+Release binaries and DEB, RPM, APK packages can be downloaded from the
+[repo's releases section](https://github.com/xenOs76/https-wrench/releases).\
+Binaries and packages are built for Linux and MacOS, `amd64` and `arm64`.
 
 ### APT
 
 Configure the repo the following way:
+
 ```bash
 echo "deb [trusted=yes] https://repo.os76.xyz/apt stable main" | sudo tee /etc/apt/sources.list.d/os76.list
 ```
-then: 
+
+then:
+
 ```bash
 sudo apt-get update && sudo apt-get install -y https-wrench
 ```
@@ -146,6 +177,7 @@ sudo apt-get update && sudo apt-get install -y https-wrench
 ### YUM
 
 Configure the repo the following way:
+
 ```bash
 echo '[os76]
 name=OS76 Yum Repo
@@ -154,54 +186,67 @@ enabled=1
 gpgcheck=0
 repo_gpgcheck=0' | sudo tee /etc/yum.repos.d/os76.repo
 ```
-then: 
+
+then:
+
 ```bash
 sudo yum install https-wrench
 ```
 
 ### Docker image
 
-Generate the config:  
+Generate the config:
+
 ```bash
 docker run --rm ghcr.io/xenos76/https-wrench:latest -h
 
 docker run --rm ghcr.io/xenos76/https-wrench:latest --show-sample-config > sample-wrench.yaml
 ```
 
-Run the `requests` command:  
+Run the `requests` command:
+
 ```bash
 docker run  -v $(pwd)/sample-wrench.yaml:/https-wrench.yaml  --rm ghcr.io/xenos76/https-wrench:latest --config /https-wrench.yaml requests
 ```
 
-### Homebrew 
+### Homebrew
 
-Add Os76 Homebrew repository:  
+Add Os76 Homebrew repository:
+
 ```bash
 brew tap xenos76/tap
 ```
 
-Install `https-wrench`:   
+Install `https-wrench`:
+
 ```bash
 brew install --casks https-wrench
 ```
 
 ### Nix/NUR
 
-Nix users can use the following Nur repository to access `https-wrench`: [https://github.com/xenOs76/nur-packages](https://github.com/xenOs76/nur-packages).  
-The repository is not listed yet in the general [Nix User Repository](https://github.com/nix-community/NUR) so the following methods can be used to install the package.  
+Nix users can use the following Nur repository to access `https-wrench`:
+[https://github.com/xenOs76/nur-packages](https://github.com/xenOs76/nur-packages).\
+The repository is not listed yet in the general
+[Nix User Repository](https://github.com/nix-community/NUR) so the following
+methods can be used to install the package.
 
-Set a Nix channel: 
+Set a Nix channel:
+
 ```bash
 nix-channel --add https://github.com/xenos76/nur-packages/archive/main.tar.gz nur-os76
 nix-channel --update
 ```
 
-and add the package to a Nix shell:  
+and add the package to a Nix shell:
+
 ```bash
 nix-shell -p '(import <nur-os76> { pkgs = import <nixpkgs> {}; }).https-wrench'
 ```
 
-Or use a `flake.nix` like the one from the [nix-shell](/assets/examples/nix-shell) example to achieve a similar result:  
+Or use a `flake.nix` like the one from the
+[nix-shell](/assets/examples/nix-shell) example to achieve a similar result:
+
 ```nix
 {
   description = "Flake to fetch https-wrench from xenos76's NUR repo";
@@ -243,4 +288,6 @@ Or use a `flake.nix` like the one from the [nix-shell](/assets/examples/nix-shel
 }
 ```
 
-NixOS users could use a [flake like this](https://raw.githubusercontent.com/xenOs76/nixos-configs/refs/heads/main/flake.nix) to fetch the package.  
+NixOS users could use a
+[flake like this](https://raw.githubusercontent.com/xenOs76/nixos-configs/refs/heads/main/flake.nix)
+to fetch the package.
