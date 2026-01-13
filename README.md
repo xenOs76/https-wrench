@@ -130,17 +130,17 @@ Sample output of the commands:
 
 <details>
 <summary>HTTPS Wrench requests, sample requests against a K3s cluster</summary>
-![HTTPS Wrench - k3s output](https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_requests_k3s.png)
+<img alt="HTTPS Wrench - k3s output" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_requests_k3s.png">
 </details>
 
 <details>
 <summary>HTTPS Wrench certinfo, certificate and key</summary>
-![HTTPS Wrench certinfo - certificate and key](https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_certinfo_cert_and_key.png)
+<img alt="HTTPS Wrench certinfo - certificate and key" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_certinfo_cert_and_key.png">
 </details>
 
 <details>
 <summary>HTTPS Wrench certinfo, TLS Endpoint</summary>
-![HTTPS Wrench certinfo - TLS Endpoint](https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_certinfo_tls_endpoint.png)
+<img alt="HTTPS Wrench certinfo - TLS Endpoint" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_certinfo_tls_endpoint.png">
 </details>
 
 ## How to install
