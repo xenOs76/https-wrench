@@ -125,7 +125,7 @@ Sample output of the commands:
 
 <details>
 <summary>HTTPS Wrench requests, (long) sample configuration output</summary>
-![HTTPS Wrench requests - sample config output](https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_requests_sample-config.png)
+<img alt="HTTPS Wrench requests - sample config output" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_requests_sample-config.png">
 </details>
 
 <details>
