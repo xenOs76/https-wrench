@@ -70,7 +70,7 @@ func TestPrintKeyInfoStyle(t *testing.T) {
 		},
 
 		{
-			name:         "ed21219 private key",
+			name:         "ed25519 private key",
 			key:          ed25519Key,
 			expectedType: "ED25519",
 		},

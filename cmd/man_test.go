@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,7 @@ func TestMan(t *testing.T) {
 		rootCmd.SetArgs([]string{"man", "--dest-dir", "fake-dir"})
 		errWrongDir := rootCmd.Execute()
 		require.NoError(t, errWrongDir)
+		require.FileExists(t, filepath.Join(destDir, "https-wrench.1"))
 		// WARN stdout does not get into the buffer
 		// require.Contains(t, manBuf.String(), "no such file or directory--- FAIL")
 	})

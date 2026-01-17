@@ -84,7 +84,8 @@ func TestRootCmd_Execute(t *testing.T) {
 		_, err := LoadConfig()
 
 		require.NoError(t, err)
-		Execute()
+		err = Execute()
+		require.EqualError(t, err, "flag needs an argument: --config")
 	})
 }
 
