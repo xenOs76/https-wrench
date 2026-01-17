@@ -24,7 +24,7 @@ balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 Check the help:
 
-```bash
+```shell
 ❯ https-wrench -h
 
 HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file and to inspect x.509 certificates and keys.
