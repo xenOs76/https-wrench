@@ -9,6 +9,7 @@
     <a href="https://goreportcard.com/report/github.com/xenos76/https-wrench">
         <img alt="Go Report Card badge for HTTPS Wrench" src="https://goreportcard.com/badge/github.com/xenos76/https-wrench"/>
     </a>
+    <img alt="Test Coverage" src="https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg"/>
 </p>
 
 **HTTPS Wrench** is a CLI program to make Yaml defined HTTPS requests and to
