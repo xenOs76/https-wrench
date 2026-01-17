@@ -3,10 +3,8 @@ profile: cover.out
 threshold:
   file: 70
   package: 80
-  total: 80
+  total: 85
 
 exclude:
   paths:
-    - internal/style/style_handlers.go
     - main\.go$
-    - cmd/main\.go$

@@ -21,8 +21,22 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/xenos76/https-wrench/cmd"
+import (
+	"fmt"
+	"os"
+
+	"github.com/xenos76/https-wrench/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	err := Run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func Run() error {
+	err := cmd.Execute()
+	return err
 }

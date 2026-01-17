@@ -80,11 +80,13 @@ https://github.com/xenOs76/https-wrench`,
 	},
 }
 
-func Execute() {
+func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
-		return
+		return err
 	}
+
+	return nil
 }
 
 func init() {
