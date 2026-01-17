@@ -8,12 +8,21 @@ import (
 
 	_ "github.com/breml/rootcerts"
 	"github.com/google/go-cmp/cmp"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
 func TestRootCmd_LoadConfig(t *testing.T) {
 	t.Run("LoadConfig no config file", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			viper.Reset()
+		})
+
 		var mc requests.RequestsMetaConfig
 
 		config, err := LoadConfig()
@@ -31,6 +40,14 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 	})
 
 	t.Run("LoadConfig embedded config file", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			viper.Reset()
+		})
+
 		var expectedCaCertsPool *x509.CertPool
 
 		var expectedRequestsConfigs []requests.RequestConfig
@@ -78,23 +95,23 @@ func TestRootCmd(t *testing.T) {
 		expectError bool
 		expected    []string
 	}{
-		// {
-		// 	name:        "no args",
-		// 	args:        []string{},
-		// 	expectError: false,
-		// 	expected: []string{
-		// 		"HTTPS Wrench",
-		// 		"Usage:",
-		// 		"Available Commands:",
-		// 		"Flags:",
-		// 		"certinfo",
-		// 		"requests",
-		// 		"--config",
-		// 		"--version",
-		// 		"--help",
-		// 	},
-		// },
-		//
+		{
+			name:        "no args",
+			args:        []string{},
+			expectError: false,
+			expected: []string{
+				"HTTPS Wrench",
+				"Usage:",
+				"Available Commands:",
+				"Flags:",
+				"certinfo",
+				"requests",
+				"--config",
+				"--version",
+				"--help",
+			},
+		},
+
 		{
 			name:        "config flag valid arg",
 			args:        []string{"--config", "./embedded/config-example.yaml"},
@@ -121,6 +138,14 @@ func TestRootCmd(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc
 		t.Run(tt.name, func(t *testing.T) {
+			oldCfg := cfgFile
+
+			t.Cleanup(func() {
+				cfgFile = oldCfg
+
+				viper.Reset()
+			})
+
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
