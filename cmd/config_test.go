@@ -12,7 +12,7 @@ import (
 
 var emptyString = ""
 
-func TestNewHTTPSWrenchConfig(t *testing.T) {
+func TestConfig_NewHTTPSWrenchConfig(t *testing.T) {
 	t.Run("new HTTPSWrenchConfig", func(t *testing.T) {
 		var mc requests.RequestsMetaConfig
 
