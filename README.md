@@ -1,17 +1,11 @@
-<h1>HTTPS Wrench</h1>
+# https-wrench
+
+[![Test Coverage](https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg)](https://github.com/xenOs76/https-wrench/actions/workflows/codeChecks.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xenos76/https-wrench)](https://goreportcard.com/report/github.com/xenos76/https-wrench)
+
 <p align="center">
     <img width="450" alt="HTTPS Wrench Logo" src="./assets/img/https-wrench-logo.jpg"/><br />
-</p>
-<p align="center">
     <i>HTTPS Wrench, a wrench not to bench</i>
-</p>
-<p align="center">
-    <a href="https://goreportcard.com/report/github.com/xenos76/https-wrench">
-        <img alt="Go Report Card badge for HTTPS Wrench" src="https://goreportcard.com/badge/github.com/xenos76/https-wrench"/>
-    </a>
-    <a href="https://github.com/xenOs76/https-wrench/actions/workflows/codeChecks.yml">
-        <img alt="Test Coverage" src="https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg"/>
-    </a>
 </p>
 
 **HTTPS Wrench** is a CLI program to make Yaml defined HTTPS requests and to
@@ -26,7 +20,7 @@ balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 Check the help:
 
-```
+```plain
 ❯ https-wrench -h
 
 HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file and to inspect x.509 certificates and keys.
@@ -66,7 +60,7 @@ Use "https-wrench [command] --help" for more information about a command.
 
 Get the help:
 
-```
+```plain
 ❯ https-wrench requests -h
 
 https-wrench requests is the subcommand that does HTTPS requests according to the configuration
@@ -100,7 +94,7 @@ Global Flags:
 
 Generate a sample config file:
 
-```bash
+```shell
 https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
 ```
 
@@ -156,7 +150,7 @@ requests:
 
 Make the HTTPS requests defined in the YAML file:
 
-```bash
+```shell
 https-wrench requests --config https-wrench-sample-config.yaml
 ```
 
@@ -231,7 +225,7 @@ been used to generate the certificate:
 ❯ https-wrench certinfo --tls-endpoint localhost:9443 --ca-bundle rootCA.pem --key-file key.pem
 ```
 
-### Sample output of the commands
+### Sample output
 
 <details>
 <summary>HTTPS Wrench requests, (long) sample configuration output</summary>
@@ -257,10 +251,10 @@ been used to generate the certificate:
 
 ### Go install
 
-HTTPS Wrench is "go gettable", so it can be installed with the following command
-when having a proper `go` setup:
+HTTPS Wrench is "go gettable", so it can be installed with the following
+command:
 
-```bash
+```shell
 go install github.com/xenos76/https-wrench@latest
 ```
 
@@ -274,13 +268,13 @@ Binaries and packages are built for Linux and MacOS, `amd64` and `arm64`.
 
 Configure the repo the following way:
 
-```bash
+```shell
 echo "deb [trusted=yes] https://repo.os76.xyz/apt stable main" | sudo tee /etc/apt/sources.list.d/os76.list
 ```
 
 then:
 
-```bash
+```shell
 sudo apt-get update && sudo apt-get install -y https-wrench
 ```
 
@@ -288,7 +282,7 @@ sudo apt-get update && sudo apt-get install -y https-wrench
 
 Configure the repo the following way:
 
-```bash
+```shell
 echo '[os76]
 name=OS76 Yum Repo
 baseurl=https://repo.os76.xyz/yum/$basearch/
@@ -299,7 +293,7 @@ repo_gpgcheck=0' | sudo tee /etc/yum.repos.d/os76.repo
 
 then:
 
-```bash
+```shell
 sudo yum install https-wrench
 ```
 
@@ -307,7 +301,7 @@ sudo yum install https-wrench
 
 Generate the config:
 
-```bash
+```shell
 docker run --rm ghcr.io/xenos76/https-wrench:latest -h
 
 docker run --rm ghcr.io/xenos76/https-wrench:latest --show-sample-config > sample-wrench.yaml
@@ -315,7 +309,7 @@ docker run --rm ghcr.io/xenos76/https-wrench:latest --show-sample-config > sampl
 
 Run the `requests` command:
 
-```bash
+```shell
 docker run  -v $(pwd)/sample-wrench.yaml:/https-wrench.yaml  --rm ghcr.io/xenos76/https-wrench:latest --config /https-wrench.yaml requests
 ```
 
@@ -323,13 +317,13 @@ docker run  -v $(pwd)/sample-wrench.yaml:/https-wrench.yaml  --rm ghcr.io/xenos7
 
 Add Os76 Homebrew repository:
 
-```bash
+```shell
 brew tap xenos76/tap
 ```
 
 Install `https-wrench`:
 
-```bash
+```shell
 brew install --casks https-wrench
 ```
 
@@ -343,14 +337,14 @@ methods can be used to install the package.
 
 Set a Nix channel:
 
-```bash
+```shell
 nix-channel --add https://github.com/xenos76/nur-packages/archive/main.tar.gz nur-os76
 nix-channel --update
 ```
 
 and add the package to a Nix shell:
 
-```bash
+```shell
 nix-shell -p '(import <nur-os76> { pkgs = import <nixpkgs> {}; }).https-wrench'
 ```
 
