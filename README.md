@@ -9,7 +9,9 @@
     <a href="https://goreportcard.com/report/github.com/xenos76/https-wrench">
         <img alt="Go Report Card badge for HTTPS Wrench" src="https://goreportcard.com/badge/github.com/xenos76/https-wrench"/>
     </a>
-    <img alt="Test Coverage" src="https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg"/>
+    <a href="https://github.com/xenOs76/https-wrench/actions/workflows/codeChecks.yml">
+        <img alt="Test Coverage" src="https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg"/>
+    </a>
 </p>
 
 **HTTPS Wrench** is a CLI program to make Yaml defined HTTPS requests and to
@@ -24,7 +26,7 @@ balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 Check the help:
 
-```shell
+```
 ❯ https-wrench -h
 
 HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file and to inspect x.509 certificates and keys.
@@ -58,6 +60,42 @@ Flags:
       --version         Display the version
 
 Use "https-wrench [command] --help" for more information about a command.
+```
+
+### HTTPS Wrench requests
+
+Get the help:
+
+```
+❯ https-wrench requests -h
+
+https-wrench requests is the subcommand that does HTTPS requests according to the configuration
+pointed by the --config flag.
+
+A sample configuration can be generated as a starting point (--show-sample-config).
+
+The Github repository has more configuration examples:
+https://github.com/xenOs76/https-wrench/tree/main/assets/examples
+
+It also provides a JSON schema that can be used to validate new configuration files:
+https://github.com/xenOs76/https-wrench/blob/main/https-wrench.schema.json
+
+Examples:
+ https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
+ https-wrench requests --config https-wrench-sample-config.yaml
+
+Usage:
+  https-wrench requests [flags]
+
+Flags:
+      --ca-bundle string     Path to bundle file with CA certificates
+                             to use for validation
+  -h, --help                 help for requests
+      --show-sample-config   Show a sample YAML configuration
+
+Global Flags:
+      --config string   config file (default is $HOME/.https-wrench.yaml)
+      --version         Display the version
 ```
 
 Generate a sample config file:
@@ -122,7 +160,78 @@ Make the HTTPS requests defined in the YAML file:
 https-wrench requests --config https-wrench-sample-config.yaml
 ```
 
-Sample output of the commands:
+### HTTPS Wrench certinfo
+
+Get the help:
+
+```plain
+❯ https-wrench certinfo -h
+
+HTTPS Wrench certinfo: shows information about PEM certificates and keys.
+
+https-wrench certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a
+private key matches any of the certificates.
+
+The certificates can be verified against the system root CAs or a custom CA bundle file.
+
+The validation can be skipped.
+
+If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW
+environment variable or will be prompted on stdin.
+
+Examples:
+  https-wrench certinfo --tls-endpoint example.com:443
+  https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
+  https-wrench certinfo --cert-bundle ./bundle.pem
+  https-wrench certinfo --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
+  https-wrench certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
+  https-wrench certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem
+
+Usage:
+  https-wrench certinfo [flags]
+
+Flags:
+      --ca-bundle string        Path to bundle file with CA certificates
+                                to use for validation
+      --cert-bundle string      Path to PEM Certificate bundle file
+  -h, --help                    help for certinfo
+      --key-file string         Path to PEM Key file
+      --tls-endpoint string     TLS enabled endpoint exposing certificates to fetch.
+                                Forms: 'host:port', '[host]:port'.
+                                IPv6 addresses must be enclosed in square brackets, as in '[::1]:80'
+      --tls-insecure            Skip certificate validation when connecting to a TLS endpoint
+      --tls-servername string   ServerName to use when connecting to an SNI enabled TLS endpoint
+
+Global Flags:
+      --config string   config file (default is $HOME/.https-wrench.yaml)
+      --version         Display the version
+```
+
+Get info about a certificate and a key and see if their public keys match:
+
+```shell
+❯ https-wrench certinfo --cert-bundle rsa-pkcs8-crt.pem --key-file rsa-pkcs8-plaintext-private-key.pem
+```
+
+Get info about a certificate exposed by a remote TLS endpoint:
+
+```shell
+❯ https-wrench certinfo --tls-endpoint repo.os76.xyz:443
+```
+
+Get info about a self signed certificate exposed by a remote TLS endpoint,
+validate it against a CA certificate and check if a specific privave key has
+been used to generate the certificate:
+
+```shell
+❯ https-wrench certinfo --tls-endpoint localhost:9443 --ca-bundle rootCA.pem --key-file key.pem
+```
+
+### Sample output of the commands
 
 <details>
 <summary>HTTPS Wrench requests, (long) sample configuration output</summary>
