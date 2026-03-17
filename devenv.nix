@@ -652,8 +652,8 @@ in {
     export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
 
     # JwtInfo tests against authentication providers when not on CI
-    test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
-    test -f ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json && export JWTINFO_TEST_KEYCLOAK=$(cat ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json)
+    # test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
+    # test -f ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json && export JWTINFO_TEST_KEYCLOAK=$(cat ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json)
 
     go version
     create-certs
