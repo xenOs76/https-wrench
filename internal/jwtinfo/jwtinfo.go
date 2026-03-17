@@ -220,7 +220,7 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 }
 
 func ParseTokenData(jtd JwtTokenData, jwksURL string, keyfuncOverride keyfunc.Override) (*jwt.Token, error) {
-	// Parsing the access token whitout validation
+	// Parsing the access token without validation
 	if jwksURL == "" {
 		token, _, err := jwt.NewParser().ParseUnverified(
 			jtd.AccessToken,
@@ -410,8 +410,16 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 		return nil, errors.New("unable to find Issued At (iat) in token Claims")
 	}
 
+	if _, ok := genericClaims["iat"].(float64); !ok {
+		return nil, errors.New("Issued At (iat) claim is not a numeric timestamp")
+	}
+
 	if _, ok := genericClaims["exp"]; !ok {
 		return nil, errors.New("unable to find Expiration Time (exp) in token Claims")
+	}
+
+	if _, ok := genericClaims["exp"].(float64); !ok {
+		return nil, errors.New("Expiration Time (exp) claim is not a numeric timestamp")
 	}
 
 	for k, v := range genericClaims {
