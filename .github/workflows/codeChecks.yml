@@ -65,14 +65,14 @@ jobs:
       - name: Install devenv.sh
         run: nix profile add nixpkgs#devenv
 
+      - name: Run devenv build
+        run: devenv shell build
+
       - name: Build the devenv shell and run any pre-commit hooks
         env:
           JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
         run: devenv test
         timeout-minutes: 15
-
-      - name: Run a single command in the devenv shell
-        run: devenv shell run-certinfo-cert-tests
 
   go_test_coverage_check:
     needs: go_tests

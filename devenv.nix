@@ -668,7 +668,7 @@ in {
   enterTest = ''
     gum format "# Running tests"
 
-    build
+    #build
 
     test-cmd-root-version
     test-cmd-requests-version
