@@ -71,6 +71,9 @@ jobs:
         run: devenv test
         timeout-minutes: 15
 
+      - name: Run a single command in the devenv shell
+        run: devenv shell run-certinfo-cert-tests
+
   go_test_coverage_check:
     needs: go_tests
     runs-on: ubuntu-latest
