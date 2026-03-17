@@ -62,6 +62,7 @@ var jwtinfoCmd = &cobra.Command{
 		err = tokenData.DecodeBase64()
 		if err != nil {
 			fmt.Printf("DecodeBase64 error: %s\n", err)
+			return
 		}
 
 		// TODO: turn into method

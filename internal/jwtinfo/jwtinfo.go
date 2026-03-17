@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -37,10 +38,11 @@ type CustomClaims struct {
 }
 
 type JwtTokenData struct {
-	AccessToken        string `json:"access_token"`
-	AccessTokenHeader  []byte
-	AccessTokenClaims  []byte
-	RefreshToken       string `json:"refresh_token"`
+	AccessToken       string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
+	AccessTokenHeader []byte
+	AccessTokenClaims []byte
+	RefreshToken      string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
+
 	RefreshTokenHeader []byte
 	RefreshTokenClaims []byte
 }
@@ -103,12 +105,12 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 		)
 	}
 
-	respContentType := resp.Header["Content-Type"][0]
-	if respContentType == "application/jwt" {
+	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if mediaType == "application/jwt" {
 		t.AccessToken = string(bodyBytes)
 	}
 
-	if respContentType == "application/json" {
+	if mediaType == "application/json" {
 		if err = json.NewDecoder(resp.Body).Decode(&t); err != nil {
 			return JwtTokenData{}, fmt.Errorf(
 				"error validating token request data: %w",
@@ -181,8 +183,11 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 		}
 
 		tokenB64Elements := strings.Split(token.raw, ".")
+		if len(tokenB64Elements) < 2 {
+			return fmt.Errorf("invalid JWT format in %s", token.name)
+		}
 
-		tokenHeader, err = base64.RawStdEncoding.DecodeString(tokenB64Elements[0])
+		tokenHeader, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
 		if err != nil {
 			return fmt.Errorf(
 				"unable to decode base64 header from %s: %w",
@@ -191,7 +196,7 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 			)
 		}
 
-		tokenClaims, err = base64.RawStdEncoding.DecodeString(tokenB64Elements[1])
+		tokenClaims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
 		if err != nil {
 			return fmt.Errorf(
 				"unable to decode base64 claims from %s: %w",
@@ -349,7 +354,7 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 
 		fmt.Fprintln(w, style.LgSprintf(style.Title, "%s", token.name))
 
-		fmt.Println()
+		fmt.Fprintln(w)
 		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Header"))
 
 		var prettyJSON bytes.Buffer
@@ -361,10 +366,10 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 
 		headerCode := prettyJSON.String()
 
-		fmt.Print(style.CodeSyntaxHighlightWithStyle("json", headerCode, chromaStyle))
+		fmt.Fprint(w, style.CodeSyntaxHighlightWithStyle("json", headerCode, chromaStyle))
 		prettyJSON.Reset()
 
-		fmt.Println()
+		fmt.Fprintln(w)
 		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Claims"))
 
 		tokenTimeClaims, err := unmarshallTokenTimeClaims(token.claims)
@@ -385,8 +390,8 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 
 		claimsCode := prettyJSON.String()
 
-		fmt.Print(style.CodeSyntaxHighlightWithStyle("json", claimsCode, chromaStyle))
-		fmt.Println()
+		fmt.Fprint(w, style.CodeSyntaxHighlightWithStyle("json", claimsCode, chromaStyle))
+		fmt.Fprintln(w)
 	}
 
 	return nil

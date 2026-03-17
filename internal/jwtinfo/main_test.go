@@ -112,12 +112,18 @@ func jwksHandler(writer http.ResponseWriter, request *http.Request) {
 	jwk, err := jwkset.NewJWKFromKey(signKey, options)
 	if err != nil {
 		fmt.Printf("failed to create JWK from key: %s", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
 	}
 
 	// Write the key to the JWK Set storage.
 	err = jwkSet.KeyWrite(ctx, jwk)
 	if err != nil {
 		fmt.Printf("failed to store RSA key: %s", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
 	}
 
 	response, err := jwkSet.JSONPublic(request.Context())
@@ -175,11 +181,6 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString, err := createToken(user)
-	tokenJSONString := fmt.Sprintf(
-		"{\"access_token\":\"%s\"}",
-		tokenString,
-	)
-
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
@@ -189,6 +190,11 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	tokenJSONString := fmt.Sprintf(
+		"{\"access_token\":\"%s\"}",
+		tokenString,
+	)
 
 	if scope == "applicationJson" {
 		w.Header().Set("Content-Type", "application/json")
