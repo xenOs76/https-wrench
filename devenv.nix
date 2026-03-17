@@ -678,7 +678,11 @@ in {
     run-certinfo-cert-tests
     run-certinfo-tlsendpoint-tests
 
-    run-jwtinfo-test-auth0
-    run-jwtinfo-test-auth0-no-validation
+    if [ -n "$JWTINFO_TEST_AUTH0" ]; then
+      run-jwtinfo-test-auth0
+      run-jwtinfo-test-auth0-no-validation
+    else
+      gum format "## Skipping JwtInfo Auth0 tests (JWTINFO_TEST_AUTH0 not set)"
+    fi
   '';
 }

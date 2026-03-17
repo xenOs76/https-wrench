@@ -66,6 +66,8 @@ jobs:
         run: nix profile add nixpkgs#devenv
 
       - name: Build the devenv shell and run any pre-commit hooks
+        env:
+          JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
         run: devenv test
         timeout-minutes: 15
 
