@@ -57,6 +57,7 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          nix_path: nixpkgs=channel:nixos-25.11
 
       - uses: cachix/cachix-action@v16
         with:
@@ -64,9 +65,6 @@ jobs:
 
       - name: Install devenv.sh
         run: nix profile add nixpkgs#devenv
-
-      - name: Run devenv build
-        run: devenv shell build
 
       - name: Build the devenv shell and run any pre-commit hooks
         env:

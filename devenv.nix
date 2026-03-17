@@ -616,12 +616,6 @@ in {
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_KEYCLOAK" --validation-url "$VALIDATION_URL"
   '';
 
-  scripts.test-pipeline-break.exec = ''
-    echo "Testing pipeline break"
-
-    exit 1
-  '';
-
   scripts.run-go-tests.exec = ''
     gum format "## Run GO tests"
 
@@ -654,8 +648,8 @@ in {
 
   enterShell = ''
     gum format "# Devenv shell"
-    # export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
-    # export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
+    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
+    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
 
     # JwtInfo tests against authentication providers when not on CI
     # test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
@@ -667,8 +661,10 @@ in {
 
   enterTest = ''
     gum format "# Running tests"
+    # update-go-deps
+    build
 
-    #build
+    #run-go-tests
 
     test-cmd-root-version
     test-cmd-requests-version
