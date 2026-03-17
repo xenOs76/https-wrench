@@ -28,21 +28,11 @@ var (
 	userAgent   = "HTTPS-Wrench/JwtInfo"
 )
 
-type CustomClaims struct {
-	Issuer    string `json:"iss"`
-	Subject   string `json:"sub"`
-	ExpiresAt int64  `json:"exp"`
-	NotBefore int64  `json:"nbf"`
-	IssuedAt  int64  `json:"iat"`
-	jwt.RegisteredClaims
-}
-
 type JwtTokenData struct {
-	AccessToken       string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
-	AccessTokenHeader []byte
-	AccessTokenClaims []byte
-	RefreshToken      string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
-
+	AccessToken        string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
+	AccessTokenHeader  []byte
+	AccessTokenClaims  []byte
+	RefreshToken       string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
 	RefreshTokenHeader []byte
 	RefreshTokenClaims []byte
 }

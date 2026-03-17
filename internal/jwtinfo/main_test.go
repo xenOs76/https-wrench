@@ -79,12 +79,13 @@ func createToken(user string) (string, error) {
 			// set the expire time
 			// see https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 1)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 		"level1",
 		CustomerInfo{user, "human"},
 	}
 
-	// Creat token string
+	// Create token string
 	return t.SignedString(signKey)
 }
 
