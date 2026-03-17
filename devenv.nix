@@ -616,6 +616,12 @@ in {
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_KEYCLOAK" --validation-url "$VALIDATION_URL"
   '';
 
+  scripts.test-pipeline-break.exec = ''
+    echo "Testing pipeline break"
+
+    exit 1
+  '';
+
   scripts.run-go-tests.exec = ''
     gum format "## Run GO tests"
 
@@ -663,7 +669,10 @@ in {
     gum format "# Running tests"
     echo "About to run tests"
 
+    test-pipeline-break
+
     build
+
 
     #run-go-tests
 
