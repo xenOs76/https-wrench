@@ -667,26 +667,20 @@ in {
 
   enterTest = ''
     gum format "# Running tests"
-    echo "About to run tests"
-
-    test-pipeline-break
 
     build
 
+    test-cmd-root-version
+    test-cmd-requests-version
+    test-cmd-certinfo-version
+    test-cmd-root-help-when-no-flags
+    test-cmd-requests-help-when-no-flags
+    test-cmd-certinfo-help-when-no-flags
 
-    #run-go-tests
-
-    # test-cmd-root-version
-    # test-cmd-requests-version
-    # test-cmd-certinfo-version
-    # test-cmd-root-help-when-no-flags
-    # test-cmd-requests-help-when-no-flags
-    # test-cmd-certinfo-help-when-no-flags
-    #
     run-requests-tests
-    # run-certinfo-priv-key-tests
-    # run-certinfo-cert-tests
-    # run-certinfo-tlsendpoint-tests
+    run-certinfo-priv-key-tests
+    run-certinfo-cert-tests
+    run-certinfo-tlsendpoint-tests
 
     # run-jwtinfo-test-auth0
     # run-jwtinfo-test-auth0-no-validation
