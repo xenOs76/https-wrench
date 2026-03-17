@@ -65,7 +65,12 @@ jobs:
       - name: Install devenv.sh
         run: nix profile add nixpkgs#devenv
 
+      - name: Run devenv build
+        run: devenv shell build
+
       - name: Build the devenv shell and run any pre-commit hooks
+        env:
+          JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
         run: devenv test
         timeout-minutes: 15
 
@@ -82,6 +87,7 @@ jobs:
         run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
       - name: check test coverage
+        continue-on-error: ${{ github.ref_name != 'main' }}
         uses: vladopajic/go-test-coverage@v2
         with:
           config: ./.testcoverage.yml

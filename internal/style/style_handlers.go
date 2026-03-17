@@ -89,7 +89,12 @@ func PrintKeyInfoStyle(w io.Writer, privKey crypto.PrivateKey) {
 }
 
 func CodeSyntaxHighlight(lang, code string) string {
-	st := styles.Get(chromaDefStyle)
+	out := CodeSyntaxHighlightWithStyle(lang, code, chromaDefStyle)
+	return out
+}
+
+func CodeSyntaxHighlightWithStyle(lang, code string, chromaStyle string) string {
+	st := styles.Get(chromaStyle)
 	if st == nil {
 		st = styles.Fallback
 	}
