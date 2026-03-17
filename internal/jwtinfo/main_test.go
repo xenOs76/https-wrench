@@ -144,7 +144,14 @@ func jwksFaultyHandler(writer http.ResponseWriter, _ *http.Request) {
 
 	// validJwksFile := "testdata/jwkset-from-rsa-private-key-valid.json"
 	corruptedJwksFile := "testdata/jwkset-from-rsa-private-key-corrupted.json"
-	jwksContent, _ := os.ReadFile(corruptedJwksFile)
+
+	jwksContent, err := os.ReadFile(corruptedJwksFile)
+	if err != nil {
+		log.Printf("failed to read corrupted JWKS file: %s", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	_, _ = writer.Write(jwksContent)
@@ -214,9 +221,8 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 
 	if scope == "appJwtInvalid" {
 		w.Header().Set("Content-Type", "application/jwt")
-		// w.WriteHeader(http.StatusOK)
-		fmt.Println("JWT invalid")
-		// _, _ = fmt.Fprintln(w, "")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintln(w, "invalid-jwt-token")
 
 		return
 	}
