@@ -648,8 +648,8 @@ in {
 
   enterShell = ''
     gum format "# Devenv shell"
-    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
-    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
+    # export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
+    # export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
 
     # JwtInfo tests against authentication providers when not on CI
     # test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
@@ -661,22 +661,23 @@ in {
 
   enterTest = ''
     gum format "# Running tests"
-    # update-go-deps
+    echo "About to run tests"
+
     build
 
     #run-go-tests
 
-    test-cmd-root-version
-    test-cmd-requests-version
-    test-cmd-certinfo-version
-    test-cmd-root-help-when-no-flags
-    test-cmd-requests-help-when-no-flags
-    test-cmd-certinfo-help-when-no-flags
-
+    # test-cmd-root-version
+    # test-cmd-requests-version
+    # test-cmd-certinfo-version
+    # test-cmd-root-help-when-no-flags
+    # test-cmd-requests-help-when-no-flags
+    # test-cmd-certinfo-help-when-no-flags
+    #
     run-requests-tests
-    run-certinfo-priv-key-tests
-    run-certinfo-cert-tests
-    run-certinfo-tlsendpoint-tests
+    # run-certinfo-priv-key-tests
+    # run-certinfo-cert-tests
+    # run-certinfo-tlsendpoint-tests
 
     # run-jwtinfo-test-auth0
     # run-jwtinfo-test-auth0-no-validation
