@@ -46,34 +46,34 @@ jobs:
           go-package: ./...
           work-dir: .
 
-  devenv_test:
-    needs: go_tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - uses: cachix/install-nix-action@v31
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          nix_path: nixpkgs=channel:nixos-25.11
-
-      - uses: cachix/cachix-action@v16
-        with:
-          name: devenv
-
-      - name: Install devenv.sh
-        run: nix profile add nixpkgs#devenv
-        with:
-          nix_path: nixpkgs=channel:nixos-25.11
-
-      - name: Build the devenv shell and run any pre-commit hooks
-        env:
-          JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
-        run: devenv test
-        timeout-minutes: 15
-
+  # # WARN this action will install devenv 2.x.x while
+  #         # the repo still uses 1.11.1. Disabling it until devenv is upgraded
+  # devenv_test:
+  #   needs: go_tests
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
+  #
+  #     - uses: cachix/install-nix-action@v31
+  #       with:
+  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
+  #         nix_path: nixpkgs=channel:nixos-25.11
+  #
+  #     - uses: cachix/cachix-action@v16
+  #       with:
+  #         name: devenv
+  #
+  #     - name: Install devenv.sh
+  #       run: nix profile add nixpkgs#devenv
+  #
+  #     - name: Build the devenv shell and run any pre-commit hooks
+  #       env:
+  #         JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
+  #       run: devenv test
+  #       timeout-minutes: 15
+  #
   go_test_coverage_check:
     needs: go_tests
     runs-on: ubuntu-latest
@@ -94,27 +94,27 @@ jobs:
           git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
           git-branch: badges
 
-  goreleaser_test:
-    needs: devenv_test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.25"
-
-      - name: Run GoReleaser test
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          version: "~> 2"
-          args: release --snapshot --clean
-          workdir: .
+  # goreleaser_test:
+  #   needs: devenv_test
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
+  #       with:
+  #         fetch-depth: 0
+  #
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3
+  #
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v6
+  #       with:
+  #         go-version: "1.25"
+  #
+  #     - name: Run GoReleaser test
+  #       uses: goreleaser/goreleaser-action@v6
+  #       with:
+  #         version: "~> 2"
+  #         args: release --snapshot --clean
+  #         workdir: .
