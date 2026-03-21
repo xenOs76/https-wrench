@@ -49,6 +49,8 @@ in {
       ".envrc"
       "internal/certinfo/common_handlers.go"
       "internal/certinfo/testdata"
+      "internal/jwtinfo/testdata"
+      "internal/jwtinfo/jwtinfo_test.go"
       "internal/certinfo/testdata/README.md"
       "completions"
     ];
@@ -589,6 +591,32 @@ in {
     test-certinfo-ecdsa-cert
   '';
 
+  scripts.run-jwtinfo-test-auth0.exec = ''
+    gum format "### JwtInfo request against Auth0"
+
+    REQ_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/oauth/token"
+    VALIDATION_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/.well-known/jwks.json"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_AUTH0" --validation-url "$VALIDATION_URL"
+  '';
+
+  scripts.run-jwtinfo-test-auth0-no-validation.exec = ''
+    gum format "### JwtInfo request against Auth0: no validation"
+
+    REQ_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/oauth/token"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_AUTH0"
+  '';
+
+  scripts.run-jwtinfo-test-keycloak.exec = ''
+    gum format "### JwtInfo request against priv Keycloak"
+
+    REQ_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/token"
+    VALIDATION_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/certs"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_KEYCLOAK" --validation-url "$VALIDATION_URL"
+  '';
+
   scripts.run-go-tests.exec = ''
     gum format "## Run GO tests"
 
@@ -623,6 +651,11 @@ in {
     gum format "# Devenv shell"
     export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
     export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
+
+    # JwtInfo tests against authentication providers when not on CI
+    # test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
+    # test -f ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json && export JWTINFO_TEST_KEYCLOAK=$(cat ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json)
+
     go version
     create-certs
   '';
@@ -645,5 +678,8 @@ in {
     run-certinfo-priv-key-tests
     run-certinfo-cert-tests
     run-certinfo-tlsendpoint-tests
+
+    run-jwtinfo-test-auth0
+    run-jwtinfo-test-auth0-no-validation
   '';
 }

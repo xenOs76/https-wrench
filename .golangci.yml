@@ -32,7 +32,6 @@ linters:
       enable-all-rules: true
       severity: warning
       rules:
-
         # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md#add-constant
         - name: add-constant
           severity: warning
@@ -45,7 +44,7 @@ linters:
           severity: warning
           disabled: false
           exclude: [""]
-          arguments: [100]
+          arguments: [120]
 
         # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md#cognitive-complexity
         - name: cognitive-complexity
