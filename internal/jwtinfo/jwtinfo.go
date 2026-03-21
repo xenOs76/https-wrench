@@ -178,7 +178,7 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 		}
 
 		tokenB64Elements := strings.Split(token.raw, ".")
-		if len(tokenB64Elements) < 3 {
+		if len(tokenB64Elements) != 3 {
 			return fmt.Errorf("invalid three dotted JWT format in %s", token.name)
 		}
 
@@ -248,7 +248,8 @@ func ParseTokenData(jtd JwtTokenData, jwksURL string, keyfuncOverride keyfunc.Ov
 	}
 
 	// Parsing and validating the access token
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	jwks, err := keyfunc.NewDefaultOverrideCtx(
 		ctx,
