@@ -146,6 +146,11 @@ func ParseRequestJSONValues(
 	return reqValuesMap, nil
 }
 
+func isValidJSON(data []byte) bool {
+	var v any
+	return json.Unmarshal(data, &v) == nil
+}
+
 func (jtd *JwtTokenData) DecodeBase64() error {
 	tokens := []struct {
 		name string
@@ -173,8 +178,8 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 		}
 
 		tokenB64Elements := strings.Split(token.raw, ".")
-		if len(tokenB64Elements) < 2 {
-			return fmt.Errorf("invalid JWT format in %s", token.name)
+		if len(tokenB64Elements) < 3 {
+			return fmt.Errorf("invalid three dotted JWT format in %s", token.name)
 		}
 
 		tokenHeader, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
@@ -186,10 +191,26 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 			)
 		}
 
+		if !isValidJSON(tokenHeader) {
+			return fmt.Errorf(
+				"invalid JSON found in header from %s: %w",
+				token.name,
+				err,
+			)
+		}
+
 		tokenClaims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
 		if err != nil {
 			return fmt.Errorf(
 				"unable to decode base64 claims from %s: %w",
+				token.name,
+				err,
+			)
+		}
+
+		if !isValidJSON(tokenClaims) {
+			return fmt.Errorf(
+				"invalid JSON found in claims from %s: %w",
 				token.name,
 				err,
 			)
@@ -393,7 +414,7 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 	genericClaims := make(map[string]any)
 
 	if err := json.Unmarshal(claims, &genericClaims); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to unmarshall claims: %w", err)
 	}
 
 	if _, ok := genericClaims["iat"]; !ok {
@@ -418,7 +439,7 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 		if vf, ok := vi.(float64); ok {
 			vInt64 := int64(vf)
 			t := time.Unix(vInt64, 0)
-			dateUtc := t.UTC().String()
+			dateUtc := t.UTC().Format(time.UnixDate)
 			tokenClaims[k] = fmt.Sprintf("%v", dateUtc)
 
 			continue

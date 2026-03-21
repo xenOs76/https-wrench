@@ -50,6 +50,7 @@ in {
       "internal/certinfo/common_handlers.go"
       "internal/certinfo/testdata"
       "internal/jwtinfo/testdata"
+      "internal/jwtinfo/jwtinfo_test.go"
       "internal/certinfo/testdata/README.md"
       "completions"
     ];
@@ -678,7 +679,7 @@ in {
     run-certinfo-cert-tests
     run-certinfo-tlsendpoint-tests
 
-    # run-jwtinfo-test-auth0
-    # run-jwtinfo-test-auth0-no-validation
+    run-jwtinfo-test-auth0
+    run-jwtinfo-test-auth0-no-validation
   '';
 }
