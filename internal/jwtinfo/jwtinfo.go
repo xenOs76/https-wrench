@@ -29,10 +29,12 @@ var (
 )
 
 type JwtTokenData struct {
-	AccessToken        string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
+	AccessTokenRaw     string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
+	AccessTokenJwt     *jwt.Token
 	AccessTokenHeader  []byte
 	AccessTokenClaims  []byte
-	RefreshToken       string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
+	RefreshTokenRaw    string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
+	RefreshTokenJwt    *jwt.Token
 	RefreshTokenHeader []byte
 	RefreshTokenClaims []byte
 }
@@ -97,7 +99,7 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 
 	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if mediaType == "application/jwt" {
-		t.AccessToken = string(bodyBytes)
+		t.AccessTokenRaw = string(bodyBytes)
 	}
 
 	if mediaType == "application/json" {
@@ -110,7 +112,7 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 	}
 
 	_, _, err = jwt.NewParser().ParseUnverified(
-		t.AccessToken,
+		t.AccessTokenRaw,
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
@@ -158,24 +160,24 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 	}{
 		{
 			name: "AccessToken",
-			raw:  jtd.AccessToken,
+			raw:  jtd.AccessTokenRaw,
 		},
 		{
 			name: "RefreshToken",
-			raw:  jtd.RefreshToken,
+			raw:  jtd.RefreshTokenRaw,
 		},
 	}
 
 	for _, token := range tokens {
+		if token.raw == emptyString {
+			continue
+		}
+
 		var tokenHeader []byte
 
 		var tokenClaims []byte
 
 		var err error
-
-		if token.raw == emptyString {
-			continue
-		}
 
 		tokenB64Elements := strings.Split(token.raw, ".")
 		if len(tokenB64Elements) != 3 {
@@ -230,24 +232,28 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 	return nil
 }
 
-func ParseTokenData(jtd JwtTokenData, jwksURL string, keyfuncOverride keyfunc.Override) (*jwt.Token, error) {
-	// Parsing the access token without validation
-	if jwksURL == "" {
-		token, _, err := jwt.NewParser().ParseUnverified(
-			jtd.AccessToken,
-			&jwt.RegisteredClaims{},
+func (jtd *JwtTokenData) ParseUnverified() error {
+	token, _, err := jwt.NewParser().ParseUnverified(
+		jtd.AccessTokenRaw,
+		&jwt.RegisteredClaims{},
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to parse AccessTokenRaw: %w",
+			err,
 		)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"unable to parse unverified access token: %w",
-				err,
-			)
-		}
-
-		return token, nil
 	}
 
-	// Parsing and validating the access token
+	jtd.AccessTokenJwt = token
+
+	return nil
+}
+
+func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.Override) error {
+	if jwksURL == emptyString {
+		return errors.New("emptyString string provided as JWKS url")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -257,7 +263,7 @@ func ParseTokenData(jtd JwtTokenData, jwksURL string, keyfuncOverride keyfunc.Ov
 		keyfuncOverride,
 	)
 	if err != nil {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"failed to create JWK Set from resource at URL %s: %w",
 			jwksURL,
 			err,
@@ -265,82 +271,36 @@ func ParseTokenData(jtd JwtTokenData, jwksURL string, keyfuncOverride keyfunc.Ov
 	}
 
 	token, err := jwt.Parse(
-		jtd.AccessToken,
+		jtd.AccessTokenRaw,
 		jwks.Keyfunc,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse the JWT: %w", err)
+		return fmt.Errorf(
+			"failed to parse the JWT AccessTokenRaw against JWKS Url %s: %w",
+			jwksURL,
+			err,
+		)
 	}
 
-	return token, nil
+	jtd.AccessTokenJwt = token
+
+	return nil
 }
 
-//	func DisplayTokenInfo(t *jwt.Token, w io.Writer) error {
-//		sl := style.CertKeyP4.Render
-//		sv := style.CertValue.Render
-//		sTrue := style.BoolTrue.Render
-//		sFalse := style.BoolFalse.Render
-//
-//		fmt.Fprintln(w)
-//		fmt.Fprintln(w, style.LgSprintf(style.Cmd, "JwtInfo"))
-//		fmt.Fprintln(w)
-//
-//		validString := sFalse("false")
-//		if t.Valid {
-//			validString = sTrue("true")
-//		}
-//
-//		fmt.Fprintln(w, style.LgSprintf(style.CertKeyP3, "Valid %s", validString))
-//
-//		tokenHeaders := getTokenHeadersMap(t)
-//		hTable := table.New().Border(style.LGDefBorder).Headers("Header")
-//
-//		for hKey, hVal := range tokenHeaders {
-//			hTable.Row(sl(hKey), sv(hVal))
-//		}
-//
-//		fmt.Fprintln(w, hTable.Render())
-//
-//		hTable.ClearRows()
-//
-//		tokenClaims, err := getTokenClaimsMap(t)
-//		if err != nil {
-//			return fmt.Errorf("unable to get token Claims: %w", err)
-//		}
-//
-//		cTable := table.New().Border(style.LGDefBorder).Headers("Claims")
-//
-//		for cKey, cVal := range tokenClaims {
-//			cTable.Row(sl(cKey), sv(cVal))
-//		}
-//
-//		unregisteredClaims := getUnregisteredClaimsMap(t, tokenClaims)
-//		for ucKey, ucVal := range unregisteredClaims {
-//			cTable.Row(sl(ucKey), sv(ucVal))
-//		}
-//
-//		fmt.Fprintln(w, cTable.Render())
-//
-//		cTable.ClearRows()
-//
-//		return nil
-//	}
 func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
-	// sTrue := style.BoolTrue.Render
-	// sFalse := style.BoolFalse.Render
+	sTrue := style.BoolTrue.Render
+	sFalse := style.BoolFalse.Render
 
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, style.LgSprintf(style.Cmd, "JwtInfo"))
 	fmt.Fprintln(w)
 
-	// validString := sFalse("false")
-	// if t.Valid {
-	// 	validString = sTrue("true")
-	// }
-
-	// fmt.Fprintln(w, style.LgSprintf(style.CertKeyP3, "Valid %s", validString))
+	validString := sFalse("false")
+	if jtd.AccessTokenJwt != nil && jtd.AccessTokenJwt.Valid {
+		validString = sTrue("true")
+	}
 
 	tokens := []struct {
 		name   string
@@ -364,9 +324,14 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 			continue
 		}
 
-		fmt.Fprintln(w, style.LgSprintf(style.Title, "%s", token.name))
-
+		fmt.Fprintln(w, style.LgSprintf(style.Title2, "%s", token.name))
 		fmt.Fprintln(w)
+
+		if token.name == "AccessToken" {
+			fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Valid %s", validString))
+			fmt.Fprintln(w)
+		}
+
 		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Header"))
 
 		var prettyJSON bytes.Buffer

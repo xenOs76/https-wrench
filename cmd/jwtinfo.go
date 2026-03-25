@@ -65,14 +65,13 @@ var jwtinfoCmd = &cobra.Command{
 			return
 		}
 
-		// TODO: turn into method
-		token, err := jwtinfo.ParseTokenData(tokenData, jwksURL, keyfuncDefOverride)
-		if err != nil {
-			fmt.Printf("error while parsing token data: %s\n", err)
-			return
+		if jwksURL != "" {
+			err = tokenData.ParseWithJWKS(jwksURL, keyfuncDefOverride)
+			if err != nil {
+				fmt.Printf("error while parsing token data: %s\n", err)
+				return
+			}
 		}
-
-		fmt.Printf("Token valid: %v\n", token.Valid)
 
 		err = jwtinfo.PrintTokenInfo(tokenData, os.Stdout)
 		if err != nil {

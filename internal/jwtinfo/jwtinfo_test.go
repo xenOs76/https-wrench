@@ -231,7 +231,7 @@ func TestRequestToken(t *testing.T) {
 	}
 }
 
-func TestParseTokenData(t *testing.T) {
+func TestParseWithJWKS(t *testing.T) {
 	tests := []struct {
 		name        string
 		user        string
@@ -343,13 +343,6 @@ func TestParseTokenData(t *testing.T) {
 				Client: server.Client(),
 			}
 
-			_, err = ParseTokenData(
-				td,
-				"",
-				keyfuncOverrideTesting,
-			)
-			require.NoError(t, err)
-
 			if tt.scope == "jwksEmpty" {
 				respJwksEmpty, errEmpty := server.Client().Get(serverJwksEmptyEndpoint)
 				require.NoError(t, errEmpty)
@@ -365,8 +358,7 @@ func TestParseTokenData(t *testing.T) {
 					"{}",
 				)
 
-				_, err = ParseTokenData(
-					td,
+				err = td.ParseWithJWKS(
 					serverJwksEmptyEndpoint,
 					keyfuncOverrideTesting,
 				)
@@ -394,8 +386,7 @@ func TestParseTokenData(t *testing.T) {
 					"UniqueKeyID1",
 				)
 
-				_, err = ParseTokenData(
-					td,
+				err = td.ParseWithJWKS(
 					serverJwksFaultyEndpoint,
 					keyfuncOverrideTesting,
 				)
@@ -408,36 +399,67 @@ func TestParseTokenData(t *testing.T) {
 				return
 			}
 
-			tokenVerified, err := ParseTokenData(
-				td,
+			err = td.ParseWithJWKS(
 				serverJwksEndpoint,
 				keyfuncOverrideTesting,
 			)
 			require.NoError(t, err)
 			require.True(
 				t,
-				tokenVerified.Valid,
+				td.AccessTokenJwt.Valid,
 				"JWT token must be valid",
 			)
 		})
 	}
 }
 
-func TestParseTokenData_Errors(t *testing.T) {
-	t.Run("ParseUnverifiedError", func(t *testing.T) {
+func TestParseUnverified(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		td := JwtTokenData{AccessToken: "notValidString"}
+		tokenRaw, err := createToken("demo")
+		require.NoError(t, err)
 
-		_, err := ParseTokenData(
-			td,
+		td := JwtTokenData{AccessTokenRaw: tokenRaw}
+
+		err = td.ParseUnverified()
+		require.NoError(
+			t,
+			err,
+		)
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
+
+		td := JwtTokenData{AccessTokenRaw: "notValidString"}
+
+		err := td.ParseUnverified()
+		require.ErrorContains(
+			t,
+			err,
+			"token is malformed: token contains an invalid number of segments",
+		)
+	})
+}
+
+func TestParseWithJWKS_Errors(t *testing.T) {
+	t.Run("EmpryJwksURL", func(t *testing.T) {
+		t.Parallel()
+
+		token, err := createToken("demo")
+		require.NoError(t, err)
+
+		td := JwtTokenData{AccessTokenRaw: token}
+
+		err = td.ParseWithJWKS(
 			"",
 			keyfunc.Override{},
 		)
 		require.ErrorContains(
 			t,
 			err,
-			"token is malformed: token contains an invalid number of segments",
+			"emptyString string provided as JWKS url",
 		)
 	})
 
@@ -447,10 +469,9 @@ func TestParseTokenData_Errors(t *testing.T) {
 		token, err := createToken("demo")
 		require.NoError(t, err)
 
-		td := JwtTokenData{AccessToken: token}
+		td := JwtTokenData{AccessTokenRaw: token}
 
-		_, err = ParseTokenData(
-			td,
+		err = td.ParseWithJWKS(
 			"https://localhost:54321/jkws.wrong.json",
 			keyfunc.Override{},
 		)
@@ -467,10 +488,9 @@ func TestParseTokenData_Errors(t *testing.T) {
 		token, err := createToken("demo")
 		require.NoError(t, err)
 
-		td := JwtTokenData{AccessToken: token}
+		td := JwtTokenData{AccessTokenRaw: token}
 
-		_, err = ParseTokenData(
-			td,
+		err = td.ParseWithJWKS(
 			"https://loca#$%^/jkws.json",
 			keyfunc.Override{},
 		)
@@ -553,7 +573,7 @@ func TestDecodeBase64(t *testing.T) {
 			accessTokenRaw, err := createToken("demo")
 			require.NoError(t, err)
 
-			td := JwtTokenData{AccessToken: accessTokenRaw}
+			td := JwtTokenData{AccessTokenRaw: accessTokenRaw}
 			err = td.DecodeBase64()
 			require.NoError(t, err)
 
@@ -561,19 +581,19 @@ func TestDecodeBase64(t *testing.T) {
 			require.NoError(t, err)
 
 			tdAccessTokenTest := td
-			tdAccessTokenTest.AccessToken = tt.tokenString
+			tdAccessTokenTest.AccessTokenRaw = tt.tokenString
 			err = tdAccessTokenTest.DecodeBase64()
 			require.ErrorContains(t, err, tt.errMsg)
 
 			refreshTokenRaw, err := createToken("demo")
 			require.NoError(t, err)
 
-			tdR := JwtTokenData{RefreshToken: refreshTokenRaw}
+			tdR := JwtTokenData{RefreshTokenRaw: refreshTokenRaw}
 			err = tdR.DecodeBase64()
 			require.NoError(t, err)
 
 			tdRefreshTokenTest := tdR
-			tdRefreshTokenTest.RefreshToken = tt.tokenString
+			tdRefreshTokenTest.RefreshTokenRaw = tt.tokenString
 			err = tdRefreshTokenTest.DecodeBase64()
 			require.ErrorContains(t, err, tt.errMsg)
 		})
@@ -608,7 +628,7 @@ func TestUnmarshallTokenTimeClaims(t *testing.T) {
 			CustomerInfo{"demo", "human"},
 		}
 
-		jtd.AccessToken, err = token.SignedString(signKey)
+		jtd.AccessTokenRaw, err = token.SignedString(signKey)
 		require.NoError(t, err)
 
 		err = jtd.DecodeBase64()
@@ -747,15 +767,14 @@ func TestPrintTokenInfo(t *testing.T) {
 				Client: server.Client(),
 			}
 
-			tokenVerified, err := ParseTokenData(
-				td,
+			err = td.ParseWithJWKS(
 				serverJwksEndpoint,
 				keyfuncOverrideTesting,
 			)
 			require.NoError(t, err)
 			require.True(
 				t,
-				tokenVerified.Valid,
+				td.AccessTokenJwt.Valid,
 				"JWT token must be valid",
 			)
 
@@ -770,6 +789,7 @@ func TestPrintTokenInfo(t *testing.T) {
 
 			stringsToCheck := []string{
 				"JwtInfo",
+				"Valid",
 				"Header",
 				"Claims",
 				"alg",
