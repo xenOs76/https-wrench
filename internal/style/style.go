@@ -39,6 +39,10 @@ var (
 		Foreground(catLavander).Bold(true).
 		PaddingLeft(1)
 
+	Title2 = lipgloss.NewStyle().
+		Foreground(catBase).Background(catPeach).Bold(true).
+		PaddingLeft(1).PaddingRight(1)
+
 	ItemKey = lipgloss.NewStyle().
 		Foreground(catBlue).
 		PaddingLeft(1).Bold(true)
