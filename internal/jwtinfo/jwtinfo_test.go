@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"io"
 	"maps"
+	"os"
 	"testing"
 	"time"
 
@@ -13,13 +14,86 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseRequestJSONValues(t *testing.T) {
-	inputMap := make(map[string]string)
-	inputMap["testKey"] = "testValue"
+func TestReadRequestValuesFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		fileContent []byte
+		expErr      bool
+		errMsg      string
+	}{
+		{
+			name:        "success",
+			fileContent: []byte("{\"jsonKey\":\"jsonValue\"}"),
+		},
+		{
+			name:        "No JSON content",
+			fileContent: []byte("not json"),
+			expErr:      true,
+			errMsg:      "unable to parse JSON from request's values file",
+		},
+	}
 
-	mapToValidJSON := make(map[string]string)
-	mapToValidJSON["testKey2"] = "testValue2"
-	mapToValidJSON["testKey3"] = "testValue3"
+	for _, tc := range tests {
+		tt := tc
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			inputMap := map[string]string{
+				"testKey": "testValue",
+			}
+
+			tmpDir := t.TempDir()
+			tempFile, err := createTmpFileWithContent(
+				tmpDir,
+				"fileReadTest.txt",
+				tt.fileContent,
+			)
+
+			require.NoError(t, err)
+
+			outputMap, err := ReadRequestValuesFile(
+				tempFile,
+				inputMap,
+			)
+
+			if tt.expErr {
+				require.ErrorContains(t, err, tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, "jsonValue", outputMap["jsonKey"])
+			require.Equal(t, "testValue", outputMap["testKey"])
+
+			t.Cleanup(func() { os.RemoveAll(tmpDir) })
+		})
+	}
+
+	t.Run("fileNotExist", func(t *testing.T) {
+		t.Parallel()
+
+		inputMap := map[string]string{
+			"testKey": "testValue",
+		}
+
+		_, err := ReadRequestValuesFile(
+			"fileNotExist",
+			inputMap,
+		)
+
+		require.ErrorContains(t, err, "no such file or directory")
+	})
+}
+
+func TestParseRequestJSONValues(t *testing.T) {
+	inputMap := map[string]string{
+		"testKey": "testValue",
+	}
+
+	mapToValidJSON := map[string]string{
+		"testKey2": "testValue2",
+		"testKey3": "testValue3",
+	}
 
 	tests := []struct {
 		name         string

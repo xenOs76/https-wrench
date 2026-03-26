@@ -608,6 +608,15 @@ in {
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_AUTH0"
   '';
 
+  scripts.run-jwtinfo-test-auth0-values-file.exec = ''
+    gum format "### JwtInfo request against Auth0 with values file"
+
+    REQ_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/oauth/token"
+    VALIDATION_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/.well-known/jwks.json"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-file  ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json --validation-url "$VALIDATION_URL"
+  '';
+
   scripts.run-jwtinfo-test-keycloak.exec = ''
     gum format "### JwtInfo request against priv Keycloak"
 
@@ -615,6 +624,15 @@ in {
     VALIDATION_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/certs"
 
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_KEYCLOAK" --validation-url "$VALIDATION_URL"
+  '';
+
+  scripts.run-jwtinfo-test-keycloak-values-file.exec = ''
+    gum format "### JwtInfo request against priv Keycloak with values file"
+
+    REQ_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/token"
+    VALIDATION_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/certs"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-file ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json --validation-url "$VALIDATION_URL"
   '';
 
   scripts.run-go-tests.exec = ''
