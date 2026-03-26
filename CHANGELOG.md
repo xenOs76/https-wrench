@@ -1,20 +1,14 @@
-## 0.9.0 (2026-03-21)
+## Unreleased
 
 ### Feat
 
-    Added a jwtinfo CLI command to request, decode, optionally validate, and display JWT details.
+- add file input option to JwtInfo (#23)
 
-### Tests
+### Refactor
 
-    Added comprehensive JWT test suite, in-process HTTPS test server, and test data/assets.
+- **jwtinfo**: ParseTokenData function to Parse methods (#22)
 
-### Chores / CI
-
-    Added dev/test scripts and dev env updates; CI jobs reduced and coverage check relaxed on non-main branches.
-
-### Dependencies
-
-    Bumped multiple dependencies and added JWT/JWK libraries.
+## 0.9.0 (2026-03-21)
 
 ## 0.8.6 (2025-11-21)
 
