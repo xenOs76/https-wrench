@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.1 (2026-03-26)
 
 ### Feat
 
@@ -16,7 +16,7 @@
 
 ### Fix
 
-- **certinfo**: cert and ca file paths display (#6)
+- **certinfo**:  cert and ca file paths display  (#6)
 
 ## 0.8.4 (2025-11-15)
 
@@ -82,8 +82,8 @@
 
 ### Refactor
 
-- **certinfo**: CertsToTable improve readability and add color coded warning on
-  cert expiration
+- **certinfo**: CertsToTable improve readability and add color coded
+warning on cert expiration
 
 ## 0.5.0 (2025-09-21)
 
