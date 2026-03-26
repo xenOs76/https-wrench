@@ -29,7 +29,7 @@ func TestReadRequestValuesFile(t *testing.T) {
 			name:        "No JSON content",
 			fileContent: []byte("not json"),
 			expErr:      true,
-			errMsg:      "unable to parse JSON from requests's values file",
+			errMsg:      "unable to parse JSON from request's values file",
 		},
 	}
 
@@ -71,6 +71,10 @@ func TestReadRequestValuesFile(t *testing.T) {
 
 	t.Run("fileNotExist", func(t *testing.T) {
 		t.Parallel()
+
+		inputMap := map[string]string{
+			"testKey": "testValue",
+		}
 
 		_, err := ReadRequestValuesFile(
 			"fileNotExist",
