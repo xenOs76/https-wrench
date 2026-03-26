@@ -163,7 +163,7 @@ func ReadRequestValuesFile(
 
 	returnValuesMap, err := ParseRequestJSONValues(string(data), reqValuesMap)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse JSON from requests's values file: %w", err)
+		return nil, fmt.Errorf("unable to parse JSON from request's values file: %w", err)
 	}
 
 	return returnValuesMap, nil

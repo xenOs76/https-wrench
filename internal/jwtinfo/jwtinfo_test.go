@@ -15,10 +15,6 @@ import (
 )
 
 func TestReadRequestValuesFile(t *testing.T) {
-	inputMap := map[string]string{
-		"testKey": "testValue",
-	}
-
 	tests := []struct {
 		name        string
 		fileContent []byte
@@ -41,6 +37,10 @@ func TestReadRequestValuesFile(t *testing.T) {
 		tt := tc
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
+			inputMap := map[string]string{
+				"testKey": "testValue",
+			}
 
 			tmpDir := t.TempDir()
 			tempFile, err := createTmpFileWithContent(
