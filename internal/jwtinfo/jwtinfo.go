@@ -12,6 +12,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -146,6 +147,26 @@ func ParseRequestJSONValues(
 	maps.Copy(reqValuesMap, objmap)
 
 	return reqValuesMap, nil
+}
+
+func ReadRequestValuesFile(
+	fileName string,
+	reqValuesMap map[string]string,
+) (
+	map[string]string,
+	error,
+) {
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read request's values file: %w", err)
+	}
+
+	returnValuesMap, err := ParseRequestJSONValues(string(data), reqValuesMap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse JSON from requests's values file: %w", err)
+	}
+
+	return returnValuesMap, nil
 }
 
 func isValidJSON(data []byte) bool {

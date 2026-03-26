@@ -247,3 +247,26 @@ func NewJwtTestServer() (*httptest.Server, error) {
 
 	return ts, nil
 }
+
+func createTmpFileWithContent(
+	tempDir string,
+	filePattern string,
+	fileContent []byte,
+) (filePath string, err error) {
+	f, err := os.CreateTemp(tempDir, filePattern)
+	if err != nil {
+		return emptyString, err
+	}
+
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
+
+	if err = os.WriteFile(f.Name(), fileContent, 0o600); err != nil {
+		return emptyString, err
+	}
+
+	return f.Name(), nil
+}
