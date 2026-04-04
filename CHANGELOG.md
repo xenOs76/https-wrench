@@ -1,3 +1,9 @@
+## Unreleased
+
+### Feat
+
+- **jwtinfo**: allow reading JWT token from file (#24)
+
 ## 0.9.1 (2026-03-26)
 
 ### Feat
