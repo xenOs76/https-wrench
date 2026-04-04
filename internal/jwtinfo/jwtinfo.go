@@ -129,10 +129,10 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		return JwtTokenData{}, fmt.Errorf("unable to read request's values file: %w", err)
+		return JwtTokenData{}, fmt.Errorf("unable to read token file: %w", err)
 	}
 
-	td := JwtTokenData{AccessTokenRaw: string(data)}
+	td := JwtTokenData{AccessTokenRaw: strings.TrimSpace(string(data))}
 
 	_, _, err = jwt.NewParser().ParseUnverified(
 		td.AccessTokenRaw,
@@ -145,7 +145,7 @@ func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
 		)
 	}
 
-	return td, err
+	return td, nil
 }
 
 func ParseRequestJSONValues(
