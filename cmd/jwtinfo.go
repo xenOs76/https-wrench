@@ -19,10 +19,12 @@ var (
 	flagNameRequestJSONValues = "request-values-json"
 	flagNameRequestValuesFile = "request-values-file"
 	flagNameRequestURL        = "request-url"
+	flagNameTokenFile         = "token-file"
 	flagNameJwksURL           = "validation-url"
 	requestJSONValues         string
 	requestValuesFile         string
 	requestURL                string
+	tokenFile                 string
 	jwksURL                   string
 	keyfuncDefOverride        keyfunc.Override
 )
@@ -37,91 +39,114 @@ Examples:
   export REQ_VALUES="{\"login\":\"values\"}"
   export VALIDATION_URL="https://url.to/jkws.json"
 
-  # Get the JWT token using inline values
+  # Read a JWT token from a local file
+  https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
+
+  # Request a JWT token using inline values
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES
 
-  # Get the JWT token using values file
+  # Request a JWT token using values file
   https-wrench jwtinfo --request-url $REQ_URL --request-values-file request-values.json
 
-  # Get and validate the JWT token 
+  # Request and validate a JWT token 
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: display version and exit
 		// TODO: remove global --config option
 
-		if len(requestJSONValues+requestURL) == 0 && len(requestValuesFile+requestURL) == 0 {
-			_ = cmd.Help()
-			return
-		}
-
 		var err error
-		client := &http.Client{}
-		requestValuesMap := make(map[string]string)
+		var tokenData jwtinfo.JwtTokenData
 
-		if requestValuesFile != "" {
-			requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
-				requestValuesFile,
-				requestValuesMap,
-			)
+		if tokenFile != "" {
+			tokenData, err = jwtinfo.ReadTokenFromFile(tokenFile)
 			if err != nil {
 				fmt.Printf(
-					"error while reading request's values from file: %s",
+					"error while reading token value from file: %s",
 					err,
 				)
 				return
 			}
 		}
 
-		if requestJSONValues != "" {
-			requestValuesMap, err = jwtinfo.ParseRequestJSONValues(
-				requestJSONValues,
+		if requestURL != "" {
+			client := &http.Client{}
+			requestValuesMap := make(map[string]string)
+
+			if requestValuesFile != "" {
+				requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
+					requestValuesFile,
+					requestValuesMap,
+				)
+				if err != nil {
+					fmt.Printf(
+						"error while reading request's values from file: %s",
+						err,
+					)
+					return
+				}
+			}
+
+			if requestJSONValues != "" {
+				requestValuesMap, err = jwtinfo.ParseRequestJSONValues(
+					requestJSONValues,
+					requestValuesMap,
+				)
+				if err != nil {
+					fmt.Printf(
+						"error while parsing request's values JSON string: %s",
+						err,
+					)
+					return
+				}
+			}
+
+			tokenData, err = jwtinfo.RequestToken(
+				requestURL,
 				requestValuesMap,
+				client,
+				io.ReadAll,
 			)
 			if err != nil {
-				fmt.Printf(
-					"error while parsing request's values JSON string: %s",
-					err,
-				)
+				fmt.Printf("error while requesting token data: %s\n", err)
 				return
 			}
 		}
 
-		tokenData, err := jwtinfo.RequestToken(
-			requestURL,
-			requestValuesMap,
-			client,
-			io.ReadAll,
-		)
-		if err != nil {
-			fmt.Printf("error while requesting token data: %s\n", err)
-			return
-		}
-
-		err = tokenData.DecodeBase64()
-		if err != nil {
-			fmt.Printf("DecodeBase64 error: %s\n", err)
-			return
-		}
-
-		if jwksURL != "" {
-			err = tokenData.ParseWithJWKS(jwksURL, keyfuncDefOverride)
+		if tokenData.AccessTokenRaw != "" {
+			err = tokenData.DecodeBase64()
 			if err != nil {
-				fmt.Printf("error while parsing token data: %s\n", err)
+				fmt.Printf("DecodeBase64 error: %s\n", err)
 				return
 			}
-		}
 
-		err = jwtinfo.PrintTokenInfo(tokenData, os.Stdout)
-		if err != nil {
-			fmt.Printf("error while printing token data: %s\n", err)
-			return
+			if jwksURL != "" {
+				err = tokenData.ParseWithJWKS(jwksURL, keyfuncDefOverride)
+				if err != nil {
+					fmt.Printf("error while parsing token data: %s\n", err)
+					return
+				}
+			}
+
+			err = jwtinfo.PrintTokenInfo(tokenData, os.Stdout)
+			if err != nil {
+				fmt.Printf("error while printing token data: %s\n", err)
+				return
+			}
+		} else {
+			_ = cmd.Help()
 		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(jwtinfoCmd)
+
+	jwtinfoCmd.Flags().StringVar(
+		&tokenFile,
+		flagNameTokenFile,
+		"",
+		"File containing the JWT token",
+	)
 
 	jwtinfoCmd.Flags().StringVar(
 		&requestURL,
@@ -151,7 +176,7 @@ func init() {
 		"Url of the JSON Web Key Set (JWKS) to use for validating the JWT token",
 	)
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// jwtinfoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Either read a token from a file or request it from an HTTP address
+	jwtinfoCmd.MarkFlagsMutuallyExclusive(flagNameTokenFile, flagNameRequestURL)
+	jwtinfoCmd.MarkFlagsOneRequired(flagNameTokenFile, flagNameRequestURL)
 }

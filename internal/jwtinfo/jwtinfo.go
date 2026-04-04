@@ -126,6 +126,28 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 	return t, nil
 }
 
+func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return JwtTokenData{}, fmt.Errorf("unable to read token file: %w", err)
+	}
+
+	td := JwtTokenData{AccessTokenRaw: strings.TrimSpace(string(data))}
+
+	_, _, err = jwt.NewParser().ParseUnverified(
+		td.AccessTokenRaw,
+		&jwt.RegisteredClaims{},
+	)
+	if err != nil {
+		return JwtTokenData{}, fmt.Errorf(
+			"unable to parse JWT token from file: %w",
+			err,
+		)
+	}
+
+	return td, nil
+}
+
 func ParseRequestJSONValues(
 	reqValues string,
 	reqValuesMap map[string]string,
