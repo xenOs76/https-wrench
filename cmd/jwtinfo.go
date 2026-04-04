@@ -52,7 +52,6 @@ Examples:
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: display version and exit
 		// TODO: remove global --config option
 
 		var err error
@@ -177,7 +176,7 @@ func init() {
 		"Url of the JSON Web Key Set (JWKS) to use for validating the JWT token",
 	)
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// jwtinfoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Either read a token from a file or request it from an HTTP address
+	jwtinfoCmd.MarkFlagsMutuallyExclusive(flagNameTokenFile, flagNameRequestURL)
+	jwtinfoCmd.MarkFlagsOneRequired(flagNameTokenFile, flagNameRequestURL)
 }
