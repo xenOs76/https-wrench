@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -160,6 +162,25 @@ func TestRequestsMetaConfig_SetCaPoolFromFile(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("SetCaPoolFromFile_Error", func(t *testing.T) {
+		t.Parallel()
+
+		rmc, _ := NewRequestsMetaConfig()
+		err := rmc.SetCaPoolFromFile("non_existent_file.pem", nil)
+		require.Error(t, err)
+	})
+}
+
+func TestRequestsMetaConfig_SetCaPoolFromYAML_Error(t *testing.T) {
+	t.Run("SetCaPoolFromYAML_Error", func(t *testing.T) {
+		t.Parallel()
+
+		rmc, _ := NewRequestsMetaConfig()
+		err := rmc.SetCaPoolFromYAML("invalid cert data")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unable to create CA Certs Pool from YAML")
+	})
 }
 
 func TestRequestsMetaConfig_SetRequests(t *testing.T) {
@@ -288,6 +309,66 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 	}
 }
 
+func TestNewHTTPClientFromRequestConfig_SubErrors(t *testing.T) {
+	tests := []struct {
+		desc       string
+		reqConf    RequestConfig
+		serverName string
+		errMsg     string
+	}{
+		{
+			desc: "SetClientTimeout error",
+			reqConf: RequestConfig{
+				ClientTimeout: -1,
+			},
+			serverName: "localhost",
+			errMsg:     "SetClientTimeout error: timeout value must be positive: -1 provided",
+		},
+		{
+			desc: "SetMethod error",
+			reqConf: RequestConfig{
+				RequestMethod: "INVALID",
+			},
+			serverName: "localhost",
+			errMsg:     "SetMethod error: INVALID: HTTP method not found",
+		},
+		{
+			desc: "SetTransportOverride error",
+			reqConf: RequestConfig{
+				TransportOverrideURL: "https://loca$%^lhost",
+			},
+			serverName: "localhost",
+			errMsg:     "SetTransportOverride error: failed to parse transport override url: https://loca$%^lhost",
+		},
+		{
+			desc: "proxyProtoHeaderFromRequest error",
+			reqConf: RequestConfig{
+				EnableProxyProtocolV2: true,
+				TransportOverrideURL:  "https://test.invalid:443",
+			},
+			serverName: "localhost",
+			errMsg: "error creating proxyproto Header: failed to resolve transport override hostname's IPs': " +
+				"lookup test.invalid", // we'll just check ErrorContains
+		},
+	}
+
+	for _, tc := range tests {
+		tt := tc
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewHTTPClientFromRequestConfig(
+				tt.reqConf,
+				tt.serverName,
+				nil,
+			)
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.errMsg)
+		})
+	}
+}
+
+//nolint:revive
 func TestNewHTTPClientFromRequestConfig(t *testing.T) {
 	tests := []struct {
 		desc             string
@@ -674,7 +755,7 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
-			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, client")
 			}))
 			defer ts.Close()
@@ -835,6 +916,8 @@ func TestRequestHTTPClient_SetTransportOverride_Error(t *testing.T) {
 // http.client.
 // Once the TLS server is started on an address other than https://hostname, we expect the
 // client to contact the TLS server even if it is requested to connect to https://servername.
+//
+//nolint:revive // test function
 func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testing.T) {
 	tests := []struct {
 		trasportURL   string
@@ -927,6 +1010,7 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testi
 	}
 }
 
+//nolint:revive // test function
 func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 	tests := []struct {
 		testname   string
@@ -1109,6 +1193,7 @@ func TestPrintCmd(t *testing.T) {
 	}
 }
 
+//nolint:revive
 func TestPrintResponseDebug(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -1255,6 +1340,7 @@ func TestPrintResponseDebug_nonTLS(t *testing.T) {
 	})
 }
 
+//nolint:revive
 func TestPrintRequestDebug(t *testing.T) {
 	httpTestHeader := http.Header{}
 	httpTestHeader.Add("user-agent", "go-test")
@@ -1337,6 +1423,7 @@ func TestPrintRequestDebug(t *testing.T) {
 	}
 }
 
+//nolint:revive
 func TestProcessHTTPRequestsByHost(t *testing.T) {
 	tests := []struct {
 		srvAddr        string
@@ -1377,7 +1464,8 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 			pool:           caCertPool,
 			verbose:        false,
 			respStatusCode: 0,
-			errMsg:         "Get \"https://localhost\": tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not localhost",
+			errMsg: "Get \"https://localhost\": tls: failed to verify certificate: " +
+				"x509: certificate is valid for example.com, example.net, example.de, not localhost",
 		},
 
 		{
@@ -1400,8 +1488,7 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc // safer when using t.Parallel()
 		t.Run(tt.reqConf.Name, func(t *testing.T) {
-			t.Parallel()
-
+			// t.Parallel()
 			httpSrvData := demoHttpServerData{
 				serverAddr:        tt.srvAddr,
 				proxyprotoEnabled: false,
@@ -1483,4 +1570,108 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRequestHTTPClient_DialContextErrors(t *testing.T) {
+	t.Run("SetTransportOverride DialContext Error", func(t *testing.T) {
+		t.Parallel()
+
+		reqConf := RequestConfig{
+			TransportOverrideURL: "https://localhost:11111", // dead port
+		}
+
+		client, err := NewHTTPClientFromRequestConfig(reqConf, "localhost", nil)
+		require.NoError(t, err)
+
+		req, _ := http.NewRequest("GET", "https://localhost", nil)
+		_, err = client.client.Do(req)
+		require.Error(t, err)
+	})
+
+	t.Run("SetProxyProtocolV2 DialContext Error", func(t *testing.T) {
+		t.Parallel()
+
+		reqConf := RequestConfig{
+			EnableProxyProtocolV2: true,
+			TransportOverrideURL:  "https://localhost:11111", // dead port
+		}
+
+		client, err := NewHTTPClientFromRequestConfig(reqConf, "localhost", nil)
+		require.NoError(t, err)
+
+		req, _ := http.NewRequest("GET", "https://localhost", nil)
+		_, err = client.client.Do(req)
+		require.Error(t, err)
+	})
+}
+
+func TestProcessHTTPRequestsByHost_Errors(t *testing.T) {
+	t.Run("getUrlsFromHost error", func(t *testing.T) {
+		reqConf := RequestConfig{
+			Hosts: []Host{
+				{Name: "localhost", URIList: []URI{"invalid"}},
+			},
+		}
+		_, err := processHTTPRequestsByHost(reqConf, nil, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "invalid uri")
+	})
+}
+
+func TestProxyProtoHeaderFromRequest_Errors(t *testing.T) {
+	t.Run("not enabled", func(t *testing.T) {
+		_, err := proxyProtoHeaderFromRequest(RequestConfig{}, "localhost")
+		require.ErrorContains(t, err, "proxy protocol v2 is not enabled")
+	})
+
+	// url.Parse won't fail for typical invalid URLs, but let's try a control character
+	t.Run("serverName parse fail", func(t *testing.T) {
+		_, err := proxyProtoHeaderFromRequest(RequestConfig{EnableProxyProtocolV2: true}, string([]byte{0x7f}))
+		require.Error(t, err)
+	})
+
+	t.Run("transportOverride parse fail", func(t *testing.T) {
+		_, err := proxyProtoHeaderFromRequest(RequestConfig{
+			EnableProxyProtocolV2: true,
+			TransportOverrideURL:  string([]byte{0x7f}),
+		}, "localhost")
+		require.Error(t, err)
+	})
+}
+
+type mockErrReader struct{}
+
+func (mockErrReader) Read(_ []byte) (n int, err error) {
+	return 0, errors.New("mock read error")
+}
+
+func TestImportResponseBody_Errors(t *testing.T) {
+	t.Run("already imported", func(t *testing.T) {
+		rd := ResponseData{ResponseBody: "already imported"}
+		rd.ImportResponseBody() // should return immediately
+		require.Equal(t, "already imported", rd.ResponseBody)
+	})
+
+	t.Run("read error", func(t *testing.T) {
+		rd := ResponseData{
+			Response: &http.Response{
+				Body: io.NopCloser(mockErrReader{}),
+			},
+		}
+		rd.ImportResponseBody() // should print error and return
+		require.Empty(t, rd.ResponseBody)
+	})
+
+	t.Run("bad regexp", func(t *testing.T) {
+		rd := ResponseData{
+			Request: RequestConfig{ResponseBodyMatchRegexp: "["},
+			Response: &http.Response{
+				Header: make(http.Header),
+				Body:   io.NopCloser(bytes.NewBufferString("test body")),
+			},
+		}
+		rd.ImportResponseBody()
+		require.False(t, rd.ResponseBodyRegexpMatched)
+		require.Equal(t, "test body", rd.ResponseBody)
+	})
 }

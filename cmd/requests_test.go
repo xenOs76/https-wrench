@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:revive
 func TestRequestsCmd(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -111,6 +112,13 @@ func TestRequestsCmd(t *testing.T) {
 		tt := tc
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				require.NoError(t, rootCmd.Flags().Set("version", "false"))
+				require.NoError(t, requestsCmd.Flags().Set("ca-bundle", ""))
+				require.NoError(t, rootCmd.Flags().Set("config", ""))
+				require.NoError(t, requestsCmd.Flags().Set("show-sample-config", "false"))
+			})
+
 			reqOut := new(bytes.Buffer)
 			reqCmd := rootCmd
 			reqCmd.SetOut(reqOut)

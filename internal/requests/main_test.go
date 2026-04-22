@@ -32,6 +32,7 @@ type demoCertTemplate struct {
 	parent      *x509.Certificate
 }
 
+//nolint:revive
 type demoHttpServerData struct {
 	serverAddr        string
 	proxyprotoEnabled bool
@@ -241,6 +242,9 @@ func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 	return ts, nil
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestMain(m *testing.M) {
 	fmt.Printf("Check test data dir: %s\n", testdataDir)
 

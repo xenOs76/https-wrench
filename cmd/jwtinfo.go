@@ -5,10 +5,8 @@ Copyright © 2026 Zeno Belli <xeno@os76.xyz>
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/spf13/cobra"
@@ -31,8 +29,8 @@ var (
 
 var jwtinfoCmd = &cobra.Command{
 	Use:   "jwtinfo",
-	Short: "JwtInfo request and display JWT token data",
-	Long: `JwtInfo request and display JWT token data
+	Short: "JwtInfo shows data from a JWT token",
+	Long: `JwtInfo shows data from a JWT token
 
 Examples:
   export REQ_URL="https://sample.provider/oauth/token"
@@ -51,7 +49,7 @@ Examples:
   # Request and validate a JWT token 
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
 `,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		// TODO: remove global --config option
 
 		var err error
@@ -60,7 +58,7 @@ Examples:
 		if tokenFile != "" {
 			tokenData, err = jwtinfo.ReadTokenFromFile(tokenFile)
 			if err != nil {
-				fmt.Printf(
+				cmd.Printf(
 					"error while reading token value from file: %s",
 					err,
 				)
@@ -78,7 +76,7 @@ Examples:
 					requestValuesMap,
 				)
 				if err != nil {
-					fmt.Printf(
+					cmd.Printf(
 						"error while reading request's values from file: %s",
 						err,
 					)
@@ -92,7 +90,7 @@ Examples:
 					requestValuesMap,
 				)
 				if err != nil {
-					fmt.Printf(
+					cmd.Printf(
 						"error while parsing request's values JSON string: %s",
 						err,
 					)
@@ -107,7 +105,7 @@ Examples:
 				io.ReadAll,
 			)
 			if err != nil {
-				fmt.Printf("error while requesting token data: %s\n", err)
+				cmd.Printf("error while requesting token data: %s\n", err)
 				return
 			}
 		}
@@ -115,21 +113,21 @@ Examples:
 		if tokenData.AccessTokenRaw != "" {
 			err = tokenData.DecodeBase64()
 			if err != nil {
-				fmt.Printf("DecodeBase64 error: %s\n", err)
+				cmd.Printf("DecodeBase64 error: %s\n", err)
 				return
 			}
 
 			if jwksURL != "" {
 				err = tokenData.ParseWithJWKS(jwksURL, keyfuncDefOverride)
 				if err != nil {
-					fmt.Printf("error while parsing token data: %s\n", err)
+					cmd.Printf("error while parsing token data: %s\n", err)
 					return
 				}
 			}
 
-			err = jwtinfo.PrintTokenInfo(tokenData, os.Stdout)
+			err = jwtinfo.PrintTokenInfo(tokenData, cmd.OutOrStdout())
 			if err != nil {
-				fmt.Printf("error while printing token data: %s\n", err)
+				cmd.Printf("error while printing token data: %s\n", err)
 				return
 			}
 		} else {

@@ -5,9 +5,6 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
@@ -48,14 +45,14 @@ Examples:
   https-wrench certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
   https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
 `,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		caBundleValue := viper.GetString("ca-bundle")
 		certBundleValue := viper.GetString("cert-bundle")
 		keyFileValue := viper.GetString("key-file")
 		versionRequested := viper.GetBool("version")
 
 		if versionRequested {
-			fmt.Print(version)
+			cmd.Print(version)
 			return
 		}
 
@@ -67,16 +64,16 @@ Examples:
 
 		certinfoCfg, err := certinfo.NewCertinfoConfig()
 		if err != nil {
-			fmt.Printf("Error creating new Certinfo config: %s", err)
+			cmd.Printf("Error creating new Certinfo config: %s", err)
 			return
 		}
 
 		if err = certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
-			fmt.Printf("Error importing CA Certificate bundle from file: %s", err)
+			cmd.Printf("Error importing CA Certificate bundle from file: %s", err)
 		}
 
 		if err = certinfoCfg.SetCertsFromFile(certBundleValue, fileReader); err != nil {
-			fmt.Printf("Error importing Certificate bundle from file: %s", err)
+			cmd.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
 		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
@@ -85,7 +82,7 @@ Examples:
 		// before being able to ask details about the certificate we want to a
 		// webserver using self-signed and valid certificates
 		if err = certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
-			fmt.Printf("Error setting TLS endpoint: %s", err)
+			cmd.Printf("Error setting TLS endpoint: %s", err)
 		}
 
 		if err = certinfoCfg.SetPrivateKeyFromFile(
@@ -93,12 +90,12 @@ Examples:
 			keyPwEnvVar,
 			fileReader,
 		); err != nil {
-			fmt.Printf("Error importing key from file: %s", err)
+			cmd.Printf("Error importing key from file: %s", err)
 		}
 
 		// dump.Print(certinfoCfg)
-		if err = certinfoCfg.PrintData(os.Stdout); err != nil {
-			fmt.Printf("error printing Certinfo data: %s", err)
+		if err = certinfoCfg.PrintData(cmd.OutOrStdout()); err != nil {
+			cmd.Printf("error printing Certinfo data: %s", err)
 		}
 	},
 }

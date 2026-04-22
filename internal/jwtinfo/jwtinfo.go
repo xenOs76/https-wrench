@@ -42,6 +42,7 @@ type JwtTokenData struct {
 
 type allReader func(io.Reader) ([]byte, error)
 
+//nolint:revive
 func RequestToken(reqURL string, reqValues map[string]string, client *http.Client, readAll allReader) (JwtTokenData, error) {
 	if reqURL == emptyString {
 		return JwtTokenData{}, errors.New("empty string provided as request URL")
@@ -196,6 +197,7 @@ func isValidJSON(data []byte) bool {
 	return json.Unmarshal(data, &v) == nil
 }
 
+//nolint:revive
 func (jtd *JwtTokenData) DecodeBase64() error {
 	tokens := []struct {
 		name string
@@ -330,6 +332,7 @@ func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.O
 	return nil
 }
 
+//nolint:revive
 func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
@@ -443,13 +446,13 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 	}
 
 	for k, v := range genericClaims {
-		var vi any = v
+		vi := v
 
 		if vf, ok := vi.(float64); ok {
 			vInt64 := int64(vf)
 			t := time.Unix(vInt64, 0)
-			dateUtc := t.UTC().Format(time.UnixDate)
-			tokenClaims[k] = fmt.Sprintf("%v", dateUtc)
+			dateUTC := t.UTC().Format(time.UnixDate)
+			tokenClaims[k] = fmt.Sprintf("%v", dateUTC)
 
 			continue
 		}

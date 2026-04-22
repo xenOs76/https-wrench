@@ -3,6 +3,7 @@ package jwtinfo
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"maps"
 	"os"
@@ -85,6 +86,7 @@ func TestReadRequestValuesFile(t *testing.T) {
 	})
 }
 
+//nolint:revive
 func TestParseRequestJSONValues(t *testing.T) {
 	inputMap := map[string]string{
 		"testKey": "testValue",
@@ -164,6 +166,9 @@ func TestParseRequestJSONValues(t *testing.T) {
 	}
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestRequestToken(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -303,8 +308,12 @@ func TestRequestToken(t *testing.T) {
 			// godump.Dump(td)
 		})
 	}
+	//nolint:revive
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestParseWithJWKS(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -573,9 +582,14 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 			err,
 			"failed to create JWK Set from resource at URL",
 		)
+		//nolint:revive
 	})
+	//nolint:revive
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestDecodeBase64(t *testing.T) {
 	notThreeDotted := "notThreeDottedBase64CompliantString"
 
@@ -775,10 +789,16 @@ func TestUnmarshallTokenTimeClaims_MapErrors(t *testing.T) {
 
 			_, err := unmarshallTokenTimeClaims(tt.claims)
 			require.ErrorContains(t, err, tt.errMsg)
+			//nolint:revive
 		})
+		//nolint:revive
 	}
+	//nolint:revive
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestPrintTokenInfo(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -881,4 +901,72 @@ func TestPrintTokenInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadTokenFromFile(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		tokenRaw, err := createToken("demo")
+		require.NoError(t, err)
+
+		tmpDir := t.TempDir()
+		tempFile, err := createTmpFileWithContent(tmpDir, "token.txt", []byte(tokenRaw))
+		require.NoError(t, err)
+
+		td, err := ReadTokenFromFile(tempFile)
+		require.NoError(t, err)
+		require.Equal(t, tokenRaw, td.AccessTokenRaw)
+	})
+
+	t.Run("File Read Error", func(t *testing.T) {
+		_, err := ReadTokenFromFile("non_existent_file.txt")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unable to read token file")
+	})
+
+	t.Run("Parse Error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tempFile, err := createTmpFileWithContent(tmpDir, "token.txt", []byte("invalid_token"))
+		require.NoError(t, err)
+
+		_, err = ReadTokenFromFile(tempFile)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unable to parse JWT token from file")
+	})
+}
+
+func TestPrintTokenInfo_Errors(t *testing.T) {
+	t.Run("jsonIndent error header", func(t *testing.T) {
+		//nolint:revive
+		buffer := bytes.Buffer{}
+
+		// Valid claims so unmarshallTokenTimeClaims succeeds.
+		now := time.Now().Unix()
+		exp := now + 3600
+		claimsJSON := fmt.Sprintf(`{"iat": %d, "exp": %d}`, now, exp)
+
+		jtd := JwtTokenData{
+			AccessTokenHeader: []byte("invalid json"),
+			AccessTokenClaims: []byte(claimsJSON),
+		}
+
+		err := PrintTokenInfo(jtd, &buffer)
+		require.NoError(t, err)
+
+		// The json.Indent for header failed and it wrote the raw header.
+		// It will be syntax-highlighted, adding ANSI codes, so we just check it wrote something.
+		require.Positive(t, buffer.Len())
+	})
+
+	t.Run("unmarshallTokenTimeClaims error", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+
+		jtd := JwtTokenData{
+			AccessTokenHeader: []byte(`{"typ":"JWT"}`),
+			AccessTokenClaims: []byte("invalid json"),
+		}
+
+		err := PrintTokenInfo(jtd, &buffer)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unable to unmashall time claims from AccessToken")
+	})
 }

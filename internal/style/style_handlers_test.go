@@ -232,3 +232,12 @@ func TestCodeSyntaxHighlight(t *testing.T) {
 		})
 	}
 }
+
+func TestCodeSyntaxHighlightWithStyle_Fallback(t *testing.T) {
+	t.Run("invalid style uses fallback", func(t *testing.T) {
+		code := `{"test": "json"}`
+		// Pass an invalid style to hit the fallback
+		s := CodeSyntaxHighlightWithStyle("json", code, "invalid-style-that-does-not-exist")
+		require.Contains(t, s, "test")
+	})
+}

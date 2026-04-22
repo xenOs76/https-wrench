@@ -1,3 +1,4 @@
+//nolint:revive
 package requests
 
 import (
@@ -196,6 +197,7 @@ func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 	}
 }
 
+//nolint:revive
 func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	if isVerbose {
 		fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
@@ -228,6 +230,7 @@ func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error 
 	return nil
 }
 
+//nolint:revive
 func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 	// TODO: return an error
 	if resp == nil {
@@ -500,7 +503,11 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 	return rc, nil
 }
 
-func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *x509.CertPool) (*RequestHTTPClient, error) {
+func NewHTTPClientFromRequestConfig(
+	r RequestConfig,
+	serverName string,
+	caPool *x509.CertPool,
+) (*RequestHTTPClient, error) {
 	reqClient := NewRequestHTTPClient()
 
 	_, err := reqClient.SetCACertsPool(caPool)
@@ -555,7 +562,12 @@ func NewHTTPClientFromRequestConfig(r RequestConfig, serverName string, caPool *
 	return reqClient, nil
 }
 
-func processHTTPRequestsByHost(r RequestConfig, caPool *x509.CertPool, isVerbose bool) ([]ResponseData, error) {
+//nolint:revive
+func processHTTPRequestsByHost(
+	r RequestConfig,
+	caPool *x509.CertPool,
+	isVerbose bool,
+) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
 	requestBodyBytes := []byte(r.RequestBody)

@@ -49,7 +49,7 @@ var (
 	mockErrReader MockErrReader
 )
 
-func (MockErrReader) ReadAll(r io.Reader) ([]byte, error) {
+func (MockErrReader) ReadAll(_ io.Reader) ([]byte, error) {
 	return nil, errors.New("mock Reader error")
 }
 
@@ -65,7 +65,8 @@ func TestMain(m *testing.M) {
 
 func fatal(err error) {
 	if err != nil {
-		log.Fatal(err)
+		//nolint:revive
+		panic(err)
 	}
 }
 

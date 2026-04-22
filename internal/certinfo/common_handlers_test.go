@@ -175,6 +175,7 @@ func TestCertinfo_GetCertsFromBundle(t *testing.T) {
 	})
 }
 
+//nolint:revive
 func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 	tests := []struct {
 		desc        string

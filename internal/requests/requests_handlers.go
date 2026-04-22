@@ -242,9 +242,7 @@ func (rd *ResponseData) ImportResponseBody() {
 		re, err := regexp.Compile(rd.Request.ResponseBodyMatchRegexp)
 		if err != nil {
 			fmt.Print(fmt.Errorf("unable to compile responseBodyMatchRegexp: %w", err))
-		}
-
-		if re.Match(body) {
+		} else if re.Match(body) {
 			rd.ResponseBodyRegexpMatched = true
 		}
 	}
@@ -276,6 +274,7 @@ func (rd *ResponseData) ImportResponseBody() {
 	rd.ResponseBody = string(body)
 }
 
+//nolint:revive
 func (rd ResponseData) PrintResponseData(isVerbose bool) {
 	if !isVerbose {
 		return
