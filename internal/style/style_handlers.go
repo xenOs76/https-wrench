@@ -47,6 +47,7 @@ func StatusCodeParse(sc int) string {
 	return status
 }
 
+//nolint:revive
 func BoolStyle(b bool) string {
 	if b {
 		return LgSprintf(BoolTrue, "true")

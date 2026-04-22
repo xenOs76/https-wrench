@@ -21,6 +21,7 @@ import (
 	"github.com/xenos76/https-wrench/internal/style"
 )
 
+//nolint:revive
 func (c *CertinfoConfig) PrintData(w io.Writer) error {
 	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
 	sl := style.CertKeyP4.Bold(true)

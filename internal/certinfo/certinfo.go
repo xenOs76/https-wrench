@@ -45,8 +45,9 @@ type (
 )
 
 var (
-	TlsServerName string
-	TlsInsecure   bool
+	//nolint:revive
+	TLSServerName string
+	TLSInsecure   bool
 	inputReader   InputReader
 )
 

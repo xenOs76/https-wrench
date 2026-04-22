@@ -166,6 +166,7 @@ func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 	}
 }
 
+//nolint:revive
 func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) ([]byte, error) {
 	if !isEncrypted {
 		return nil, nil

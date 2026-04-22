@@ -325,6 +325,7 @@ func TestCertinfo_SetTLSServerName(t *testing.T) {
 	}
 }
 
+//nolint:revive
 func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 	tests := []struct {
 		desc           string
@@ -357,8 +358,9 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			expectPort:     "443",
 		},
 		{
-			desc:       "error malformed host",
-			endpoint:   "localh#$%ost:443",
+			desc:     "error malformed host",
+			endpoint: "localh#$%ost:443",
+			//nolint:revive
 			processErr: true,
 			expectMsg:  "unable to get endpoint certificates: TLS handshake failed: dial tcp: lookup localh#$%ost: no such host",
 		},
@@ -369,12 +371,14 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			expectMsg:  "invalid TLS endpoint \"localhost\": address localhost: missing port in address",
 		},
 		{
-			desc:       "error missing host",
+			desc: "error missing host",
+			//nolint:revive
 			endpoint:   ":80443",
 			processErr: true,
 			expectMsg:  "unable to get endpoint certificates: TLS handshake failed: dial tcp: address 80443: invalid port",
 		},
 		{
+			//nolint:revive
 			desc:       "error endpoint includes scheme",
 			endpoint:   "https://localhost:80443",
 			processErr: true,

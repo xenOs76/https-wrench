@@ -13,6 +13,7 @@ import (
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
+//nolint:revive
 func TestRootCmd_LoadConfig(t *testing.T) {
 	t.Run("LoadConfig no config file", func(t *testing.T) {
 		oldCfg := cfgFile
@@ -73,6 +74,23 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		require.Equal(t, "httpBunComGet", config.Requests[0].Name)
 		require.Equal(t, "https://cat.httpbun.com:443", config.Requests[0].TransportOverrideURL)
 	})
+	t.Run("LoadConfig unmarshal error", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			viper.Reset()
+		})
+
+		// Make Unmarshal fail by setting a type mismatch
+		viper.Set("Requests", "this is a string, not a slice")
+
+		config, err := LoadConfig()
+		require.Error(t, err)
+		require.Nil(t, config)
+		require.ErrorContains(t, err, "unable to decode into config struct")
+	})
 }
 
 func TestRootCmd_Execute(t *testing.T) {
@@ -87,8 +105,30 @@ func TestRootCmd_Execute(t *testing.T) {
 		err = Execute()
 		require.EqualError(t, err, "flag needs an argument: --config")
 	})
+
+	t.Run("Execute success", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			viper.Reset()
+		})
+
+		cfgFile = "./embedded/config-example.yaml"
+
+		initConfig()
+
+		rootCmd.SetArgs([]string{"--config", "./embedded/config-example.yaml"})
+
+		err := Execute()
+		require.NoError(t, err)
+	})
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestRootCmd(t *testing.T) {
 	tests := []struct {
 		name        string

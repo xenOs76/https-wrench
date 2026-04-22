@@ -6,7 +6,6 @@ package cmd
 
 import (
 	_ "embed"
-	"fmt"
 	"os"
 
 	"github.com/gookit/goutil/dump"
@@ -41,7 +40,7 @@ Examples:
  https-wrench requests --config https-wrench-sample-config.yaml
 	`,
 
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		versionRequested := viper.GetBool("version")
 
 		if versionRequested {
@@ -61,14 +60,14 @@ Examples:
 
 		_, err := os.Stat(viper.ConfigFileUsed())
 		if err != nil {
-			fmt.Printf("\nConfig file not found: %s\n", viper.ConfigFileUsed())
+			cmd.Printf("\nConfig file not found: %s\n", viper.ConfigFileUsed())
 			_ = cmd.Help()
 			return
 		}
 
 		cfg, err := LoadConfig()
 		if err != nil {
-			fmt.Print(err)
+			cmd.Print(err)
 			return
 		}
 
@@ -78,7 +77,7 @@ Examples:
 
 		requestsCfg, err := requests.NewRequestsMetaConfig()
 		if err != nil {
-			fmt.Print(err)
+			cmd.Print(err)
 			return
 		}
 
@@ -87,16 +86,16 @@ Examples:
 			SetRequests(cfg.Requests)
 
 		if err := requestsCfg.SetCaPoolFromYAML(cfg.CaBundle); err != nil {
-			fmt.Print(err)
+			cmd.Print(err)
 		}
 
 		if err := requestsCfg.SetCaPoolFromFile(caBundlePath, fileReader); err != nil {
-			fmt.Print(err)
+			cmd.Print(err)
 		}
 
-		responseMap, err := requests.HandleRequests(os.Stdout, requestsCfg)
+		responseMap, err := requests.HandleRequests(cmd.OutOrStdout(), requestsCfg)
 		if err != nil {
-			fmt.Print(err)
+			cmd.Print(err)
 		}
 
 		if cfg.Debug {

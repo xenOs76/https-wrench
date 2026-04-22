@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:revive
 func TestCertinfo_GetRemoteCerts(t *testing.T) {
 	tests := []struct {
 		desc          string
@@ -39,7 +40,8 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			caCertFile:  emptyString,
+			caCertFile: emptyString,
+			//nolint:revive
 			expectError: true,
 			expectMsg:   "TLS handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority",
 		},
@@ -54,6 +56,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 			},
 			caCertFile:    RSACaCertFile,
 			expectSrvHost: "localhost",
+			//nolint:revive
 			expectSrvPort: "46303",
 			expectError:   true,
 			expectMsg:     "TLS handshake failed: tls: failed to verify certificate: x509: certificate relies on legacy Common Name field, use SANs instead",
@@ -79,7 +82,8 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			caCertFile:    RSASamplePKCS8Certificate,
+			caCertFile: RSASamplePKCS8Certificate,
+			//nolint:revive
 			expectSrvHost: "localhost",
 			expectSrvPort: "46305",
 			expectError:   true,
@@ -116,7 +120,8 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 				serverAddr:     "localhost:46308",
 				serverName:     "example.co.uk",
 				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+				//nolint:revive
+				serverKeyFile: RSASampleCertKeyFile,
 			},
 			caCertFile:  RSACaCertFile,
 			expectError: true,
@@ -153,11 +158,13 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 				return
 			}
 
+			//nolint:revive
 			require.EqualError(t, err, tt.expectMsg, "check error expected")
 		})
 	}
 }
 
+//nolint:revive
 func TestCertinfo_CertsToTables(t *testing.T) {
 	rsaSampleCert, err := GetCertsFromBundle(
 		RSASampleCertFile,
@@ -277,12 +284,16 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 				tt.signatureAlgorithm,
 				tt.expiration,
 			} {
+				//nolint:revive
 				require.Contains(t, got, want)
 			}
 		})
 	}
 }
 
+//nolint:revive
+
+//nolint:revive
 func TestCertinfo_PrintData(t *testing.T) {
 	tests := []struct {
 		desc                string
@@ -330,12 +341,15 @@ func TestCertinfo_PrintData(t *testing.T) {
 			caCertFile:    emptyString,
 			tlsEndpoint:   "localhost:46402",
 			tlsServerName: "example.com",
+			//nolint:revive
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "localhost:46402",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
+				//nolint:revive
 			},
+			//nolint:revive
 			expectCertsFetchErr: true,
 			expectCertsFetcMsg:  "unable to get endpoint certificates: TLS handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority",
 		},
@@ -356,16 +370,19 @@ func TestCertinfo_PrintData(t *testing.T) {
 			},
 		},
 		{
-			desc:          "local key and remote TLS Endpoint, missing TLS ServerName",
-			keyFile:       RSASampleCertKeyFile,
-			caCertFile:    RSACaCertFile,
-			tlsEndpoint:   "localhost:46404",
+			desc:        "local key and remote TLS Endpoint, missing TLS ServerName",
+			keyFile:     RSASampleCertKeyFile,
+			caCertFile:  RSACaCertFile,
+			tlsEndpoint: "localhost:46404",
+			//nolint:revive
 			tlsServerName: emptyString,
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "localhost:46404",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+				//nolint:revive
+				serverKeyFile: RSASampleCertKeyFile,
+				//nolint:revive
 			},
 			expectCertsFetchErr: true,
 			expectCertsFetcMsg:  "unable to get endpoint certificates: TLS handshake failed: tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not localhost",
@@ -479,4 +496,50 @@ func TestCertinfo_PrintData(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("PrintData local cert private key match error", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		cc, err := NewCertinfoConfig()
+		require.NoError(t, err)
+
+		// Inject a bad public key to force certMatchPrivateKey to fail
+		cc.PrivKey = "dummy_key"
+		cc.CertsBundle = append(cc.CertsBundle, &x509.Certificate{
+			PublicKey: "unsupported_key_type",
+		})
+		cc.CertsBundleFilePath = "dummy"
+
+		errPrint := cc.PrintData(&buffer)
+		require.Error(t, errPrint)
+		require.ErrorContains(t, errPrint, "unable to check if private key matches local certificate")
+	})
+
+	t.Run("PrintData remote cert private key match error", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		cc, err := NewCertinfoConfig()
+		require.NoError(t, err)
+
+		cc.PrivKey = "dummy_key"
+		cc.TLSEndpointCerts = append(cc.TLSEndpointCerts, &x509.Certificate{
+			PublicKey: "unsupported_key_type",
+		})
+		cc.TLSEndpointHost = "localhost"
+		cc.TLSEndpointPort = "443"
+
+		errPrint := cc.PrintData(&buffer)
+		require.Error(t, errPrint)
+		require.ErrorContains(t, errPrint, "unable to check if private key matches remote TLS Endpoint certificate")
+	})
+
+	t.Run("PrintData CA cert file read error", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		cc, err := NewCertinfoConfig()
+		require.NoError(t, err)
+
+		cc.CACertsFilePath = "non_existent_file.pem"
+
+		errPrint := cc.PrintData(&buffer)
+		require.Error(t, errPrint)
+		require.ErrorContains(t, errPrint, "unable for read Root certificates")
+	})
 }

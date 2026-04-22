@@ -313,6 +313,7 @@ func TestTransportAddressFromURLString(t *testing.T) {
 	}
 }
 
+//nolint:revive
 func TestRenderTLSData(t *testing.T) {
 	tests := []struct {
 		srvAddr           string
@@ -436,6 +437,7 @@ func TestRenderTLSData(t *testing.T) {
 	}
 }
 
+//nolint:revive
 func TestHandleRequests(t *testing.T) {
 	reqMeta1 := RequestsMetaConfig{
 		CACertsPool:    caCertPool,
