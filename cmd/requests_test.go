@@ -113,10 +113,10 @@ func TestRequestsCmd(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Cleanup(func() {
-				rootCmd.Flags().Set("version", "false")
-				rootCmd.Flags().Set("ca-bundle", "")
-				rootCmd.Flags().Set("config", "")
-				requestsCmd.Flags().Set("show-sample-config", "false")
+				require.NoError(t, rootCmd.Flags().Set("version", "false"))
+				require.NoError(t, requestsCmd.Flags().Set("ca-bundle", ""))
+				require.NoError(t, rootCmd.Flags().Set("config", ""))
+				require.NoError(t, requestsCmd.Flags().Set("show-sample-config", "false"))
 			})
 
 			reqOut := new(bytes.Buffer)

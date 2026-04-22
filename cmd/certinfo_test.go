@@ -110,13 +110,13 @@ func TestCertinfoCmd(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Cleanup(func() {
-				rootCmd.Flags().Set("version", "false")
-				rootCmd.Flags().Set("ca-bundle", "")
-				certinfoCmd.Flags().Set("tls-endpoint", "")
-				certinfoCmd.Flags().Set("tls-servername", "")
-				certinfoCmd.Flags().Set("tls-insecure", "false")
-				certinfoCmd.Flags().Set("cert-bundle", "")
-				certinfoCmd.Flags().Set("key-file", "")
+				require.NoError(t, rootCmd.PersistentFlags().Set("version", "false"))
+				require.NoError(t, certinfoCmd.Flags().Set("ca-bundle", ""))
+				require.NoError(t, certinfoCmd.Flags().Set("tls-endpoint", ""))
+				require.NoError(t, certinfoCmd.Flags().Set("tls-servername", ""))
+				require.NoError(t, certinfoCmd.Flags().Set("tls-insecure", "false"))
+				require.NoError(t, certinfoCmd.Flags().Set("cert-bundle", ""))
+				require.NoError(t, certinfoCmd.Flags().Set("key-file", ""))
 			})
 
 			reqOut := new(bytes.Buffer)

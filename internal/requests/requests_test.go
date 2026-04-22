@@ -344,11 +344,11 @@ func TestNewHTTPClientFromRequestConfig_SubErrors(t *testing.T) {
 			desc: "proxyProtoHeaderFromRequest error",
 			reqConf: RequestConfig{
 				EnableProxyProtocolV2: true,
-				TransportOverrideURL:  "https://this.is.a.fake.domain.that.does.not.exist:443",
+				TransportOverrideURL:  "https://test.invalid:443",
 			},
 			serverName: "localhost",
 			errMsg: "error creating proxyproto Header: failed to resolve transport override hostname's IPs': " +
-				"lookup this.is.a.fake.domain.that.does.not.exist", // we'll just check ErrorContains
+				"lookup test.invalid", // we'll just check ErrorContains
 		},
 	}
 

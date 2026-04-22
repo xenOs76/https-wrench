@@ -198,8 +198,6 @@ func isValidJSON(data []byte) bool {
 }
 
 //nolint:revive
-
-//nolint:revive
 func (jtd *JwtTokenData) DecodeBase64() error {
 	tokens := []struct {
 		name string
@@ -332,10 +330,7 @@ func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.O
 	jtd.AccessTokenJwt = token
 
 	return nil
-	//nolint:revive
 }
-
-//nolint:revive
 
 //nolint:revive
 func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
@@ -448,20 +443,16 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 
 	if _, ok := genericClaims["exp"].(float64); !ok {
 		return nil, errors.New("Expiration Time (exp) claim is not a numeric timestamp")
-		//nolint:revive
 	}
-	//nolint:revive
 
-	//nolint:revive
 	for k, v := range genericClaims {
-		//nolint:revive
 		vi := v
 
 		if vf, ok := vi.(float64); ok {
 			vInt64 := int64(vf)
 			t := time.Unix(vInt64, 0)
-			dateUtc := t.UTC().Format(time.UnixDate)
-			tokenClaims[k] = fmt.Sprintf("%v", dateUtc)
+			dateUTC := t.UTC().Format(time.UnixDate)
+			tokenClaims[k] = fmt.Sprintf("%v", dateUTC)
 
 			continue
 		}

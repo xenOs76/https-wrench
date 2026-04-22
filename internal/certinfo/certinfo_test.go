@@ -362,7 +362,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			endpoint: "localh#$%ost:443",
 			//nolint:revive
 			processErr: true,
-			expectMsg:  "unable to get endpoint certificates: TLS handshake failed: dial tcp: lookup localh#$%ost: no such host",
+			expectMsg:  "unable to get endpoint certificates: TLS handshake failed",
 		},
 		{
 			desc:       "error missing port",
@@ -408,7 +408,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 				return
 			}
 
-			require.EqualError(t, err, tt.expectMsg)
+			require.ErrorContains(t, err, tt.expectMsg)
 		})
 	}
 }

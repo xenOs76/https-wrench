@@ -112,12 +112,9 @@ func TestRootCmd_Execute(t *testing.T) {
 		t.Cleanup(func() {
 			cfgFile = oldCfg
 
+			rootCmd.SetArgs(nil)
 			viper.Reset()
 		})
-
-		cfgFile = "./embedded/config-example.yaml"
-
-		initConfig()
 
 		rootCmd.SetArgs([]string{"--config", "./embedded/config-example.yaml"})
 
