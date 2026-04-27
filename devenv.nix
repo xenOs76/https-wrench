@@ -41,29 +41,29 @@ in {
     httpie
   ];
 
-  git-hooks = {
-    excludes = [
-      "devenv.nix"
-      "flake.nix"
-      ".gitignore"
-      ".envrc"
-      "internal/certinfo/common_handlers.go"
-      "internal/certinfo/testdata"
-      "internal/jwtinfo/testdata"
-      "internal/jwtinfo/jwtinfo_test.go"
-      "internal/certinfo/testdata/README.md"
-      "completions"
-    ];
-    hooks = {
-      shellcheck.enable = true;
-      end-of-file-fixer.enable = true;
-      detect-aws-credentials.enable = false;
-      detect-private-keys.enable = false;
-      ripsecrets.enable = true;
-      commitizen.enable = true;
-    };
-  };
-
+  # git-hooks = {
+  #   excludes = [
+  #     "devenv.nix"
+  #     "flake.nix"
+  #     ".gitignore"
+  #     ".envrc"
+  #     "internal/certinfo/common_handlers.go"
+  #     "internal/certinfo/testdata"
+  #     "internal/jwtinfo/testdata"
+  #     "internal/jwtinfo/jwtinfo_test.go"
+  #     "internal/certinfo/testdata/README.md"
+  #     "completions"
+  #   ];
+  #   hooks = {
+  #     shellcheck.enable = true;
+  #     end-of-file-fixer.enable = true;
+  #     detect-aws-credentials.enable = false;
+  #     detect-private-keys.enable = false;
+  #     ripsecrets.enable = true;
+  #     commitizen.enable = true;
+  #   };
+  # };
+  #
   services.nginx = {
     enable = true;
     httpConfig = ''

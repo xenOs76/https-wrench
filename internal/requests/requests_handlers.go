@@ -22,10 +22,12 @@ import (
 	"github.com/xenos76/https-wrench/internal/style"
 )
 
+// String returns the response header as a string.
 func (h ResponseHeader) String() string {
 	return string(h)
 }
 
+// Parse validates that the URI starts with a slash.
 func (u URI) Parse() bool {
 	// URIs must start with a slash as in /uri
 	matched, err := regexp.Match(`^\/.*`, []byte(u))
@@ -36,6 +38,7 @@ func (u URI) Parse() bool {
 	return matched
 }
 
+// TLSVersionName returns a human-readable name for the given TLS version constant.
 func TLSVersionName(v uint16) string {
 	switch v {
 	case tls.VersionSSL30:
@@ -53,6 +56,7 @@ func TLSVersionName(v uint16) string {
 	}
 }
 
+// cipherSuiteName returns a human-readable name for the given TLS cipher suite ID.
 func cipherSuiteName(id uint16) string {
 	cs := tls.CipherSuiteName(id)
 	if strings.Contains(cs, "0x") {
@@ -62,6 +66,7 @@ func cipherSuiteName(id uint16) string {
 	return cs
 }
 
+// filterResponseHeaders filters and formats HTTP headers for display based on the provided filter list.
 func filterResponseHeaders(headers http.Header, filter []string) string {
 	var outputStr string
 
@@ -95,6 +100,7 @@ func filterResponseHeaders(headers http.Header, filter []string) string {
 	return outputStr
 }
 
+// getUrlsFromHost generates a list of full URLs for a host based on its Name and URIList.
 func getUrlsFromHost(h Host) ([]string, error) {
 	var list []string
 
@@ -117,6 +123,7 @@ func getUrlsFromHost(h Host) ([]string, error) {
 	return list, nil
 }
 
+// transportAddressFromURLString extracts and normalizes the host:port address from a transport URL.
 func transportAddressFromURLString(transportURL string) (string, error) {
 	var addr string
 
@@ -144,6 +151,7 @@ func transportAddressFromURLString(transportURL string) (string, error) {
 	return addr, nil
 }
 
+// proxyProtoHeaderFromRequest generates a PROXY protocol v2 header for the given request and server name.
 func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto.Header, error) {
 	if !r.EnableProxyProtocolV2 {
 		return proxyproto.Header{}, errors.New("proxy protocol v2 is not enabled for this request")
@@ -203,6 +211,7 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 	return header, nil
 }
 
+// HandleRequests iterates through all configured requests and processes them, returning a map of response data.
 func HandleRequests(w io.Writer, cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
 	responseDataMap := make(map[string][]ResponseData)
 
@@ -224,6 +233,7 @@ func HandleRequests(w io.Writer, cfg *RequestsMetaConfig) (map[string][]Response
 	return responseDataMap, nil
 }
 
+// ImportResponseBody reads the response body, handles regex matching, and applies syntax highlighting if applicable.
 func (rd *ResponseData) ImportResponseBody() {
 	if len(rd.ResponseBody) > 0 {
 		return
@@ -274,6 +284,8 @@ func (rd *ResponseData) ImportResponseBody() {
 	rd.ResponseBody = string(body)
 }
 
+// PrintResponseData prints the collected response data (status, headers, body) if verbose mode is enabled.
+//
 //nolint:revive
 func (rd ResponseData) PrintResponseData(isVerbose bool) {
 	if !isVerbose {
@@ -329,6 +341,7 @@ func (rd ResponseData) PrintResponseData(isVerbose bool) {
 	}
 }
 
+// RenderTLSData prints TLS version, cipher suite, and peer certificates for an HTTP response.
 func RenderTLSData(w io.Writer, r *http.Response) {
 	respTLS := r.TLS
 	sl := style.CertKeyP4.Render

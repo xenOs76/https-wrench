@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
+// LgSprintf formats a string according to a pattern and applies a lipgloss style.
 func LgSprintf(style lipgloss.Style, pattern string, a ...any) string {
 	str := fmt.Sprintf(pattern, a...)
 	out := style.Render(str)
@@ -26,6 +27,7 @@ func LgSprintf(style lipgloss.Style, pattern string, a ...any) string {
 	return out
 }
 
+// StatusCodeParse returns a color-coded string representation of an HTTP status code.
 func StatusCodeParse(sc int) string {
 	var status string
 
@@ -47,6 +49,8 @@ func StatusCodeParse(sc int) string {
 	return status
 }
 
+// BoolStyle returns a color-coded string representation of a boolean value.
+//
 //nolint:revive
 func BoolStyle(b bool) string {
 	if b {
@@ -56,6 +60,7 @@ func BoolStyle(b bool) string {
 	return LgSprintf(BoolFalse, "false")
 }
 
+// PrintKeyInfoStyle prints formatted information about a private key (type, size, curve) to the provided writer.
 func PrintKeyInfoStyle(w io.Writer, privKey crypto.PrivateKey) {
 	sl := CertKeyP4.Render
 	sv := CertValue.Render
@@ -89,11 +94,13 @@ func PrintKeyInfoStyle(w io.Writer, privKey crypto.PrivateKey) {
 	t.ClearRows()
 }
 
+// CodeSyntaxHighlight applies syntax highlighting to a code string using the default theme.
 func CodeSyntaxHighlight(lang, code string) string {
 	out := CodeSyntaxHighlightWithStyle(lang, code, chromaDefStyle)
 	return out
 }
 
+// CodeSyntaxHighlightWithStyle applies syntax highlighting to a code string using a specified chroma theme.
 func CodeSyntaxHighlightWithStyle(lang, code string, chromaStyle string) string {
 	st := styles.Get(chromaStyle)
 	if st == nil {
