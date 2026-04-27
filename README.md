@@ -20,6 +20,9 @@ balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 Check the help:
 
+<details>
+<summary>View General Help (`https-wrench -h`)</summary>
+
 ```plain
 ❯ https-wrench -h
 
@@ -56,9 +59,14 @@ Flags:
 Use "https-wrench [command] --help" for more information about a command.
 ```
 
+</details>
+
 ### HTTPS Wrench requests
 
 Get the help:
+
+<details>
+<summary>View Requests Help (`https-wrench requests -h`)</summary>
 
 ```plain
 ❯ https-wrench requests -h
@@ -92,6 +100,8 @@ Global Flags:
       --version         Display the version
 ```
 
+</details>
+
 Generate a sample config file:
 
 ```shell
@@ -101,50 +111,7 @@ https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
 <details>
 <summary>Sample configuration file</summary>
 
-```yaml
----
-debug: false
-verbose: true
-requests:
-  - name: httpBunComGet
-
-    transportOverrideUrl: https://cat.httpbun.com:443
-    clientTimeout: 3
-
-    requestDebug: false
-    responseDebug: false
-
-    printResponseBody: true
-    printResponseHeaders: true
-
-    userAgent: wrench-custom-ua
-
-    requestHeaders:
-      - key: x-custom-header
-        value: custom-header-value
-      - key: x-api-key
-        value: api-value
-
-    responseHeadersFilter:
-      - X-Powered-By
-      - Via
-      - Content-Type
-
-    hosts:
-      - name: httpbun.com
-        uriList:
-          - /headers
-          - /status/302
-          - /status/404
-          - /status/503
-
-  - name: httpBunComCerts
-
-    printResponseCertificates: true
-
-    hosts:
-      - name: httpbun.com
-```
+A comprehensive sample configuration file can be found in the repository at [`cmd/embedded/config-example.yaml`](./cmd/embedded/config-example.yaml).
 
 </details>
 
@@ -157,6 +124,9 @@ https-wrench requests --config https-wrench-sample-config.yaml
 ### HTTPS Wrench certinfo
 
 Get the help:
+
+<details>
+<summary>View Certinfo Help (`https-wrench certinfo -h`)</summary>
 
 ```plain
 ❯ https-wrench certinfo -h
@@ -205,6 +175,8 @@ Global Flags:
       --version         Display the version
 ```
 
+</details>
+
 Get info about a certificate and a key and see if their public keys match:
 
 ```shell
@@ -249,6 +221,9 @@ been used to generate the certificate:
 
 ## How to install
 
+<details>
+<summary>Go install</summary>
+
 ### Go install
 
 HTTPS Wrench is "go gettable", so it can be installed with the following
@@ -258,11 +233,19 @@ command:
 go install github.com/xenos76/https-wrench@latest
 ```
 
+</details>
+<details>
+<summary>Manual download</summary>
+
 ### Manual download
 
 Release binaries and DEB, RPM, APK packages can be downloaded from the
 [repo's releases section](https://github.com/xenOs76/https-wrench/releases).\
 Binaries and packages are built for Linux and MacOS, `amd64` and `arm64`.
+
+</details>
+<details>
+<summary>APT</summary>
 
 ### APT
 
@@ -277,6 +260,10 @@ then:
 ```shell
 sudo apt-get update && sudo apt-get install -y https-wrench
 ```
+
+</details>
+<details>
+<summary>YUM</summary>
 
 ### YUM
 
@@ -297,6 +284,10 @@ then:
 sudo yum install https-wrench
 ```
 
+</details>
+<details>
+<summary>Docker image</summary>
+
 ### Docker image
 
 Generate the config:
@@ -313,6 +304,10 @@ Run the `requests` command:
 docker run  -v $(pwd)/sample-wrench.yaml:/https-wrench.yaml  --rm ghcr.io/xenos76/https-wrench:latest --config /https-wrench.yaml requests
 ```
 
+</details>
+<details>
+<summary>Homebrew</summary>
+
 ### Homebrew
 
 Add Os76 Homebrew repository:
@@ -326,6 +321,10 @@ Install `https-wrench`:
 ```shell
 brew install --casks https-wrench
 ```
+
+</details>
+<details>
+<summary>Nix/NUR</summary>
 
 ### Nix/NUR
 
@@ -395,3 +394,5 @@ Or use a `flake.nix` like the one from the
 NixOS users could use a
 [flake like this](https://raw.githubusercontent.com/xenOs76/nixos-configs/refs/heads/main/flake.nix)
 to fetch the package.
+
+</details>

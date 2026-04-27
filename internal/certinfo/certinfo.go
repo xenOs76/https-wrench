@@ -18,6 +18,7 @@ const (
 	emptyString        = ""
 )
 
+// CertinfoConfig holds the configuration and results for certificate and key information retrieval.
 type CertinfoConfig struct {
 	CACertsPool             *x509.CertPool
 	CACertsFilePath         string
@@ -35,12 +36,14 @@ type CertinfoConfig struct {
 	TLSInsecure             bool
 }
 
+// Reader defines an interface for reading files and passwords.
 type (
 	Reader interface {
 		ReadFile(name string) ([]byte, error)
 		ReadPassword(fd int) ([]byte, error)
 	}
 
+	// InputReader implements the Reader interface using standard OS calls.
 	InputReader struct{}
 )
 
@@ -51,6 +54,7 @@ var (
 	inputReader   InputReader
 )
 
+// ReadFile reads the content of a file from the filesystem.
 func (InputReader) ReadFile(name string) ([]byte, error) {
 	file, err := os.ReadFile(name)
 	if err != nil {
@@ -60,10 +64,12 @@ func (InputReader) ReadFile(name string) ([]byte, error) {
 	return file, nil
 }
 
+// ReadPassword reads a password from the terminal without echoing it.
 func (InputReader) ReadPassword(fd int) ([]byte, error) {
 	return term.ReadPassword(fd)
 }
 
+// NewCertinfoConfig creates a new CertinfoConfig with the system's default certificate pool.
 func NewCertinfoConfig() (*CertinfoConfig, error) {
 	defaultCertPool, err := x509.SystemCertPool()
 	if err != nil {
@@ -77,6 +83,7 @@ func NewCertinfoConfig() (*CertinfoConfig, error) {
 	return &c, nil
 }
 
+// SetCaPoolFromFile loads a CA certificate pool from the specified PEM bundle file.
 func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
 		caCertsPool, err := GetRootCertsFromFile(
@@ -94,6 +101,7 @@ func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) e
 	return nil
 }
 
+// SetCertsFromFile loads a certificate bundle from the specified PEM file.
 func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
 		certs, err := GetCertsFromBundle(
@@ -111,6 +119,8 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 	return nil
 }
 
+// SetPrivateKeyFromFile loads a private key from the specified PEM file.
+// If the key is encrypted, it will attempt to retrieve the passphrase from an environment variable or interactive prompt.
 func (c *CertinfoConfig) SetPrivateKeyFromFile(
 	filePath string,
 	keyPwEnvVar string,
@@ -133,6 +143,7 @@ func (c *CertinfoConfig) SetPrivateKeyFromFile(
 	return nil
 }
 
+// SetTLSEndpoint parses a host:port string and fetches the remote certificates from that endpoint.
 func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
 	if hostport != emptyString {
 		eHost, ePort, err := net.SplitHostPort(hostport)
@@ -153,11 +164,13 @@ func (c *CertinfoConfig) SetTLSEndpoint(hostport string) error {
 	return nil
 }
 
+// SetTLSInsecure sets whether TLS certificate verification should be skipped for the remote endpoint.
 func (c *CertinfoConfig) SetTLSInsecure(skipVerify bool) *CertinfoConfig {
 	c.TLSInsecure = skipVerify
 	return c
 }
 
+// SetTLSServerName sets the ServerName to use for SNI when connecting to a remote TLS endpoint.
 func (c *CertinfoConfig) SetTLSServerName(serverName string) *CertinfoConfig {
 	if serverName != emptyString {
 		c.TLSServerName = serverName

@@ -73,16 +73,19 @@ type (
 	ResponseHeader string
 )
 
+// Host represents a target hostname and a list of URIs to request on that host.
 type Host struct {
 	Name    string `mapstructure:"name"`
 	URIList []URI  `mapstructure:"uriList"`
 }
 
+// RequestHeader represents a single HTTP header key-value pair.
 type RequestHeader struct {
 	Key   string `mapstructure:"key"`
 	Value string `mapstructure:"value"`
 }
 
+// RequestConfig defines the configuration for a single HTTP request set.
 type RequestConfig struct {
 	Name                      string          `mapstructure:"name"`
 	ClientTimeout             int             `mapstructure:"clientTimeout"`
@@ -103,6 +106,7 @@ type RequestConfig struct {
 	Hosts                     []Host          `mapstructure:"hosts"`
 }
 
+// RequestHTTPClient wraps an http.Client with additional configuration for requests.
 type RequestHTTPClient struct {
 	client             *http.Client
 	method             string
@@ -110,6 +114,7 @@ type RequestHTTPClient struct {
 	transportAddress   string
 }
 
+// ResponseData holds the results and metadata of an executed HTTP request.
 type ResponseData struct {
 	Request                   RequestConfig
 	TransportAddress          string
@@ -120,6 +125,7 @@ type ResponseData struct {
 	Error                     error
 }
 
+// RequestsMetaConfig holds the global configuration and the list of requests to execute.
 type RequestsMetaConfig struct {
 	// TODO: can we remove the following
 	// three lines and just embed an "options"
@@ -130,6 +136,7 @@ type RequestsMetaConfig struct {
 	Requests       []RequestConfig `mapstructure:"requests"`
 }
 
+// NewRequestsMetaConfig creates a new RequestsMetaConfig with the system's certificate pool.
 func NewRequestsMetaConfig() (*RequestsMetaConfig, error) {
 	defaultCertPool, err := x509.SystemCertPool()
 	if err != nil {
@@ -143,16 +150,19 @@ func NewRequestsMetaConfig() (*RequestsMetaConfig, error) {
 	return &c, nil
 }
 
+// SetVerbose sets the verbosity level for the requests.
 func (r *RequestsMetaConfig) SetVerbose(b bool) *RequestsMetaConfig {
 	r.RequestVerbose = b
 	return r
 }
 
+// SetDebug sets the debug level for the requests.
 func (r *RequestsMetaConfig) SetDebug(b bool) *RequestsMetaConfig {
 	r.RequestDebug = b
 	return r
 }
 
+// SetCaPoolFromYAML loads a CA certificate pool from a PEM-encoded string.
 func (r *RequestsMetaConfig) SetCaPoolFromYAML(s string) error {
 	if s != "" {
 		certsPool, err := certinfo.GetRootCertsFromString(s)
@@ -166,6 +176,7 @@ func (r *RequestsMetaConfig) SetCaPoolFromYAML(s string) error {
 	return nil
 }
 
+// SetCaPoolFromFile loads a CA certificate pool from a PEM file.
 func (r *RequestsMetaConfig) SetCaPoolFromFile(filePath string, fileReader certinfo.Reader) error {
 	if filePath != "" {
 		caCertsPool, err := certinfo.GetRootCertsFromFile(
@@ -182,11 +193,13 @@ func (r *RequestsMetaConfig) SetCaPoolFromFile(filePath string, fileReader certi
 	return nil
 }
 
+// SetRequests sets the list of request configurations.
 func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMetaConfig {
 	r.Requests = requests
 	return r
 }
 
+// PrintCmd prints a header for the requests execution if verbose mode is enabled.
 func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 	if r.RequestVerbose {
 		fmt.Fprintf(
@@ -197,6 +210,8 @@ func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 	}
 }
 
+// PrintTitle prints the request name and transport override information if verbose mode is enabled.
+//
 //nolint:revive
 func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	if isVerbose {
@@ -210,6 +225,7 @@ func (r *RequestConfig) PrintTitle(isVerbose bool) {
 	}
 }
 
+// PrintRequestDebug dumps the HTTP request to the provided writer if request debug is enabled.
 func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error {
 	if req == nil {
 		return errors.New("nil pointer to http.Request")
@@ -230,6 +246,8 @@ func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error 
 	return nil
 }
 
+// PrintResponseDebug dumps the HTTP response and TLS information to the provided writer if response debug is enabled.
+//
 //nolint:revive
 func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 	// TODO: return an error
@@ -271,6 +289,7 @@ func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 	}
 }
 
+// NewRequestHTTPClient creates a new RequestHTTPClient with default transport settings.
 func NewRequestHTTPClient() *RequestHTTPClient {
 	tlsConfig := &tls.Config{}
 	httpClient := &http.Client{
@@ -291,6 +310,7 @@ func NewRequestHTTPClient() *RequestHTTPClient {
 	return &requestClient
 }
 
+// SetServerName sets the ServerName for SNI in the TLS configuration.
 func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClient, error) {
 	if rc.client == nil {
 		return nil, errors.New(
@@ -321,6 +341,7 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 	return rc, nil
 }
 
+// SetCACertsPool sets the CA certificate pool for the HTTP transport.
 func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTPClient, error) {
 	if rc.client == nil {
 		return nil, errors.New(
@@ -352,6 +373,7 @@ func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTP
 	return rc, nil
 }
 
+// SetInsecureSkipVerify sets whether to skip TLS certificate verification.
 func (rc *RequestHTTPClient) SetInsecureSkipVerify(isInsecure bool) (*RequestHTTPClient, error) {
 	if rc.client == nil {
 		return nil, errors.New(
@@ -374,6 +396,7 @@ func (rc *RequestHTTPClient) SetInsecureSkipVerify(isInsecure bool) (*RequestHTT
 	return rc, nil
 }
 
+// SetMethod sets the HTTP method for the client.
 func (rc *RequestHTTPClient) SetMethod(method string) (*RequestHTTPClient, error) {
 	if method == emptyString {
 		rc.method = httpClientDefaultMethod
@@ -390,6 +413,7 @@ func (rc *RequestHTTPClient) SetMethod(method string) (*RequestHTTPClient, error
 	return rc, fmt.Errorf("%s: %w", method, ErrMethodNotFound)
 }
 
+// SetTransportOverride sets a dialer override to connect to a specific transport address.
 func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*RequestHTTPClient, error) {
 	if transportURL == emptyString {
 		return rc, nil
@@ -436,12 +460,14 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	return rc, nil
 }
 
+// SetProxyProtocolV2 enables or disables PROXY protocol v2 support.
 func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) *RequestHTTPClient {
 	rc.enableProxyProtoV2 = enable
 
 	return rc
 }
 
+// SetProxyProtocolHeader sets a custom PROXY protocol header for the client's dialer.
 func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
 		return nil, errors.New("SetProxyProtocolHeader failed: transportOverrideURL not set")
@@ -487,6 +513,7 @@ func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*
 	return rc, nil
 }
 
+// SetClientTimeout sets the timeout for the HTTP client in seconds.
 func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, error) {
 	if rc.client == nil {
 		return nil, errors.New(
@@ -503,6 +530,7 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 	return rc, nil
 }
 
+// NewHTTPClientFromRequestConfig initializes a RequestHTTPClient using the provided RequestConfig.
 func NewHTTPClientFromRequestConfig(
 	r RequestConfig,
 	serverName string,
@@ -562,6 +590,8 @@ func NewHTTPClientFromRequestConfig(
 	return reqClient, nil
 }
 
+// processHTTPRequestsByHost executes the configured HTTP requests for all hosts and URIs.
+//
 //nolint:revive
 func processHTTPRequestsByHost(
 	r RequestConfig,

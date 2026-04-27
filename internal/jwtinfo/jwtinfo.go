@@ -29,6 +29,7 @@ var (
 	userAgent   = "HTTPS-Wrench/JwtInfo"
 )
 
+// JwtTokenData holds the raw and parsed data for access and refresh tokens.
 type JwtTokenData struct {
 	AccessTokenRaw     string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
 	AccessTokenJwt     *jwt.Token
@@ -40,8 +41,13 @@ type JwtTokenData struct {
 	RefreshTokenClaims []byte
 }
 
+// allReader is a function type that reads all data from an io.Reader.
 type allReader func(io.Reader) ([]byte, error)
 
+// RequestToken makes an HTTP POST request to the given URL with the provided values
+// to retrieve a JWT token. It handles both application/jwt and application/json
+// response types.
+//
 //nolint:revive
 func RequestToken(reqURL string, reqValues map[string]string, client *http.Client, readAll allReader) (JwtTokenData, error) {
 	if reqURL == emptyString {
@@ -127,6 +133,8 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 	return t, nil
 }
 
+// ReadTokenFromFile reads a JWT token string from the specified file.
+// It returns a JwtTokenData struct containing the raw token string.
 func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
@@ -149,6 +157,8 @@ func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
 	return td, nil
 }
 
+// ParseRequestJSONValues parses a JSON-encoded string of request values and merges
+// them into the provided map.
 func ParseRequestJSONValues(
 	reqValues string,
 	reqValuesMap map[string]string,
@@ -172,6 +182,8 @@ func ParseRequestJSONValues(
 	return reqValuesMap, nil
 }
 
+// ReadRequestValuesFile reads request values from a JSON file and merges them
+// into the provided map.
 func ReadRequestValuesFile(
 	fileName string,
 	reqValuesMap map[string]string,
@@ -192,11 +204,15 @@ func ReadRequestValuesFile(
 	return returnValuesMap, nil
 }
 
+// isValidJSON checks if the provided byte slice contains valid JSON data.
 func isValidJSON(data []byte) bool {
 	var v any
 	return json.Unmarshal(data, &v) == nil
 }
 
+// DecodeBase64 decodes the base64-encoded header and claims of the access and
+// refresh tokens stored in the JwtTokenData struct.
+//
 //nolint:revive
 func (jtd *JwtTokenData) DecodeBase64() error {
 	tokens := []struct {
@@ -277,6 +293,7 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 	return nil
 }
 
+// ParseUnverified parses the access token without verifying its signature.
 func (jtd *JwtTokenData) ParseUnverified() error {
 	token, _, err := jwt.NewParser().ParseUnverified(
 		jtd.AccessTokenRaw,
@@ -294,6 +311,8 @@ func (jtd *JwtTokenData) ParseUnverified() error {
 	return nil
 }
 
+// ParseWithJWKS parses and verifies the access token against the JSON Web Key Set (JWKS)
+// provided at the given URL.
 func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.Override) error {
 	if jwksURL == emptyString {
 		return errors.New("emptyString string provided as JWKS url")
@@ -332,6 +351,9 @@ func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.O
 	return nil
 }
 
+// PrintTokenInfo prints the decoded JWT token information (headers and claims)
+// to the provided writer in a human-readable format.
+//
 //nolint:revive
 func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 	sl := style.CertKeyP4.Render
@@ -420,6 +442,8 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 	return nil
 }
 
+// unmarshallTokenTimeClaims extracts and converts numeric "iat" and "exp" claims
+// from a JSON byte slice into human-readable date strings.
 func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 	tokenClaims := make(map[string]string)
 

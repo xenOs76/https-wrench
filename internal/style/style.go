@@ -10,8 +10,10 @@ var (
 	glamourDefStyle = "tokyo-night"
 	chromaDefStyle  = "dracula"
 
+	// LGDefBorder is the default hidden border for lipgloss tables.
 	LGDefBorder = lipgloss.HiddenBorder()
-	LGTable     = table.New().Border(LGDefBorder)
+	// LGTable is a pre-configured lipgloss table with a hidden border.
+	LGTable = table.New().Border(LGDefBorder)
 
 	flavour = catppuccin.Frappe
 
@@ -29,6 +31,7 @@ var (
 	catTeal     = lipgloss.Color(flavour.Teal().Hex)
 	lgRed       = lipgloss.Color("#FF0000")
 
+	// Cmd is the style for command/section headers.
 	Cmd = lipgloss.NewStyle().Foreground(catBase).Background(catBlue).
 		Bold(true).PaddingLeft(1).PaddingRight(1)
 

@@ -21,6 +21,9 @@ import (
 	"github.com/xenos76/https-wrench/internal/style"
 )
 
+// PrintData prints all collected certificate and key information (local files and remote endpoints)
+// to the provided writer in a human-readable format.
+//
 //nolint:revive
 func (c *CertinfoConfig) PrintData(w io.Writer) error {
 	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
@@ -134,6 +137,8 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 	return nil
 }
 
+// GetRemoteCerts establishes a TLS connection to the configured endpoint and retrieves
+// the peer certificate chain. It also performs certificate verification unless TLSInsecure is true.
 func (c *CertinfoConfig) GetRemoteCerts() error {
 	tlsConfig := &tls.Config{
 		RootCAs:            c.CACertsPool,
@@ -186,6 +191,7 @@ func (c *CertinfoConfig) GetRemoteCerts() error {
 	return nil
 }
 
+// CertsToTables formats and prints a list of x509 certificates as tables to the provided writer.
 func CertsToTables(w io.Writer, certs []*x509.Certificate) {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render

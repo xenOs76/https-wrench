@@ -16,6 +16,8 @@ import (
 	"github.com/youmark/pkcs8"
 )
 
+// PrintCertInfo prints basic information about an x509 certificate to the provided writer
+// with a specified indentation depth.
 func PrintCertInfo(cert *x509.Certificate, depth int, w io.Writer) {
 	prefix := ""
 	for range depth {
@@ -35,6 +37,7 @@ func PrintCertInfo(cert *x509.Certificate, depth int, w io.Writer) {
 }
 
 // Check if the PublicKey of a Certificate matches the PrivateKey.
+// certMatchPrivateKey checks if the public key of a certificate matches the given private key.
 func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, error) {
 	if cert == nil {
 		return false, nil
@@ -66,6 +69,7 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 	return match, nil
 }
 
+// GetRootCertsFromFile reads a PEM bundle from a file and returns an x509 CertPool.
 func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPool, error) {
 	if caBundlePath == emptyString {
 		return nil, errors.New("empty string provided as caBundlePath")
@@ -88,6 +92,7 @@ func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPoo
 	return rootCAPool, nil
 }
 
+// GetRootCertsFromString parses a PEM bundle from a string and returns an x509 CertPool.
 func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	if caBundleString == emptyString {
 		return nil, errors.New("empty string provided as caBundleString")
@@ -101,6 +106,7 @@ func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	return rootCAPool, nil
 }
 
+// GetCertsFromBundle reads a PEM bundle from a file and returns a slice of x509 Certificates.
 func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certificate, error) {
 	if certBundlePath == emptyString {
 		return nil, errors.New("empty string provided as certBundlePath")
@@ -166,6 +172,8 @@ func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 	}
 }
 
+// getPassphraseIfNeeded retrieves a passphrase from the environment or prompts the user if the key is encrypted.
+//
 //nolint:revive
 func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) ([]byte, error) {
 	if !isEncrypted {
@@ -257,6 +265,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.Pr
 	return nil, errors.New("unsupported key format or invalid password")
 }
 
+// GetKeyFromFile reads a private key from a file and parses it using ParsePrivateKey.
 func GetKeyFromFile(
 	keyFilePath string,
 	keyPwEnvVar string,
