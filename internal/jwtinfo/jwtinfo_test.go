@@ -322,7 +322,7 @@ func TestParseWithJWKS(t *testing.T) {
 		user        string
 		pass        string
 		scope       string
-		bodyReader  allReader
+		bodyReader  AllReader
 		expError    bool
 		expReqError bool
 	}{
@@ -814,7 +814,7 @@ func TestPrintTokenInfo(t *testing.T) {
 		user           string
 		pass           string
 		scope          string
-		bodyReader     allReader
+		bodyReader     AllReader
 		skipValidation bool
 		expError       bool
 		expReqError    bool

@@ -41,6 +41,7 @@ const (
 	emptyString = ""
 )
 
+// ErrMethodNotFound is returned when an unsupported HTTP method is specified.
 var ErrMethodNotFound = errors.New("HTTP method not found")
 
 var allowedHTTPMethods = map[string]string{
@@ -69,7 +70,9 @@ var contentTypeMatchingItems = []struct {
 }
 
 type (
-	URI            string
+	// URI represents a partial URL path (e.g. /index.html).
+	URI string
+	// ResponseHeader represents a formatted string of HTTP response headers.
 	ResponseHeader string
 )
 
@@ -87,23 +90,40 @@ type RequestHeader struct {
 
 // RequestConfig defines the configuration for a single HTTP request set.
 type RequestConfig struct {
-	Name                      string          `mapstructure:"name"`
-	ClientTimeout             int             `mapstructure:"clientTimeout"`
-	UserAgent                 string          `mapstructure:"userAgent"`
-	TransportOverrideURL      string          `mapstructure:"transportOverrideUrl"`
-	EnableProxyProtocolV2     bool            `mapstructure:"enableProxyProtocolV2"`
-	Insecure                  bool            `mapstructure:"insecure"`
-	RequestDebug              bool            `mapstructure:"requestDebug"`
-	RequestHeaders            []RequestHeader `mapstructure:"requestHeaders"`
-	RequestMethod             string          `mapstructure:"requestMethod"`
-	RequestBody               string          `mapstructure:"requestBody"`
-	ResponseDebug             bool            `mapstructure:"responseDebug"`
-	ResponseHeadersFilter     []string        `mapstructure:"responseHeadersFilter"`
-	ResponseBodyMatchRegexp   string          `mapstructure:"responseBodyMatchRegexp"`
-	PrintResponseBody         bool            `mapstructure:"printResponseBody"`
-	PrintResponseHeaders      bool            `mapstructure:"printResponseHeaders"`
-	PrintResponseCertificates bool            `mapstructure:"printResponseCertificates"`
-	Hosts                     []Host          `mapstructure:"hosts"`
+	// Name is a descriptive name for this request configuration.
+	Name string `mapstructure:"name"`
+	// ClientTimeout is the timeout in seconds for the HTTP client.
+	ClientTimeout int `mapstructure:"clientTimeout"`
+	// UserAgent is the custom User-Agent string to use for the request.
+	UserAgent string `mapstructure:"userAgent"`
+	// TransportOverrideURL is an optional address to connect to instead of the target host.
+	TransportOverrideURL string `mapstructure:"transportOverrideUrl"`
+	// EnableProxyProtocolV2 enables PROXY protocol v2 headers for the connection.
+	EnableProxyProtocolV2 bool `mapstructure:"enableProxyProtocolV2"`
+	// Insecure skips TLS certificate verification.
+	Insecure bool `mapstructure:"insecure"`
+	// RequestDebug enables dumping the outgoing HTTP request.
+	RequestDebug bool `mapstructure:"requestDebug"`
+	// RequestHeaders is a slice of custom HTTP headers to include in the request.
+	RequestHeaders []RequestHeader `mapstructure:"requestHeaders"`
+	// RequestMethod is the HTTP method to use (GET, POST, etc.).
+	RequestMethod string `mapstructure:"requestMethod"`
+	// RequestBody is the body of the HTTP request.
+	RequestBody string `mapstructure:"requestBody"`
+	// ResponseDebug enables dumping the incoming HTTP response.
+	ResponseDebug bool `mapstructure:"responseDebug"`
+	// ResponseHeadersFilter is a list of header keys to display in the output.
+	ResponseHeadersFilter []string `mapstructure:"responseHeadersFilter"`
+	// ResponseBodyMatchRegexp is a regular expression to match against the response body.
+	ResponseBodyMatchRegexp string `mapstructure:"responseBodyMatchRegexp"`
+	// PrintResponseBody indicates if the response body should be printed to the output.
+	PrintResponseBody bool `mapstructure:"printResponseBody"`
+	// PrintResponseHeaders indicates if the response headers should be printed to the output.
+	PrintResponseHeaders bool `mapstructure:"printResponseHeaders"`
+	// PrintResponseCertificates indicates if the response TLS certificates should be printed.
+	PrintResponseCertificates bool `mapstructure:"printResponseCertificates"`
+	// Hosts is a list of target hosts and their URIs.
+	Hosts []Host `mapstructure:"hosts"`
 }
 
 // RequestHTTPClient wraps an http.Client with additional configuration for requests.
@@ -116,24 +136,32 @@ type RequestHTTPClient struct {
 
 // ResponseData holds the results and metadata of an executed HTTP request.
 type ResponseData struct {
-	Request                   RequestConfig
-	TransportAddress          string
-	URL                       string
-	ResponseBody              string
+	// Request is the original configuration for the executed request.
+	Request RequestConfig
+	// TransportAddress is the network address the request was sent to.
+	TransportAddress string
+	// URL is the full URL requested.
+	URL string
+	// ResponseBody is the content of the HTTP response.
+	ResponseBody string
+	// ResponseBodyRegexpMatched indicates if the response body matched the configured regexp.
 	ResponseBodyRegexpMatched bool
-	Response                  *http.Response
-	Error                     error
+	// Response is the raw HTTP response object.
+	Response *http.Response
+	// Error is any error encountered during the request.
+	Error error
 }
 
 // RequestsMetaConfig holds the global configuration and the list of requests to execute.
 type RequestsMetaConfig struct {
-	// TODO: can we remove the following
-	// three lines and just embed an "options"
-	// struct to take care of metadata?
-	RequestDebug   bool
+	// RequestDebug enables global request debugging.
+	RequestDebug bool
+	// RequestVerbose enables global verbose output.
 	RequestVerbose bool
-	CACertsPool    *x509.CertPool
-	Requests       []RequestConfig `mapstructure:"requests"`
+	// CACertsPool is the certificate pool used for validating server certificates.
+	CACertsPool *x509.CertPool
+	// Requests is the list of request configurations to execute.
+	Requests []RequestConfig `mapstructure:"requests"`
 }
 
 // NewRequestsMetaConfig creates a new RequestsMetaConfig with the system's certificate pool.

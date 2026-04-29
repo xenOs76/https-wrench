@@ -85,6 +85,8 @@ Distributed under an open-source license: https://github.com/xenOs76/https-wrenc
 	},
 }
 
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -135,6 +137,7 @@ func initConfig() {
 	}
 }
 
+// LoadConfig reads the configuration file and unmarshals it into an HTTPSWrenchConfig struct.
 func LoadConfig() (*HTTPSWrenchConfig, error) {
 	config := NewHTTPSWrenchConfig()
 
