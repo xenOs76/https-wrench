@@ -205,17 +205,28 @@ in {
     test -f $CAROOT/dhparam || curl https://ssl-config.mozilla.org/ffdhe2048.txt > $CAROOT/dhparam
     test -f $CAROOT/cert.pem || mkcert -key-file $CAROOT/key.pem -cert-file $CAROOT/cert.pem localhost 127.0.0.1 ::1 example.com *.example.com
     test -f $CAROOT/full-cert.pem || cat  $CAROOT/cert.pem $CAROOT/rootCA.pem > $CAROOT/full-cert.pem
+    test -f $CAROOT/key.pub || openssl rsa -in $CAROOT/key.pem -pubout -out $CAROOT/key.pub
+
     test -f $CAROOT/rsa-private_traditional.key || openssl rsa -in $CAROOT/key.pem -traditional -out $CAROOT/rsa-private_traditional.key
+    test -f $CAROOT/rsa-private_traditional.pub || openssl rsa -in $CAROOT/rsa-private_traditional.key -pubout -out $CAROOT/rsa-private_traditional.pub
 
     test -f $CAROOT/rsa-private_traditional_encrypted.key ||  openssl rsa -passout pass:$KEY_TEST_PW -in $CAROOT/rsa-private_traditional.key -out $CAROOT/rsa-private_traditional_encrypted.key -aes256
+    test -f $CAROOT/rsa-private_traditional_encrypted.pub || openssl rsa -passin pass:$KEY_TEST_PW -in $CAROOT/rsa-private_traditional_encrypted.key -pubout -out $CAROOT/rsa-private_traditional_encrypted.pub
 
     test -f $CAROOT/private.ec.key || openssl ecparam -name prime256v1 -genkey -noout -out $CAROOT/private.ec.key
+    test -f $CAROOT/private.ec.pub || openssl ec -in $CAROOT/private.ec.key -pubout -out $CAROOT/private.ec.pub
+
     test -f $CAROOT/encrypted.rsa.key || openssl genrsa -aes128 -passout pass:$KEY_TEST_PW -out $CAROOT/encrypted.rsa.key 4096
+    test -f $CAROOT/encrypted.rsa.pub || openssl rsa -passin pass:$KEY_TEST_PW -in $CAROOT/encrypted.rsa.key -pubout -out $CAROOT/encrypted.rsa.pub
 
     # ECDSA_DIR=$CAROOT/ecdsa-cert
     test -d $ECDSA_DIR || mkdir $ECDSA_DIR
     test -f $ECDSA_DIR/ecdsa.key || openssl ecparam -name prime256v1 -genkey -noout -out $ECDSA_DIR/ecdsa.key
+    test -f $ECDSA_DIR/ecdsa.pub || openssl ec -in $ECDSA_DIR/ecdsa.key -pubout -out $ECDSA_DIR/ecdsa.pub
+
     test -f $ECDSA_DIR/encrypted.ecdsa.key || openssl ec -in $ECDSA_DIR/ecdsa.key -out $ECDSA_DIR/encrypted.ecdsa.key -aes256 -passout pass:$KEY_TEST_PW
+    test -f $ECDSA_DIR/encrypted.ecdsa.pub || openssl ec -passin pass:$KEY_TEST_PW -in $ECDSA_DIR/encrypted.ecdsa.key -pubout -out $ECDSA_DIR/encrypted.ecdsa.pub
+
     test -f $ECDSA_DIR/ecdsa.crt || openssl req -new -x509 -key $ECDSA_DIR/ecdsa.key -days 825 -out $ECDSA_DIR/ecdsa.crt \
         -subj "/CN=example.com/O=Example Org" \
         -addext "subjectAltName=DNS:example.com,DNS:alt.example.com,IP:10.0.0.5"
@@ -223,7 +234,11 @@ in {
     # ED25519_DIR=$CAROOT/ed25519_cert
     test -d $ED25519_DIR || mkdir $ED25519_DIR
     test -f $ED25519_DIR/ed25519.key || openssl genpkey -algorithm Ed25519 -out $ED25519_DIR/ed25519.key
+    test -f $ED25519_DIR/ed25519.pub || openssl pkey -in $ED25519_DIR/ed25519.key -pubout -out $ED25519_DIR/ed25519.pub
+
     test -f $ED25519_DIR/encrypted.ed25519.key || openssl pkey -in $ED25519_DIR/ed25519.key -out $ED25519_DIR/encrypted.ed25519.key -aes256 -passout pass:$KEY_TEST_PW
+    test -f $ED25519_DIR/encrypted.ed25519.pub || openssl pkey -passin pass:$KEY_TEST_PW -in $ED25519_DIR/encrypted.ed25519.key -pubout -out $ED25519_DIR/encrypted.ed25519.pub
+
     test -f $ED25519_DIR/ed25519.crt || openssl req -new -x509 -key $ED25519_DIR/ed25519.key -days 365 -out $ED25519_DIR/ed25519.crt \
     -subj "/CN=example.com/O=Example Org" -addext "subjectAltName=DNS:example.com,IP:127.0.0.1"
   '';
@@ -600,6 +615,15 @@ in {
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_AUTH0" --validation-url "$VALIDATION_URL"
   '';
 
+  scripts.run-jwtinfo-test-auth0-wrong-validation-url.exec = ''
+    gum format "### JwtInfo request against Auth0 with wrong validation URL"
+
+    REQ_URL="https://dev-x3cci6dykofnlj5z.eu.auth0.com/oauth/token"
+    VALIDATION_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/certs"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-json "$JWTINFO_TEST_AUTH0" --validation-url "$VALIDATION_URL"
+  '';
+
   scripts.run-jwtinfo-test-auth0-no-validation.exec = ''
     gum format "### JwtInfo request against Auth0: no validation"
 
@@ -667,13 +691,6 @@ in {
 
   enterShell = ''
     gum format "# Devenv shell"
-    export GITEA_TOKEN=$(cat ~/.config/goreleaser/gitea_token)
-    export GITHUB_TOKEN=$(cat ~/.config/goreleaser/github_token)
-
-    # JwtInfo tests against authentication providers when not on CI
-    # test -f ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json && export JWTINFO_TEST_AUTH0=$(cat ~/.config/https-wrench/jwtinfo_test_auth0_req_values.json)
-    # test -f ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json && export JWTINFO_TEST_KEYCLOAK=$(cat ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json)
-
     go version
     create-certs
   '';
