@@ -2,6 +2,7 @@ package jwtinfo
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -281,6 +282,7 @@ func TestRequestToken(t *testing.T) {
 			}
 
 			_, err = RequestToken(
+				context.Background(),
 				serverJwtEndpoint,
 				reqValues,
 				client,
@@ -398,6 +400,7 @@ func TestParseWithJWKS(t *testing.T) {
 			reqValues["scope"] = tt.scope
 
 			td, err := RequestToken(
+				context.Background(),
 				serverJwtEndpoint,
 				reqValues,
 				client,
@@ -442,6 +445,7 @@ func TestParseWithJWKS(t *testing.T) {
 				)
 
 				err = td.ParseWithJWKS(
+					context.Background(),
 					serverJwksEmptyEndpoint,
 					keyfuncOverrideTesting,
 				)
@@ -470,6 +474,7 @@ func TestParseWithJWKS(t *testing.T) {
 				)
 
 				err = td.ParseWithJWKS(
+					context.Background(),
 					serverJwksFaultyEndpoint,
 					keyfuncOverrideTesting,
 				)
@@ -483,6 +488,7 @@ func TestParseWithJWKS(t *testing.T) {
 			}
 
 			err = td.ParseWithJWKS(
+				context.Background(),
 				serverJwksEndpoint,
 				keyfuncOverrideTesting,
 			)
@@ -536,6 +542,7 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 		td := JwtTokenData{AccessTokenRaw: token}
 
 		err = td.ParseWithJWKS(
+			context.Background(),
 			"",
 			keyfunc.Override{},
 		)
@@ -555,6 +562,7 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 		td := JwtTokenData{AccessTokenRaw: token}
 
 		err = td.ParseWithJWKS(
+			context.Background(),
 			"https://localhost:54321/jkws.wrong.json",
 			keyfunc.Override{},
 		)
@@ -574,7 +582,8 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 		td := JwtTokenData{AccessTokenRaw: token}
 
 		err = td.ParseWithJWKS(
-			"https://loca#$%^/jkws.json",
+			context.Background(),
+			"https://loca#$%^/jwks.json",
 			keyfunc.Override{},
 		)
 		require.ErrorContains(
@@ -688,8 +697,8 @@ func TestDecodeBase64(t *testing.T) {
 	}
 }
 
-func TestUnmarshallTokenTimeClaims(t *testing.T) {
-	t.Run("unmarshallTokenTimeClaims", func(t *testing.T) {
+func TestUnmarshalTokenTimeClaims(t *testing.T) {
+	t.Run("unmarshalTokenTimeClaims", func(t *testing.T) {
 		t.Parallel()
 
 		var jtd JwtTokenData
@@ -722,7 +731,7 @@ func TestUnmarshallTokenTimeClaims(t *testing.T) {
 		err = jtd.DecodeBase64()
 		require.NoError(t, err)
 
-		claimsMap, err := unmarshallTokenTimeClaims(
+		claimsMap, err := unmarshalTokenTimeClaims(
 			jtd.AccessTokenClaims,
 		)
 		require.NoError(t, err)
@@ -740,7 +749,7 @@ func TestUnmarshallTokenTimeClaims(t *testing.T) {
 	})
 }
 
-func TestUnmarshallTokenTimeClaims_MapErrors(t *testing.T) {
+func TestUnmarshalTokenTimeClaims_MapErrors(t *testing.T) {
 	invalidJSONClaims := "can not unmarshal"
 
 	noIatClaims := "{\"exp\":1}"
@@ -757,7 +766,7 @@ func TestUnmarshallTokenTimeClaims_MapErrors(t *testing.T) {
 		{
 			name:   "invalid JSON",
 			claims: []byte(invalidJSONClaims),
-			errMsg: "unable to unmarshall claims",
+			errMsg: "unable to unmarshal claims",
 		},
 		{
 			name:   "missing Issued At",
@@ -787,7 +796,7 @@ func TestUnmarshallTokenTimeClaims_MapErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := unmarshallTokenTimeClaims(tt.claims)
+			_, err := unmarshalTokenTimeClaims(tt.claims)
 			require.ErrorContains(t, err, tt.errMsg)
 			//nolint:revive
 		})
@@ -801,13 +810,14 @@ func TestUnmarshallTokenTimeClaims_MapErrors(t *testing.T) {
 //nolint:revive
 func TestPrintTokenInfo(t *testing.T) {
 	tests := []struct {
-		name        string
-		user        string
-		pass        string
-		scope       string
-		bodyReader  allReader
-		expError    bool
-		expReqError bool
+		name           string
+		user           string
+		pass           string
+		scope          string
+		bodyReader     allReader
+		skipValidation bool
+		expError       bool
+		expReqError    bool
 	}{
 		{
 			name:       "default case",
@@ -815,6 +825,14 @@ func TestPrintTokenInfo(t *testing.T) {
 			pass:       "known",
 			bodyReader: io.ReadAll,
 			scope:      "default",
+		},
+		{
+			name:           "without validation",
+			user:           "test",
+			pass:           "known",
+			bodyReader:     io.ReadAll,
+			scope:          "default",
+			skipValidation: true,
 		},
 	}
 
@@ -850,6 +868,7 @@ func TestPrintTokenInfo(t *testing.T) {
 			reqValues["scope"] = tt.scope
 
 			td, err := RequestToken(
+				context.Background(),
 				serverJwtEndpoint,
 				reqValues,
 				client,
@@ -857,20 +876,23 @@ func TestPrintTokenInfo(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			keyfuncOverrideTesting := keyfunc.Override{
-				Client: server.Client(),
-			}
+			if !tt.skipValidation {
+				keyfuncOverrideTesting := keyfunc.Override{
+					Client: server.Client(),
+				}
 
-			err = td.ParseWithJWKS(
-				serverJwksEndpoint,
-				keyfuncOverrideTesting,
-			)
-			require.NoError(t, err)
-			require.True(
-				t,
-				td.AccessTokenJwt.Valid,
-				"JWT token must be valid",
-			)
+				err = td.ParseWithJWKS(
+					context.Background(),
+					serverJwksEndpoint,
+					keyfuncOverrideTesting,
+				)
+				require.NoError(t, err)
+				require.True(
+					t,
+					td.AccessTokenJwt.Valid,
+					"JWT token must be valid",
+				)
+			}
 
 			err = td.DecodeBase64()
 			require.NoError(t, err)
@@ -883,7 +905,6 @@ func TestPrintTokenInfo(t *testing.T) {
 
 			stringsToCheck := []string{
 				"JwtInfo",
-				"Valid",
 				"Header",
 				"Claims",
 				"alg",
@@ -896,8 +917,16 @@ func TestPrintTokenInfo(t *testing.T) {
 				"iat",
 			}
 
+			if !tt.skipValidation {
+				stringsToCheck = append(stringsToCheck, "Valid")
+			}
+
 			for _, outStr := range stringsToCheck {
 				require.Contains(t, got, outStr)
+			}
+
+			if tt.skipValidation {
+				require.NotContains(t, got, "Valid")
 			}
 		})
 	}
@@ -939,7 +968,7 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 		//nolint:revive
 		buffer := bytes.Buffer{}
 
-		// Valid claims so unmarshallTokenTimeClaims succeeds.
+		// Valid claims so unmarshalTokenTimeClaims succeeds.
 		now := time.Now().Unix()
 		exp := now + 3600
 		claimsJSON := fmt.Sprintf(`{"iat": %d, "exp": %d}`, now, exp)
@@ -957,7 +986,7 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 		require.Positive(t, buffer.Len())
 	})
 
-	t.Run("unmarshallTokenTimeClaims error", func(t *testing.T) {
+	t.Run("unmarshalTokenTimeClaims error", func(t *testing.T) {
 		buffer := bytes.Buffer{}
 
 		jtd := JwtTokenData{
@@ -967,6 +996,6 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 
 		err := PrintTokenInfo(jtd, &buffer)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "unable to unmashall time claims from AccessToken")
+		require.ErrorContains(t, err, "unable to unmarshal time claims from AccessToken")
 	})
 }

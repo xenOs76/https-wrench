@@ -49,7 +49,7 @@ type allReader func(io.Reader) ([]byte, error)
 // response types.
 //
 //nolint:revive
-func RequestToken(reqURL string, reqValues map[string]string, client *http.Client, readAll allReader) (JwtTokenData, error) {
+func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll allReader) (JwtTokenData, error) {
 	if reqURL == emptyString {
 		return JwtTokenData{}, errors.New("empty string provided as request URL")
 	}
@@ -65,7 +65,8 @@ func RequestToken(reqURL string, reqValues map[string]string, client *http.Clien
 		urlReqValues.Add(k, v)
 	}
 
-	req, err := http.NewRequest(
+	req, err := http.NewRequestWithContext(
+		ctx,
 		"POST",
 		reqURL,
 		strings.NewReader(urlReqValues.Encode()),
@@ -177,9 +178,14 @@ func ParseRequestJSONValues(
 		return nil, fmt.Errorf("unable to parse Json request values: %w", err)
 	}
 
-	maps.Copy(reqValuesMap, objmap)
+	newMap := maps.Clone(reqValuesMap)
+	if newMap == nil {
+		newMap = make(map[string]string)
+	}
 
-	return reqValuesMap, nil
+	maps.Copy(newMap, objmap)
+
+	return newMap, nil
 }
 
 // ReadRequestValuesFile reads request values from a JSON file and merges them
@@ -204,10 +210,18 @@ func ReadRequestValuesFile(
 	return returnValuesMap, nil
 }
 
-// isValidJSON checks if the provided byte slice contains valid JSON data.
+// isValidJSON checks if the provided byte slice contains valid JSON object data.
 func isValidJSON(data []byte) bool {
-	var v any
-	return json.Unmarshal(data, &v) == nil
+	if !json.Valid(data) {
+		return false
+	}
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) < 2 {
+		return false
+	}
+
+	return trimmed[0] == '{' && trimmed[len(trimmed)-1] == '}'
 }
 
 // DecodeBase64 decodes the base64-encoded header and claims of the access and
@@ -313,13 +327,10 @@ func (jtd *JwtTokenData) ParseUnverified() error {
 
 // ParseWithJWKS parses and verifies the access token against the JSON Web Key Set (JWKS)
 // provided at the given URL.
-func (jtd *JwtTokenData) ParseWithJWKS(jwksURL string, keyfuncOverride keyfunc.Override) error {
+func (jtd *JwtTokenData) ParseWithJWKS(ctx context.Context, jwksURL string, keyfuncOverride keyfunc.Override) error {
 	if jwksURL == emptyString {
 		return errors.New("emptyString string provided as JWKS url")
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	jwks, err := keyfunc.NewDefaultOverrideCtx(
 		ctx,
@@ -395,7 +406,7 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 		fmt.Fprintln(w, style.LgSprintf(style.Title2, "%s", token.name))
 		fmt.Fprintln(w)
 
-		if token.name == "AccessToken" {
+		if token.name == "AccessToken" && jtd.AccessTokenJwt != nil {
 			fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Valid %s", validString))
 			fmt.Fprintln(w)
 		}
@@ -417,9 +428,9 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Claims"))
 
-		tokenTimeClaims, err := unmarshallTokenTimeClaims(token.claims)
+		tokenTimeClaims, err := unmarshalTokenTimeClaims(token.claims)
 		if err != nil {
-			return fmt.Errorf("unable to unmashall time claims from %s: %w", token.name, err)
+			return fmt.Errorf("unable to unmarshal time claims from %s: %w", token.name, err)
 		}
 
 		cTable := table.New().Border(style.LGDefBorder)
@@ -442,15 +453,15 @@ func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
 	return nil
 }
 
-// unmarshallTokenTimeClaims extracts and converts numeric "iat" and "exp" claims
+// unmarshalTokenTimeClaims extracts and converts numeric "iat" and "exp" claims
 // from a JSON byte slice into human-readable date strings.
-func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
+func unmarshalTokenTimeClaims(claims []byte) (map[string]string, error) {
 	tokenClaims := make(map[string]string)
 
 	genericClaims := make(map[string]any)
 
 	if err := json.Unmarshal(claims, &genericClaims); err != nil {
-		return nil, fmt.Errorf("unable to unmarshall claims: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal claims: %w", err)
 	}
 
 	if _, ok := genericClaims["iat"]; !ok {
@@ -470,174 +481,15 @@ func unmarshallTokenTimeClaims(claims []byte) (map[string]string, error) {
 	}
 
 	for k, v := range genericClaims {
-		vi := v
-
-		if vf, ok := vi.(float64); ok {
-			vInt64 := int64(vf)
-			t := time.Unix(vInt64, 0)
-			dateUTC := t.UTC().Format(time.UnixDate)
-			tokenClaims[k] = fmt.Sprintf("%v", dateUTC)
-
-			continue
+		if k == "iat" || k == "exp" || k == "nbf" {
+			if vf, ok := v.(float64); ok {
+				vInt64 := int64(vf)
+				t := time.Unix(vInt64, 0)
+				dateUTC := t.UTC().Format(time.UnixDate)
+				tokenClaims[k] = dateUTC
+			}
 		}
 	}
 
 	return tokenClaims, nil
 }
-
-// func unmarshallTokenClaims(claims []byte) (map[string]string, error) {
-// 	tokenClaims := make(map[string]string)
-//
-// 	genericClaims := make(map[string]any)
-//
-// 	if err := json.Unmarshal(claims, &genericClaims); err != nil {
-// 		return nil, err
-// 	}
-//
-// 	for k, v := range genericClaims {
-// 		var vi any = v
-//
-// 		if vs, ok := vi.(map[string]any); ok {
-// 			tokenClaims[k] = fmt.Sprintf("%s", vs)
-// 			continue
-// 		}
-//
-// 		if vf, ok := vi.(float64); ok {
-// 			vInt64 := int64(vf)
-// 			t := time.Unix(vInt64, 0)
-// 			dateUtc := t.UTC().String()
-//
-// 			outString := fmt.Sprintf("%v (%s)", int64(vf), dateUtc)
-//
-// 			tokenClaims[k] = fmt.Sprintf("%v", outString)
-//
-// 			continue
-// 		}
-//
-// 		if vls, ok := vi.([]string); ok {
-// 			tokenClaims[k] = strings.Join(vls, ",")
-// 			continue
-// 		}
-//
-// 		if vla, ok := vi.([]any); ok {
-// 			tokenClaims[k] = fmt.Sprintf("%v", vla)
-// 			continue
-// 		}
-//
-// 		if vb, ok := vi.(bool); ok {
-// 			tokenClaims[k] = fmt.Sprintf("%v", vb)
-// 			continue
-// 		}
-//
-// 		if vs, ok := vi.(string); ok {
-// 			tokenClaims[k] = vs
-// 		} else {
-// 			fmt.Printf("not asserted: %v\n", v)
-// 		}
-// 	}
-//
-// 	return tokenClaims, nil
-// }
-//
-// func unmarshallTokenHeader(header []byte) (map[string]string, error) {
-// 	tokenHeader := make(map[string]string)
-//
-// 	if err := json.Unmarshal(header, &tokenHeader); err != nil {
-// 		return nil, err
-// 	}
-//
-// 	return tokenHeader, nil
-// }
-//
-// func getTokenClaimsMap(t *jwt.Token) (map[string]string, error) {
-// 	m := make(map[string]string)
-//
-// 	// Mandatory Registered Claims
-// 	issuer, err := t.Claims.GetIssuer()
-// 	if err != nil || issuer == emptyString {
-// 		return nil, fmt.Errorf("unable to get issuer: %w", err)
-// 	}
-//
-// 	subject, err := t.Claims.GetSubject()
-// 	if err != nil || subject == emptyString {
-// 		return nil, fmt.Errorf("unable to get subject: %w", err)
-// 	}
-//
-// 	issuedAt, err := t.Claims.GetIssuedAt()
-// 	if err != nil || issuedAt == nil {
-// 		return nil, fmt.Errorf("unable to get issuedAt: %w", err)
-// 	}
-//
-// 	expiresAt, err := t.Claims.GetExpirationTime()
-// 	if err != nil || expiresAt == nil {
-// 		return nil, fmt.Errorf("unable to get expiration time: %w", err)
-// 	}
-//
-// 	audienceElems, err := t.Claims.GetAudience()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unable to get audience: %w", err)
-// 	}
-//
-// 	audience := strings.Join(audienceElems, ",")
-//
-// 	m["iss"] = issuer
-// 	m["sub"] = subject
-// 	m["iat"] = issuedAt.UTC().String()
-// 	m["exp"] = expiresAt.UTC().String()
-// 	m["aud"] = audience
-//
-// 	// Optional Registered Claims
-// 	notBefore, err := t.Claims.GetNotBefore()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unable to get notBefore time: %w", err)
-// 	}
-//
-// 	if notBefore != nil {
-// 		m["nbf"] = notBefore.UTC().String()
-// 	}
-//
-// 	return m, nil
-// }
-//
-// func getUnregisteredClaimsMap(t *jwt.Token, existingClaims map[string]string) map[string]string {
-// 	unregistreredClaims := make(map[string]string)
-//
-// 	var claimsInt any = t.Claims
-//
-// 	if claimsMap, ok := claimsInt.(jwt.MapClaims); ok {
-// 		for ck := range claimsMap {
-// 			if _, alreadyPresent := existingClaims[ck]; alreadyPresent {
-// 				continue
-// 			}
-//
-// 			cki := claimsMap[ck]
-//
-// 			if cStringValue, ok := cki.(string); ok {
-// 				unregistreredClaims[ck] = cStringValue
-// 			}
-//
-// 			if cIntList, ok := cki.([]any); ok {
-// 				unregistreredClaims[ck] = fmt.Sprintf("%s", cIntList)
-// 			}
-// 		}
-// 	}
-//
-// 	return unregistreredClaims
-// }
-//
-// func getTokenHeadersMap(t *jwt.Token) map[string]string {
-// 	m := make(map[string]string)
-//
-// 	for k, v := range t.Header {
-// 		headerValue := "undefined"
-// 		i := v
-//
-// 		if v, ok := i.(string); ok {
-// 			headerValue = v
-// 		}
-//
-// 		m[k] = headerValue
-// 	}
-//
-// 	return m
-// }

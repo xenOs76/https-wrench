@@ -29,13 +29,13 @@ var (
 
 var jwtinfoCmd = &cobra.Command{
 	Use:   "jwtinfo",
-	Short: "JwtInfo shows data from a JWT token",
-	Long: `JwtInfo shows data from a JWT token
+	Short: "Inspect and validate JSON Web Tokens (JWT)",
+	Long: `Inspect and validate JSON Web Tokens (JWT) from files or remote providers.
 
 Examples:
   export REQ_URL="https://sample.provider/oauth/token"
   export REQ_VALUES="{\"login\":\"values\"}"
-  export VALIDATION_URL="https://url.to/jkws.json"
+  export VALIDATION_URL="https://url.to/jwks.json"
 
   # Read a JWT token from a local file
   https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -50,11 +50,12 @@ Examples:
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
+		var (
+			err       error
+			tokenData jwtinfo.JwtTokenData
+		)
+
 		// TODO: remove global --config option
-
-		var err error
-		var tokenData jwtinfo.JwtTokenData
-
 		if tokenFile != "" {
 			tokenData, err = jwtinfo.ReadTokenFromFile(tokenFile)
 			if err != nil {
@@ -62,6 +63,7 @@ Examples:
 					"error while reading token value from file: %s",
 					err,
 				)
+
 				return
 			}
 		}
@@ -80,6 +82,7 @@ Examples:
 						"error while reading request's values from file: %s",
 						err,
 					)
+
 					return
 				}
 			}
@@ -94,11 +97,13 @@ Examples:
 						"error while parsing request's values JSON string: %s",
 						err,
 					)
+
 					return
 				}
 			}
 
 			tokenData, err = jwtinfo.RequestToken(
+				cmd.Context(),
 				requestURL,
 				requestValuesMap,
 				client,
@@ -118,7 +123,7 @@ Examples:
 			}
 
 			if jwksURL != "" {
-				err = tokenData.ParseWithJWKS(jwksURL, keyfuncDefOverride)
+				err = tokenData.ParseWithJWKS(cmd.Context(), jwksURL, keyfuncDefOverride)
 				if err != nil {
 					cmd.Printf("error while parsing token data: %s\n", err)
 					return
