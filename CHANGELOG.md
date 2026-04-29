@@ -1,3 +1,15 @@
+## 0.10.0 (2026-04-29)
+
+### Feat
+
+    Added JWT inspection and validation functionality supporting local files and remote token providers.
+    Added JWKS generation from public key files with syntax-highlighted output.
+
+### Doc
+
+    Updated README with JWT/JWKS sections, examples, and sample output images.
+    Enhanced command descriptions and help text for clarity.
+
 ## 0.9.2 (2026-04-04)
 
 ### Feat
