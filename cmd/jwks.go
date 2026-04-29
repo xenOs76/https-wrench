@@ -62,6 +62,6 @@ func init() {
 		&jwksKID,
 		"kid",
 		"",
-		"Optional explicit Key ID (kid) to use. If not provided, a thumbprint-based ID is inferred.",
+		"Optional explicit Key ID (kid) to use. If not provided, a SHA-256-derived ID is generated.",
 	)
 }

@@ -583,7 +583,7 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 
 		err = td.ParseWithJWKS(
 			context.Background(),
-			"https://loca#$%^/jkws.json",
+			"https://loca#$%^/jwks.json",
 			keyfunc.Override{},
 		)
 		require.ErrorContains(

@@ -210,9 +210,18 @@ func ReadRequestValuesFile(
 	return returnValuesMap, nil
 }
 
-// isValidJSON checks if the provided byte slice contains valid JSON data.
+// isValidJSON checks if the provided byte slice contains valid JSON object data.
 func isValidJSON(data []byte) bool {
-	return json.Valid(data)
+	if !json.Valid(data) {
+		return false
+	}
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) < 2 {
+		return false
+	}
+
+	return trimmed[0] == '{' && trimmed[len(trimmed)-1] == '}'
 }
 
 // DecodeBase64 decodes the base64-encoded header and claims of the access and

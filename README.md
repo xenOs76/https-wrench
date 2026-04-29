@@ -220,7 +220,7 @@ Inspect and validate JSON Web Tokens (JWT) from files or remote providers.
 Examples:
   export REQ_URL="https://sample.provider/oauth/token"
   export REQ_VALUES="{\"login\":\"values\"}"
-  export VALIDATION_URL="https://url.to/jkws.json"
+  export VALIDATION_URL="https://url.to/jwks.json"
 
   # Read a JWT token from a local file
   https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -285,7 +285,7 @@ Usage:
 
 Flags:
   -h, --help                     help for jwks
-      --kid string               Optional explicit Key ID (kid) to use. If not provided, a thumbprint-based ID is inferred.
+      --kid string               Optional explicit Key ID (kid) to use. If not provided, a SHA-256-derived ID is generated.
       --public-key-file string   File containing the PEM-encoded public key
 
 Global Flags:
@@ -295,7 +295,7 @@ Global Flags:
 
 </details>
 
-Generate a JWKS with an inferred thumbprint KID:
+Generate a JWKS with a SHA-256-derived KID:
 
 ```shell
 ❯ https-wrench jwks --public-key-file public.pem
@@ -325,12 +325,12 @@ Generate a JWKS with an inferred thumbprint KID:
 
 <details>
 <summary>HTTPS Wrench jwtinfo, request token</summary>
-<img alt="HTTPS Wrench jwtingo - Request Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_request_token.png">
+<img alt="HTTPS Wrench jwtinfo - Request Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_request_token.png">
 </details>
 
 <details>
 <summary>HTTPS Wrench jwtinfo, read token and validate</summary>
-<img alt="HTTPS Wrench jwtingo - Read Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_read_validate_token.png">
+<img alt="HTTPS Wrench jwtinfo - Read Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_read_validate_token.png">
 </details>
 
 ## How to install

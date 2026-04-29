@@ -20,7 +20,7 @@ import (
 )
 
 // GenerateJWKS reads a public key from a file, parses it, and returns its JSON Web Key Set (JWKS) representation.
-// If kid is provided, it sets the Key ID explicitly; otherwise, jwkset infers a thumbprint-based kid.
+// If kid is provided, it sets the Key ID explicitly; otherwise, it computes a SHA-256-derived kid from the public key.
 func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string, error) {
 	keyPEM, err := os.ReadFile(publicKeyFile)
 	if err != nil {
@@ -49,7 +49,7 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 	if kid == "" {
 		pubBytes, err := x509.MarshalPKIXPublicKey(key)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal public key for thumbprint: %w", err)
+			return "", fmt.Errorf("failed to marshal public key for SHA-256-derived kid: %w", err)
 		}
 
 		hash := sha256.Sum256(pubBytes)
