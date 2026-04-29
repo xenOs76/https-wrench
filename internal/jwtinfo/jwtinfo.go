@@ -31,25 +31,32 @@ var (
 
 // JwtTokenData holds the raw and parsed data for access and refresh tokens.
 type JwtTokenData struct {
-	AccessTokenRaw     string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
-	AccessTokenJwt     *jwt.Token
-	AccessTokenHeader  []byte
-	AccessTokenClaims  []byte
-	RefreshTokenRaw    string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
-	RefreshTokenJwt    *jwt.Token
+	// AccessTokenRaw is the raw base64-encoded access token string.
+	AccessTokenRaw string `json:"access_token"` //nolint:tagliatelle // OAuth token field name
+	// AccessTokenJwt is the parsed access token object.
+	AccessTokenJwt *jwt.Token
+	// AccessTokenHeader is the decoded JSON header of the access token.
+	AccessTokenHeader []byte
+	// AccessTokenClaims is the decoded JSON claims of the access token.
+	AccessTokenClaims []byte
+	// RefreshTokenRaw is the raw base64-encoded refresh token string.
+	RefreshTokenRaw string `json:"refresh_token"` //nolint:tagliatelle // OAuth token field name
+	// RefreshTokenJwt is the parsed refresh token object.
+	RefreshTokenJwt *jwt.Token
+	// RefreshTokenHeader is the decoded JSON header of the refresh token.
 	RefreshTokenHeader []byte
+	// RefreshTokenClaims is the decoded JSON claims of the refresh token.
 	RefreshTokenClaims []byte
 }
 
-// allReader is a function type that reads all data from an io.Reader.
-type allReader func(io.Reader) ([]byte, error)
+// AllReader is a function type that reads all data from an io.Reader.
+type AllReader func(io.Reader) ([]byte, error)
 
 // RequestToken makes an HTTP POST request to the given URL with the provided values
 // to retrieve a JWT token. It handles both application/jwt and application/json
 // response types.
-//
 //nolint:revive
-func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll allReader) (JwtTokenData, error) {
+func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll AllReader) (JwtTokenData, error) {
 	if reqURL == emptyString {
 		return JwtTokenData{}, errors.New("empty string provided as request URL")
 	}

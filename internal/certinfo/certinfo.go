@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	TLSTimeout         = 3 * time.Second
+	// TLSTimeout is the maximum time to wait for a TLS handshake.
+	TLSTimeout = 3 * time.Second
+	// CertExpWarnDays is the number of days before expiration to start showing warnings.
 	CertExpWarnDays    = 40
 	privateKeyPwEnvVar = "CERTINFO_PKEY_PW"
 	emptyString        = ""
@@ -20,20 +22,34 @@ const (
 
 // CertinfoConfig holds the configuration and results for certificate and key information retrieval.
 type CertinfoConfig struct {
-	CACertsPool             *x509.CertPool
-	CACertsFilePath         string
-	CertsBundle             []*x509.Certificate
-	CertsBundleFilePath     string
-	CertsBundleFromKey      bool
-	PrivKey                 crypto.PrivateKey
-	PrivKeyFilePath         string
-	TLSEndpoint             string
-	TLSEndpointHost         string
-	TLSEndpointPort         string
-	TLSEndpointCerts        []*x509.Certificate
+	// CACertsPool is the pool of root CA certificates used for verification.
+	CACertsPool *x509.CertPool
+	// CACertsFilePath is the path to the CA certificate bundle file.
+	CACertsFilePath string
+	// CertsBundle is a slice of certificates loaded from a local bundle.
+	CertsBundle []*x509.Certificate
+	// CertsBundleFilePath is the path to the certificate bundle file.
+	CertsBundleFilePath string
+	// CertsBundleFromKey indicates if the certificate was derived from a private key.
+	CertsBundleFromKey bool
+	// PrivKey is the loaded private key.
+	PrivKey crypto.PrivateKey
+	// PrivKeyFilePath is the path to the private key file.
+	PrivKeyFilePath string
+	// TLSEndpoint is the host:port string of the remote TLS endpoint.
+	TLSEndpoint string
+	// TLSEndpointHost is the hostname part of the TLS endpoint.
+	TLSEndpointHost string
+	// TLSEndpointPort is the port part of the TLS endpoint.
+	TLSEndpointPort string
+	// TLSEndpointCerts is the slice of certificates retrieved from the remote endpoint.
+	TLSEndpointCerts []*x509.Certificate
+	// TLSEndpointCertsFromKey indicates if the endpoint certificates were matched with a private key.
 	TLSEndpointCertsFromKey bool
-	TLSServerName           string
-	TLSInsecure             bool
+	// TLSServerName is the ServerName used for SNI.
+	TLSServerName string
+	// TLSInsecure indicates if certificate verification should be skipped.
+	TLSInsecure bool
 }
 
 // Reader defines an interface for reading files and passwords.
@@ -48,10 +64,11 @@ type (
 )
 
 var (
-	//nolint:revive
+	// TLSServerName is the default ServerName to use for SNI.
 	TLSServerName string
-	TLSInsecure   bool
-	inputReader   InputReader
+	// TLSInsecure indicates if certificate verification should be skipped globally.
+	TLSInsecure bool
+	inputReader InputReader
 )
 
 // ReadFile reads the content of a file from the filesystem.
@@ -84,6 +101,8 @@ func NewCertinfoConfig() (*CertinfoConfig, error) {
 }
 
 // SetCaPoolFromFile loads a CA certificate pool from the specified PEM bundle file.
+// Note that x509.SystemCertPool is not used in this case. All certificates
+// from the system certificate pool are excluded.
 func (c *CertinfoConfig) SetCaPoolFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
 		caCertsPool, err := GetRootCertsFromFile(
@@ -120,8 +139,8 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 }
 
 // SetPrivateKeyFromFile loads a private key from the specified PEM file.
-// If the key is encrypted, it will attempt to retrieve the passphrase from an environment variable or
-// interactive prompt.
+// If the key is encrypted, it will attempt to retrieve the passphrase from the environment
+// variable passed as argument or from the interactive prompt.
 func (c *CertinfoConfig) SetPrivateKeyFromFile(
 	filePath string,
 	keyPwEnvVar string,

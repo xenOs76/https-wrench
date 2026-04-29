@@ -301,7 +301,7 @@ Generate a JWKS with a SHA-256-derived KID:
 ❯ https-wrench jwks --public-key-file public.pem
 ```
 
-### Sample output
+## Sample output
 
 <details>
 <summary>HTTPS Wrench requests, sample configuration output</summary>
