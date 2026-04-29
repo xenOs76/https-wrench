@@ -55,8 +55,13 @@ type AllReader func(io.Reader) ([]byte, error)
 // RequestToken makes an HTTP POST request to the given URL with the provided values
 // to retrieve a JWT token. It handles both application/jwt and application/json
 // response types.
+//
 //nolint:revive
 func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll AllReader) (JwtTokenData, error) {
+	if readAll == nil {
+		return JwtTokenData{}, errors.New("nil body reader function")
+	}
+
 	if reqURL == emptyString {
 		return JwtTokenData{}, errors.New("empty string provided as request URL")
 	}
