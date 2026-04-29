@@ -8,10 +8,11 @@
     <i>HTTPS Wrench, a wrench not to bench</i>
 </p>
 
-**HTTPS Wrench** is a CLI program to make Yaml defined HTTPS requests and to
-inspect x.509 certificates and keys.\
+**HTTPS Wrench** is a tool for maintainers of secure HTTP endpoints.  
+It enables executing YAML-defined HTTPS requests, inspecting x.509 certificates, private keys, JSON Web Tokens (JWT), and
+generating JSON Web Key Sets (JWKS).\
 **HTTPS Wrench** was born from the desire of a disposable Bash script to become
-a reliable tool for mechanics of the World Wide Web.\
+a reliable companion for mechanics of the World Wide Web.\
 `https-wrench` will, one day, take the place of `curl` in the hearts and the
 eyes of whoever is about to migrate a DNS record from a webserver to a load
 balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
@@ -26,30 +27,37 @@ Check the help:
 ```plain
 ❯ https-wrench -h
 
-HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file and to inspect x.509 certificates and keys.
+HTTPS Wrench is a tool for maintainers of secure HTTP endpoints. 
+It enables executing YAML-defined HTTPS requests and performing in-depth 
+inspection of x.509 certificates, private keys, and JSON Web Tokens.
 
-https-wrench has two subcommands: requests and certinfo.
+https-wrench provides several specialized subcommands:
 
-requests is the subcommand that does HTTPS requests according to the configuration provided
-by the --config flag.
+requests: Execute HTTPS requests according to a structured YAML configuration, 
+supporting custom CA bundles and verbose output.
 
-certinfo is a subcommand that reads information from PEM encoded x.509 certificates and keys. The certificates
-can be read from local files or TLS enabled endpoints.
+certinfo: Inspect PEM-encoded certificates and keys from local files or remote 
+TLS endpoints. Verify certificate chains and key pairings.
 
-certinfo can compare public keys extracted from certificates and private keys to check if they match.
+jwtinfo: Decode, inspect, and validate JSON Web Tokens (JWT) using local files 
+or remote JWKS endpoints.
 
-HTTPS Wrench is distributed with an open source license and available at the following address:
-https://github.com/xenOs76/https-wrench
+jwks: Generate pretty-printed JSON Web Key Sets (JWKS) from public keys for 
+exposure on well-known endpoints.
+
+Distributed under an open-source license: https://github.com/xenOs76/https-wrench
 
 Usage:
   https-wrench [flags]
   https-wrench [command]
 
 Available Commands:
-  certinfo    Shows information about x.509 certificates and keys
+  certinfo    Inspect and verify x.509 certificates and keys
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
-  requests    Make HTTPS requests defined in the YAML configuration file
+  jwks        Generate a JSON Web Key Set (JWKS) from a public key
+  jwtinfo     Inspect and validate JSON Web Tokens (JWT)
+  requests    Execute YAML-defined HTTPS requests
 
 Flags:
       --config string   config file (default is $HOME/.https-wrench.yaml)
@@ -71,15 +79,15 @@ Get the help:
 ```plain
 ❯ https-wrench requests -h
 
-https-wrench requests is the subcommand that does HTTPS requests according to the configuration
+https-wrench requests is the subcommand that does HTTPS requests according to the configuration 
 pointed by the --config flag.
 
 A sample configuration can be generated as a starting point (--show-sample-config).
 
-The Github repository has more configuration examples:
+The Github repository has more configuration examples: 
 https://github.com/xenOs76/https-wrench/tree/main/assets/examples
 
-It also provides a JSON schema that can be used to validate new configuration files:
+It also provides a JSON schema that can be used to validate new configuration files: 
 https://github.com/xenOs76/https-wrench/blob/main/https-wrench.schema.json
 
 Examples:
@@ -90,7 +98,7 @@ Usage:
   https-wrench requests [flags]
 
 Flags:
-      --ca-bundle string     Path to bundle file with CA certificates
+      --ca-bundle string     Path to bundle file with CA certificates 
                              to use for validation
   -h, --help                 help for requests
       --show-sample-config   Show a sample YAML configuration
@@ -131,16 +139,16 @@ Get the help:
 ```plain
 ❯ https-wrench certinfo -h
 
-HTTPS Wrench certinfo: shows information about PEM certificates and keys.
+Inspect and verify PEM encoded x.509 certificates and keys.
 
-https-wrench certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a
+https-wrench certinfo can fetch certificates from a TLS endpoint, read from a PEM bundle file, and check if a 
 private key matches any of the certificates.
 
-The certificates can be verified against the system root CAs or a custom CA bundle file.
+The certificates can be verified against the system root CAs or a custom CA bundle file. 
 
 The validation can be skipped.
 
-If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW
+If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW 
 environment variable or will be prompted on stdin.
 
 Examples:
@@ -159,13 +167,13 @@ Usage:
   https-wrench certinfo [flags]
 
 Flags:
-      --ca-bundle string        Path to bundle file with CA certificates
+      --ca-bundle string        Path to bundle file with CA certificates 
                                 to use for validation
       --cert-bundle string      Path to PEM Certificate bundle file
   -h, --help                    help for certinfo
       --key-file string         Path to PEM Key file
-      --tls-endpoint string     TLS enabled endpoint exposing certificates to fetch.
-                                Forms: 'host:port', '[host]:port'.
+      --tls-endpoint string     TLS enabled endpoint exposing certificates to fetch. 
+                                Forms: 'host:port', '[host]:port'. 
                                 IPv6 addresses must be enclosed in square brackets, as in '[::1]:80'
       --tls-insecure            Skip certificate validation when connecting to a TLS endpoint
       --tls-servername string   ServerName to use when connecting to an SNI enabled TLS endpoint
@@ -197,10 +205,106 @@ been used to generate the certificate:
 ❯ https-wrench certinfo --tls-endpoint localhost:9443 --ca-bundle rootCA.pem --key-file key.pem
 ```
 
+### HTTPS Wrench jwtinfo
+
+`jwtinfo` allows you to decode and inspect the claims of a JSON Web Token. It can also validate the token signature if a JWKS endpoint is provided.
+
+<details>
+<summary>View Jwtinfo Help (`https-wrench jwtinfo -h`)</summary>
+
+```plain
+❯ https-wrench jwtinfo -h
+
+Inspect and validate JSON Web Tokens (JWT) from files or remote providers.
+
+Examples:
+  export REQ_URL="https://sample.provider/oauth/token"
+  export REQ_VALUES="{\"login\":\"values\"}"
+  export VALIDATION_URL="https://url.to/jkws.json"
+
+  # Read a JWT token from a local file
+  https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
+
+  # Request a JWT token using inline values
+  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES
+
+  # Request a JWT token using values file
+  https-wrench jwtinfo --request-url $REQ_URL --request-values-file request-values.json
+
+  # Request and validate a JWT token 
+  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
+
+Usage:
+  https-wrench jwtinfo [flags]
+
+Flags:
+  -h, --help                         help for jwtinfo
+      --request-url string           HTTP address to use for the JWT token request
+      --request-values-file string   File containing the JSON encoded values to use for the JWT token request
+      --request-values-json string   JSON encoded values to use for the JWT token request
+      --token-file string            File containing the JWT token
+      --validation-url string        Url of the JSON Web Key Set (JWKS) to use for validating the JWT token
+
+Global Flags:
+      --config string   config file (default is $HOME/.https-wrench.yaml)
+      --version         Display the version
+```
+
+</details>
+
+Decode a token from a file:
+
+```shell
+❯ https-wrench jwtinfo --token-file mytoken.jwt
+```
+
+### HTTPS Wrench jwks
+
+`jwks` generates a public JSON Web Key Set from a PEM-encoded public key. This is useful for exposing your public keys at a `.well-known/jwks.json` endpoint.
+
+<details>
+<summary>View Jwks Help (`https-wrench jwks -h`)</summary>
+
+```plain
+❯ https-wrench jwks -h
+
+Generate a pretty-printed JSON Web Key Set (JWKS) from a public key file.
+
+The generated JWKS contains only public key parameters and is safe
+to be exposed (e.g. at a /.well-known/jwks.json endpoint).
+
+Examples:
+  # Generate a public JWKS from an RSA public key
+  https-wrench jwks --public-key-file rsa-public.pem
+
+  # Generate a public JWKS with a custom Key ID (kid)
+  https-wrench jwks --public-key-file ec-public.pem --kid "my-custom-key-id"
+
+Usage:
+  https-wrench jwks [flags]
+
+Flags:
+  -h, --help                     help for jwks
+      --kid string               Optional explicit Key ID (kid) to use. If not provided, a thumbprint-based ID is inferred.
+      --public-key-file string   File containing the PEM-encoded public key
+
+Global Flags:
+      --config string   config file (default is $HOME/.https-wrench.yaml)
+      --version         Display the version
+```
+
+</details>
+
+Generate a JWKS with an inferred thumbprint KID:
+
+```shell
+❯ https-wrench jwks --public-key-file public.pem
+```
+
 ### Sample output
 
 <details>
-<summary>HTTPS Wrench requests, (long) sample configuration output</summary>
+<summary>HTTPS Wrench requests, sample configuration output</summary>
 <img alt="HTTPS Wrench requests - sample config output" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_requests_sample-config.png">
 </details>
 
@@ -217,6 +321,16 @@ been used to generate the certificate:
 <details>
 <summary>HTTPS Wrench certinfo, TLS Endpoint</summary>
 <img alt="HTTPS Wrench certinfo - TLS Endpoint" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_certinfo_tls_endpoint.png">
+</details>
+
+<details>
+<summary>HTTPS Wrench jwtinfo, request token</summary>
+<img alt="HTTPS Wrench jwtingo - Request Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_request_token.png">
+</details>
+
+<details>
+<summary>HTTPS Wrench jwtinfo, read token and validate</summary>
+<img alt="HTTPS Wrench jwtingo - Read Token" src="https://github.com/xenOs76/https-wrench/blob/main/assets/img/https-wrench_jwtinfo_read_validate_token.png">
 </details>
 
 ## How to install
