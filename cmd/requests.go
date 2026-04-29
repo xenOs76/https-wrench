@@ -22,7 +22,7 @@ var (
 
 var requestsCmd = &cobra.Command{
 	Use:   "requests",
-	Short: "Make HTTPS requests defined in the YAML configuration file",
+	Short: "Execute YAML-defined HTTPS requests",
 	Long: `
 https-wrench requests is the subcommand that does HTTPS requests according to the configuration 
 pointed by the --config flag.
@@ -62,6 +62,7 @@ Examples:
 		if err != nil {
 			cmd.Printf("\nConfig file not found: %s\n", viper.ConfigFileUsed())
 			_ = cmd.Help()
+
 			return
 		}
 

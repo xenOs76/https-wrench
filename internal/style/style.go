@@ -8,7 +8,7 @@ import (
 
 var (
 	glamourDefStyle = "tokyo-night"
-	chromaDefStyle  = "dracula"
+	chromaDefStyle  = "catppuccin-frappe"
 
 	// LGDefBorder is the default hidden border for lipgloss tables.
 	LGDefBorder = lipgloss.HiddenBorder()

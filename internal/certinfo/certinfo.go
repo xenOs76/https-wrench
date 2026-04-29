@@ -120,7 +120,8 @@ func (c *CertinfoConfig) SetCertsFromFile(filePath string, fileReader Reader) er
 }
 
 // SetPrivateKeyFromFile loads a private key from the specified PEM file.
-// If the key is encrypted, it will attempt to retrieve the passphrase from an environment variable or interactive prompt.
+// If the key is encrypted, it will attempt to retrieve the passphrase from an environment variable or
+// interactive prompt.
 func (c *CertinfoConfig) SetPrivateKeyFromFile(
 	filePath string,
 	keyPwEnvVar string,

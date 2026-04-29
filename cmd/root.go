@@ -49,23 +49,27 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "https-wrench",
-	Short: "HTTPS Wrench, a tool to make Yaml defined HTTPS requests and inspect x.509 certificates and keys",
+	Short: "HTTPS Wrench, a tool for maintainers of secure HTTP endpoints",
 	Long: `
-HTTPS Wrench is a tool to make HTTPS requests according to a Yaml configuration file 
-and to inspect x.509 certificates and keys.
+HTTPS Wrench is a tool for maintainers of secure HTTP endpoints. 
+It enables executing YAML-defined HTTPS requests and performing in-depth 
+inspection of x.509 certificates, private keys, and JSON Web Tokens.
 
-https-wrench has two subcommands: requests and certinfo.
+https-wrench provides several specialized subcommands:
 
-requests is the subcommand that does HTTPS requests according to the configuration provided 
-by the --config flag.
+requests: Execute HTTPS requests according to a structured YAML configuration, 
+supporting custom CA bundles and verbose output.
 
-certinfo is a subcommand that reads information from PEM encoded x.509 certificates and keys. The certificates 
-can be read from local files or TLS enabled endpoints.
+certinfo: Inspect PEM-encoded certificates and keys from local files or remote 
+TLS endpoints. Verify certificate chains and key pairings.
 
-certinfo can compare public keys extracted from certificates and private keys to check if they match.
+jwtinfo: Decode, inspect, and validate JSON Web Tokens (JWT) using local files 
+or remote JWKS endpoints.
 
-HTTPS Wrench is distributed with an open source license and available at the following address:
-https://github.com/xenOs76/https-wrench`,
+jwks: Generate pretty-printed JSON Web Key Sets (JWKS) from public keys for 
+exposure on well-known endpoints.
+
+Distributed under an open-source license: https://github.com/xenOs76/https-wrench`,
 
 	Run: func(cmd *cobra.Command, _ []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")

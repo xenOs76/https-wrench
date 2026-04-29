@@ -27,6 +27,7 @@ var manCmd = &cobra.Command{
 			Date:    &now,
 			Source:  "https-wrench",
 		}
+
 		err := doc.GenManTree(rootCmd, rootHeader, manPagesDestDir)
 		if err != nil {
 			fmt.Print(err)
