@@ -491,47 +491,61 @@ func TestHandleRequests(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc // safer when using t.Parallel()
 		t.Run(tt.desc, func(t *testing.T) {
-			t.Parallel()
-
-			httpSrvData := demoHttpServerData{
-				serverAddr: tt.srvAddr,
-				serverName: "localhost",
-			}
-
-			ts, err := NewHTTPSTestServer(httpSrvData)
-			require.NoError(t, err)
-
-			defer ts.Close()
-
-			buffer := bytes.Buffer{}
-			respMap, err := HandleRequests(&buffer, &tt.reqMeta)
-
-			if tt.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			out := buffer.String()
-			assert.Contains(t, out, "Requests")
-
-			for reqConfName, rdList := range respMap {
-				for _, rd := range rdList {
-					gotReqConfName := rd.Request.Name
-
-					assert.Equal(t, gotReqConfName, reqConfName)
-
-					ua := tt.reqMeta.Requests[0].UserAgent
-					wantUa := httpUserAgent
-
-					if ua != wantUa {
-						wantUa = ua
-					}
-
-					gotUa := rd.Response.Request.UserAgent()
-					assert.Equal(t, wantUa, gotUa)
-				}
-			}
+			runHandleRequestsSubtest(t, tt)
 		})
+	}
+}
+
+type handleRequestsTestCase struct {
+	desc      string
+	srvAddr   string
+	reqMeta   RequestsMetaConfig
+	expectErr bool
+}
+
+func runHandleRequestsSubtest(t *testing.T, tt handleRequestsTestCase) {
+	t.Parallel()
+
+	httpSrvData := demoHttpServerData{
+		serverAddr: tt.srvAddr,
+		serverName: "localhost",
+	}
+
+	ts, err := NewHTTPSTestServer(httpSrvData)
+	require.NoError(t, err)
+
+	defer ts.Close()
+
+	buffer := bytes.Buffer{}
+	respMap, err := HandleRequests(&buffer, &tt.reqMeta)
+
+	if tt.expectErr {
+		require.Error(t, err)
+	} else {
+		require.NoError(t, err)
+	}
+
+	out := buffer.String()
+	assert.Contains(t, out, "Requests")
+
+	verifyHandleRequestsResults(t, respMap, tt.reqMeta)
+}
+
+func verifyHandleRequestsResults(t *testing.T, respMap map[string][]ResponseData, reqMeta RequestsMetaConfig) {
+	for reqConfName, rdList := range respMap {
+		for _, rd := range rdList {
+			gotReqConfName := rd.Request.Name
+			assert.Equal(t, gotReqConfName, reqConfName)
+
+			ua := reqMeta.Requests[0].UserAgent
+			wantUa := httpUserAgent
+
+			if ua != wantUa {
+				wantUa = ua
+			}
+
+			gotUa := rd.Response.Request.UserAgent()
+			assert.Equal(t, wantUa, gotUa)
+		}
 	}
 }

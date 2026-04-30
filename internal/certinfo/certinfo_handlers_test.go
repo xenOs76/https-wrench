@@ -406,94 +406,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc
 		t.Run("No errors test - "+tt.desc, func(t *testing.T) {
-			t.Parallel()
-
-			buffer := bytes.Buffer{}
-
-			cc, err := NewCertinfoConfig()
-			require.NoError(t, err)
-
-			cc.SetPrivateKeyFromFile(tt.keyFile, "notSet", inputReader)
-			cc.SetCertsFromFile(tt.certFile, inputReader)
-			cc.SetCaPoolFromFile(tt.caCertFile, inputReader)
-
-			if tt.tlsEndpoint != emptyString {
-				ts, errSrv := NewHTTPSTestServer(tt.srvCfg)
-				require.NoError(t, errSrv)
-
-				defer ts.Close()
-
-				cc.SetTLSServerName(tt.tlsServerName)
-				cc.SetTLSInsecure(tt.tlsInsecure)
-
-				// in most of these test cases SetTLSEndpoint depends
-				// on SetTLSServerName and/or SetTLSInsecure to be set
-				// before being able to fetch certificates from the TLS
-				// endpoint.
-				// The dependency is addressed with the order of method calls
-				// in cmd/certinfo.go.
-				// In this test, we call SetTLSServerName and SetTLSInsecure before
-				// SetTLSEndpoint to be sure the dependency is being addressed the
-				// same way.
-				err = cc.SetTLSEndpoint(tt.tlsEndpoint)
-				if !tt.expectCertsFetchErr {
-					require.NoError(t, err, "SetTLSEndpoint require NoError")
-				}
-
-				if tt.expectCertsFetchErr {
-					require.EqualError(t, err, tt.expectCertsFetcMsg)
-				}
-			}
-
-			errPrint := cc.PrintData(&buffer)
-			require.NoError(t, errPrint)
-
-			got := buffer.String()
-
-			if tt.keyFile != emptyString {
-				require.Contains(t, got, "PrivateKey file: "+tt.keyFile)
-			}
-
-			if tt.certFile != emptyString {
-				require.Contains(t, got, "Certificate bundle file: "+tt.certFile)
-			}
-
-			if tt.caCertFile != emptyString {
-				require.Contains(t, got, "CA Certificates file: "+tt.caCertFile)
-			}
-
-			if !tt.expectCertsFetchErr {
-				for _, want := range []string{
-					"Certinfo",
-					"Certificate",
-					"Subject",
-					"Issuer",
-					"NotBefore",
-					"NotAfter",
-					"Expiration",
-					"IsCA",
-					"AuthorityKeyId",
-					"SubjectKeyId",
-					"PublicKeyAlgorithm",
-					"SignatureAlgorithm",
-					"SerialNumber",
-					"Fingerprint SHA-256",
-				} {
-					require.Contains(t, got, want)
-				}
-
-				if tt.keyFile != emptyString && tt.keyCertMatch {
-					require.Contains(t, got, "PrivateKey match: true")
-				} else {
-					require.Contains(t, got, "PrivateKey match: false")
-				}
-
-				if tt.tlsEndpoint != emptyString {
-					require.Contains(t, got, "TLSEndpoint Certificates")
-					require.Contains(t, got, "Endpoint: "+tt.tlsEndpoint)
-					require.Contains(t, got, "ServerName: "+tt.tlsServerName)
-				}
-			}
+			runPrintDataSubtest(t, tt)
 		})
 	}
 
@@ -542,4 +455,94 @@ func TestCertinfo_PrintData(t *testing.T) {
 		require.Error(t, errPrint)
 		require.ErrorContains(t, errPrint, "unable for read Root certificates")
 	})
+}
+
+type printDataTestCase struct {
+	desc                string
+	keyFile             string
+	certFile            string
+	caCertFile          string
+	keyCertMatch        bool
+	tlsEndpoint         string
+	tlsInsecure         bool
+	tlsServerName       string
+	srvCfg              demoHTTPServerConfig
+	expectCertsFetchErr bool
+	expectCertsFetcMsg  string
+}
+
+func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
+	t.Parallel()
+
+	buffer := bytes.Buffer{}
+
+	cc, err := NewCertinfoConfig()
+	require.NoError(t, err)
+
+	require.NoError(t, cc.SetPrivateKeyFromFile(tt.keyFile, "notSet", inputReader))
+	require.NoError(t, cc.SetCertsFromFile(tt.certFile, inputReader))
+	require.NoError(t, cc.SetCaPoolFromFile(tt.caCertFile, inputReader))
+
+	if tt.tlsEndpoint != emptyString {
+		ts, errSrv := NewHTTPSTestServer(tt.srvCfg)
+		require.NoError(t, errSrv)
+
+		defer ts.Close()
+
+		cc.SetTLSServerName(tt.tlsServerName)
+		cc.SetTLSInsecure(tt.tlsInsecure)
+
+		err = cc.SetTLSEndpoint(tt.tlsEndpoint)
+		if tt.expectCertsFetchErr {
+			require.EqualError(t, err, tt.expectCertsFetcMsg)
+		} else {
+			require.NoError(t, err, "SetTLSEndpoint require NoError")
+		}
+	}
+
+	errPrint := cc.PrintData(&buffer)
+	require.NoError(t, errPrint)
+
+	got := buffer.String()
+	verifyPrintDataOutput(t, got, tt)
+}
+
+func verifyPrintDataOutput(t *testing.T, got string, tt printDataTestCase) {
+	if tt.keyFile != emptyString {
+		require.Contains(t, got, "PrivateKey file: "+tt.keyFile)
+	}
+
+	if tt.certFile != emptyString {
+		require.Contains(t, got, "Certificate bundle file: "+tt.certFile)
+	}
+
+	if tt.caCertFile != emptyString {
+		require.Contains(t, got, "CA Certificates file: "+tt.caCertFile)
+	}
+
+	if tt.expectCertsFetchErr {
+		return
+	}
+
+	for _, want := range []string{
+		"Certinfo", "Certificate", "Subject", "Issuer", "NotBefore", "NotAfter",
+		"Expiration", "IsCA", "AuthorityKeyId", "SubjectKeyId", "PublicKeyAlgorithm",
+		"SignatureAlgorithm", "SerialNumber", "Fingerprint SHA-256",
+	} {
+		require.Contains(t, got, want)
+	}
+
+	if tt.keyFile != emptyString {
+		if tt.keyCertMatch {
+			require.Contains(t, got, "PrivateKey match: true")
+		} else {
+			require.Contains(t, got, "PrivateKey match: false")
+		}
+	}
+
+	if tt.tlsEndpoint != emptyString {
+		require.Contains(t, got, "TLSEndpoint Certificates")
+		require.Contains(t, got, "Endpoint: "+tt.tlsEndpoint)
+		require.Contains(t, got, "ServerName: "+tt.tlsServerName)
+	}
 }
