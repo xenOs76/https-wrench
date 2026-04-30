@@ -159,6 +159,8 @@ func createTmpFileWithContent(tempDir string, filePattern string, fileContent []
 }
 
 func printResponseBody(res *http.Response) {
+	defer res.Body.Close()
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		fmt.Printf("Error reading response body: %v\n", err)
@@ -409,6 +411,7 @@ func TestHTTPSTestServer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer res.Body.Close()
 
 			fmt.Printf("Resp StatusCode was: %v\n", res.StatusCode)
 			assert.Equal(t, http.StatusOK, res.StatusCode)

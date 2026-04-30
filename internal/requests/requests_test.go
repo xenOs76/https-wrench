@@ -707,6 +707,9 @@ func TestNewRequestHTTPClient_SetInsecureSkipVerify_tlsServer(t *testing.T) {
 
 			if tt {
 				require.NoError(t, err)
+
+				defer res.Body.Close()
+
 				assert.Equal(t, http.StatusOK, res.StatusCode)
 			}
 		})
@@ -1420,6 +1423,8 @@ func runSetTransportOverrideSubtest(t *testing.T, tt setTransportOverrideTestCas
 	res, err := testClient.Do(req)
 	require.NoError(t, err)
 
+	defer res.Body.Close()
+
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, res.Request.URL.Scheme+"://"+res.Request.URL.Host,
 		"https://"+tt.requestHost)
@@ -1485,6 +1490,8 @@ func runSetProxyProtocolV2Subtest(t *testing.T, tt setProxyProtocolV2TestCase) {
 	res, err := testClient.Do(req)
 	require.NoError(t, err)
 
+	defer res.Body.Close()
+
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, res.Request.URL.Scheme+"://"+res.Request.URL.Host,
 		reqURL)
@@ -1521,6 +1528,8 @@ func runPrintResponseDebugSubtest(t *testing.T, tt printResponseDebugTestCase) {
 
 	res, err := client.Get(ts.URL)
 	require.NoError(t, err)
+
+	defer res.Body.Close()
 
 	rc := RequestConfig{ResponseDebug: tt.verbose}
 	buffer := bytes.Buffer{}
