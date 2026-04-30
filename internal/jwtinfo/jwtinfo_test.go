@@ -249,68 +249,71 @@ func TestRequestToken(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			server, err := NewJwtTestServer()
-
-			require.NoError(t, err)
-
-			defer server.Close()
-
-			client := server.Client()
-			serverRoot := server.URL
-
-			serverJwtEndpoint := serverRoot + "/jwt"
-
-			if tt.scope == "emptyReqUrl" {
-				serverJwtEndpoint = ""
-			}
-
-			if tt.scope == "wrongReqUrl" {
-				serverJwtEndpoint = "https://does.not.exist/wrong"
-			}
-
-			if tt.scope == "wrongReqParam" {
-				serverJwtEndpoint = "https://local$%#@@&host/wrongUrl"
-			}
-
-			reqValues := make(map[string]string)
-			if tt.scope != "emptyValuesMap" {
-				reqValues["user"] = tt.user
-				reqValues["pass"] = tt.pass
-				reqValues["scope"] = tt.scope
-			}
-
-			_, err = RequestToken(
-				context.Background(),
-				serverJwtEndpoint,
-				reqValues,
-				client,
-				io.ReadAll,
-			)
-
-			if tt.expError {
-				require.Error(
-					t,
-					err,
-					"RequestToken - expected error: %s",
-					err,
-				)
-
-				return
-			}
-
-			require.NoError(
-				t,
-				err,
-				"RequestToken error: %s",
-				err,
-			)
-
-			// godump.Dump(td)
+			runRequestTokenSubtest(t, tt)
 		})
 	}
 	//nolint:revive
+}
+
+type requestTokenTestCase struct {
+	name     string
+	user     string
+	pass     string
+	scope    string
+	expError bool
+}
+
+func runRequestTokenSubtest(t *testing.T, tt requestTokenTestCase) {
+	t.Parallel()
+
+	server, err := NewJwtTestServer()
+	require.NoError(t, err)
+
+	defer server.Close()
+
+	client := server.Client()
+	serverJwtEndpoint := getJwtEndpoint(server.URL, tt.scope)
+	reqValues := getReqValues(tt)
+
+	_, err = RequestToken(
+		context.Background(),
+		serverJwtEndpoint,
+		reqValues,
+		client,
+		io.ReadAll,
+	)
+
+	if tt.expError {
+		require.Error(t, err, "RequestToken - expected error: %s", err)
+		return
+	}
+
+	require.NoError(t, err, "RequestToken error: %s", err)
+}
+
+func getJwtEndpoint(serverURL, scope string) string {
+	switch scope {
+	case "emptyReqUrl":
+		return ""
+	case "wrongReqUrl":
+		return "https://does.not.exist/wrong"
+	case "wrongReqParam":
+		return "https://local$%#@@&host/wrongUrl"
+	default:
+		return serverURL + "/jwt"
+	}
+}
+
+func getReqValues(tt requestTokenTestCase) map[string]string {
+	if tt.scope == "emptyValuesMap" {
+		return make(map[string]string)
+	}
+
+	return map[string]string{
+		"user":  tt.user,
+		"pass":  tt.pass,
+		"scope": tt.scope,
+	}
 }
 
 //nolint:revive
