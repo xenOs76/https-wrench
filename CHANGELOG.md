@@ -1,3 +1,18 @@
+## 0.10.1 (2026-05-01)
+
+### Refactor
+
+    Improved internal code organization and structure for better maintainability across core modules.
+
+### Chores
+
+    Enhanced code quality tooling with additional linting rules and complexity checks.
+    Updated build and development configuration.
+
+### Tests
+
+    Updated test suites to reflect internal code restructuring.
+
 ## 0.10.0 (2026-04-29)
 
 ### Feat
