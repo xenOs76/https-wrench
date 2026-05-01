@@ -189,7 +189,7 @@ in {
     test -d dist || mkdir dist
     APP_VERSION=$(git describe --tags || echo '0.0.0') &&
         GO_MODULE_NAME=$(go list -m) &&
-        CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/cmd.version=$APP_VERSION" main.go
+        CGO_ENABLED=0 go build -o ./dist/https-wrench -ldflags "-X $GO_MODULE_NAME/internal/cmd.version=$APP_VERSION" main.go
   '';
 
   scripts.goreleaser-test-release.exec = ''
@@ -284,7 +284,7 @@ in {
 
   scripts.test-requests-sample-config.exec = ''
     gum format "## test request with sample config"
-    ./dist/https-wrench requests --config ./cmd/embedded/config-example.yaml
+    ./dist/https-wrench requests --config ./internal/cmd/embedded/config-example.yaml
   '';
 
   scripts.test-requests-k3s.exec = ''

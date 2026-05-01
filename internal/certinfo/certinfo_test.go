@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewCertinfoConfig(t *testing.T) {
-	t.Run("NewCertinfoConfig", func(t *testing.T) {
+func TestNew(t *testing.T) {
+	t.Run("New", func(t *testing.T) {
 		t.Parallel()
 
-		cc, err := NewCertinfoConfig()
+		cc, err := New()
 		require.NoError(t, err)
 
 		require.NotNil(t, cc.CACertsPool)
@@ -99,12 +99,12 @@ func TestCertinfo_SetCaPoolFromFile(t *testing.T) {
 		t.Run("File Read Error Test "+tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			err := cc.SetCaPoolFromFile(tt.caCertFile, tt.reader)
 
-			// CertinfoConfig methods do nothing if an empty string is passed
+			// Config methods do nothing if an empty string is passed
 			// as filePath
 			if tt.caCertFile == emptyString {
 				require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestCertinfo_SetCaPoolFromFile(t *testing.T) {
 	t.Run("File Read Success Test", func(t *testing.T) {
 		t.Parallel()
 
-		cc, errNew := NewCertinfoConfig()
+		cc, errNew := New()
 		require.NoError(t, errNew)
 
 		err := cc.SetCaPoolFromFile(
@@ -158,12 +158,12 @@ func TestCertinfo_SetCertsFromFile(t *testing.T) {
 		t.Run("File Read Error Test "+tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			err := cc.SetCertsFromFile(tt.certFile, tt.reader)
 
-			// CertinfoConfig methods do nothing if an empty string is passed
+			// Config methods do nothing if an empty string is passed
 			// as filePath
 			if tt.certFile == emptyString {
 				require.NoError(t, err)
@@ -182,7 +182,7 @@ func TestCertinfo_SetCertsFromFile(t *testing.T) {
 	t.Run("File Read Success Test", func(t *testing.T) {
 		t.Parallel()
 
-		cc, errNew := NewCertinfoConfig()
+		cc, errNew := New()
 		require.NoError(t, errNew)
 
 		err := cc.SetCertsFromFile(
@@ -215,7 +215,7 @@ func TestCertinfo_SetPrivateKeyFromFile(t *testing.T) {
 		t.Run("File Read Error Test "+tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			err := cc.SetPrivateKeyFromFile(
@@ -224,7 +224,7 @@ func TestCertinfo_SetPrivateKeyFromFile(t *testing.T) {
 				tt.reader,
 			)
 
-			// CertinfoConfig methods do nothing if an empty string is passed
+			// Config methods do nothing if an empty string is passed
 			// as filePath
 			if tt.keyFile == emptyString {
 				require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestCertinfo_SetPrivateKeyFromFile(t *testing.T) {
 	t.Run("File Read Success Test", func(t *testing.T) {
 		t.Parallel()
 
-		cc, errNew := NewCertinfoConfig()
+		cc, errNew := New()
 		require.NoError(t, errNew)
 
 		err := cc.SetPrivateKeyFromFile(
@@ -284,7 +284,7 @@ func TestCertinfo_SetTLSInsecure(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			cc.SetTLSInsecure(tt)
@@ -311,7 +311,7 @@ func TestCertinfo_SetTLSServerName(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			cc.SetTLSServerName(tt)
@@ -391,7 +391,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cc, errNew := NewCertinfoConfig()
+			cc, errNew := New()
 			require.NoError(t, errNew)
 
 			err := cc.SetTLSEndpoint(tt.endpoint)

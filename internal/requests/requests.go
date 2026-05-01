@@ -278,7 +278,6 @@ func (r *RequestConfig) PrintRequestDebug(w io.Writer, req *http.Request) error 
 //
 //nolint:revive
 func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
-	// TODO: return an error
 	if resp == nil {
 		return
 	}
@@ -293,26 +292,32 @@ func (r *RequestConfig) PrintResponseDebug(w io.Writer, resp *http.Response) {
 		fmt.Fprintf(w, "Requested url: %s\n", resp.Request.URL)
 		fmt.Fprintf(w, "Response dump:\n%s\n", string(respDump))
 
-		if resp.TLS != nil {
-			fmt.Fprintln(w, "TLS:")
-			fmt.Fprintf(w, "Version: %v\n", TLSVersionName(resp.TLS.Version))
-			fmt.Fprintf(w, "CipherSuite: %v\n", cipherSuiteName(resp.TLS.CipherSuite))
+		r.printTLSInfo(w, resp.TLS)
+	}
+}
 
-			for i, cert := range resp.TLS.PeerCertificates {
-				fmt.Fprintf(w, "Certificate %d:\n", i)
-				certinfo.PrintCertInfo(cert, 1, w)
-			}
+// printTLSInfo formats and prints the TLS connection state information to the provided writer.
+func (r *RequestConfig) printTLSInfo(w io.Writer, tlsState *tls.ConnectionState) {
+	if tlsState == nil {
+		fmt.Fprintln(w, "TLS: Not available (non-TLS connection)")
+		return
+	}
 
-			for i, chain := range resp.TLS.VerifiedChains {
-				fmt.Fprintf(w, "Verified Chain %d:\n", i)
+	fmt.Fprintln(w, "TLS:")
+	fmt.Fprintf(w, "Version: %v\n", TLSVersionName(tlsState.Version))
+	fmt.Fprintf(w, "CipherSuite: %v\n", cipherSuiteName(tlsState.CipherSuite))
 
-				for j, cert := range chain {
-					fmt.Fprintf(w, " Cert %d:\n", j)
-					certinfo.PrintCertInfo(cert, 2, w)
-				}
-			}
-		} else {
-			fmt.Fprintln(w, "TLS: Not available (non-TLS connection)")
+	for i, cert := range tlsState.PeerCertificates {
+		fmt.Fprintf(w, "Certificate %d:\n", i)
+		certinfo.PrintCertInfo(cert, 1, w)
+	}
+
+	for i, chain := range tlsState.VerifiedChains {
+		fmt.Fprintf(w, "Verified Chain %d:\n", i)
+
+		for j, cert := range chain {
+			fmt.Fprintf(w, " Cert %d:\n", j)
+			certinfo.PrintCertInfo(cert, 2, w)
 		}
 	}
 }
@@ -628,89 +633,104 @@ func processHTTPRequestsByHost(
 ) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
-	requestBodyBytes := []byte(r.RequestBody)
-
 	r.PrintTitle(isVerbose)
 
 	for _, host := range r.Hosts {
-		reqClient, err := NewHTTPClientFromRequestConfig(
-			r,
-			host.Name,
-			caPool)
+		hostResults, err := processRequestsForHost(r, host, caPool, isVerbose)
 		if err != nil {
 			return nil, err
 		}
 
-		urlList, err := getUrlsFromHost(host)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, reqURL := range urlList {
-			responseData := ResponseData{
-				Request:          r,
-				TransportAddress: reqClient.transportAddress,
-				URL:              reqURL,
-			}
-
-			requestBodyReader := bytes.NewReader(requestBodyBytes)
-
-			req, err := http.NewRequest(
-				reqClient.method,
-				reqURL,
-				requestBodyReader,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create request: %w", err)
-			}
-
-			ua := httpUserAgent
-			if len(r.UserAgent) > 0 {
-				ua = r.UserAgent
-			}
-
-			req.Header.Add("User-Agent", ua)
-
-			for _, header := range r.RequestHeaders {
-				req.Header.Add(header.Key, header.Value)
-			}
-
-			if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
-			}
-
-			resp, err := reqClient.client.Do(req)
-			if err != nil {
-				// if the request returns and error, we track it in
-				// the responseData and stop processing.
-				// Going further and importing the *http.Response into
-				// ResponseData would result in a nil pointer error.
-				// Avoiding that error will cost some duplicated code
-				// in this branch mirroring the end of the outer one.
-				responseData.Error = err
-				responseDataList = append(responseDataList, responseData)
-				responseData.PrintResponseData(isVerbose)
-
-				continue
-			}
-
-			r.PrintResponseDebug(os.Stdout, resp)
-
-			responseData.Response = resp
-
-			if r.ResponseBodyMatchRegexp != emptyString || responseData.Request.PrintResponseBody {
-				responseData.ImportResponseBody()
-			}
-
-			err = resp.Body.Close()
-			if err != nil {
-				fmt.Printf("unable to close response Body: %v\n", err)
-			}
-
-			responseDataList = append(responseDataList, responseData)
-			responseData.PrintResponseData(isVerbose)
-		}
+		responseDataList = append(responseDataList, hostResults...)
 	}
 
 	return responseDataList, nil
+}
+
+// processRequestsForHost initializes the HTTP client and executes all configured URIs for a single host.
+func processRequestsForHost(
+	r RequestConfig,
+	host Host,
+	caPool *x509.CertPool,
+	isVerbose bool,
+) ([]ResponseData, error) {
+	var responseDataList []ResponseData
+
+	reqClient, err := NewHTTPClientFromRequestConfig(r, host.Name, caPool)
+	if err != nil {
+		return nil, err
+	}
+
+	urlList, err := getUrlsFromHost(host)
+	if err != nil {
+		return nil, err
+	}
+
+	requestBodyBytes := []byte(r.RequestBody)
+
+	for _, reqURL := range urlList {
+		responseData := executeSingleRequest(r, reqClient, reqURL, requestBodyBytes, isVerbose)
+		responseDataList = append(responseDataList, responseData)
+		responseData.PrintResponseData(isVerbose)
+	}
+
+	return responseDataList, nil
+}
+
+// executeSingleRequest performs a single HTTP request and returns the collected response data.
+func executeSingleRequest(
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	reqURL string,
+	requestBodyBytes []byte,
+	isVerbose bool,
+) ResponseData {
+	responseData := ResponseData{
+		Request:          r,
+		TransportAddress: reqClient.transportAddress,
+		URL:              reqURL,
+	}
+
+	requestBodyReader := bytes.NewReader(requestBodyBytes)
+
+	req, err := http.NewRequest(reqClient.method, reqURL, requestBodyReader)
+	if err != nil {
+		responseData.Error = fmt.Errorf("failed to create request: %w", err)
+		return responseData
+	}
+
+	ua := httpUserAgent
+	if len(r.UserAgent) > 0 {
+		ua = r.UserAgent
+	}
+
+	for _, header := range r.RequestHeaders {
+		req.Header.Add(header.Key, header.Value)
+	}
+
+	req.Header.Set("User-Agent", ua)
+
+	if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
+	}
+
+	resp, err := reqClient.client.Do(req)
+	if err != nil {
+		responseData.Error = err
+		return responseData
+	}
+
+	r.PrintResponseDebug(os.Stdout, resp)
+
+	responseData.Response = resp
+
+	if r.ResponseBodyMatchRegexp != emptyString || responseData.Request.PrintResponseBody {
+		responseData.ImportResponseBody()
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		fmt.Printf("unable to close response Body: %v\n", err)
+	}
+
+	return responseData
 }

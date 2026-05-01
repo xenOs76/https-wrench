@@ -61,7 +61,7 @@ Examples:
 			return
 		}
 
-		certinfoCfg, err := certinfo.NewCertinfoConfig()
+		certinfoCfg, err := certinfo.New()
 		if err != nil {
 			cmd.Printf("Error creating new Certinfo config: %s", err)
 			return
