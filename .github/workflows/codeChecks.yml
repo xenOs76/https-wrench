@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/codeChecks.yml"
       - ".goreleaser.yaml"
+      - ".golangci.yml"
       - ".testcoverage.yml"
       - "devenv.*"
       - "cmd/**"
@@ -13,108 +14,121 @@ on:
       - "*.go"
       - "go.*"
 
+permissions:
+  contents: read
+
 jobs:
-  go_tests:
+  go_lint:
+    name: Go lint
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      max-parallel: 2
+      matrix:
+        go-version: ["1.25"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: stable
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: latest
+
+  go_vulncheck:
+    name: Go vulnerabilities check
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
       matrix:
         go-version: ["1.25"]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ matrix.go-version }}
 
       - name: Install dependencies
-        run: go get .
+        run: go mod tidy
 
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test with the Go CLI
-        run: go test -v ./...
-
-      - name: Check for vulnerabilities
-        uses: golang/govulncheck-action@v1
+      - name: govulncheck test
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
         with:
           go-version-input: ${{ matrix.go-version }}
           go-package: ./...
           work-dir: .
 
-  # # WARN this action will install devenv 2.x.x while
-  #         # the repo still uses 1.11.1. Disabling it until devenv is upgraded
-  # devenv_test:
-  #   needs: go_tests
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
-  #
-  #     - uses: cachix/install-nix-action@v31
-  #       with:
-  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
-  #         nix_path: nixpkgs=channel:nixos-25.11
-  #
-  #     - uses: cachix/cachix-action@v16
-  #       with:
-  #         name: devenv
-  #
-  #     - name: Install devenv.sh
-  #       run: nix profile add nixpkgs#devenv
-  #
-  #     - name: Build the devenv shell and run any pre-commit hooks
-  #       env:
-  #         JWTINFO_TEST_AUTH0: ${{ secrets.JWTINFO_TEST_AUTH0 }}
-  #       run: devenv test
-  #       timeout-minutes: 15
-  #
-  go_test_coverage_check:
-    needs: go_tests
+  go_tests:
+    name: Go tests and build
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      matrix:
+        go-version: ["1.25"]
+
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25"
+          go-version: ${{ matrix.go-version }}
 
-      - name: generate test coverage
-        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+      - name: Install dependencies
+        run: go mod tidy
 
-      - name: check test coverage
-        continue-on-error: ${{ github.ref_name != 'main' }}
-        uses: vladopajic/go-test-coverage@v2
+      - name: Test with the Go CLI
+        run: go test -v ./...
+
+      - name: Build
+        run: go build -v ./...
+
+  goreleaser_test:
+    name: GoReleaser release test
+    runs-on: ubuntu-latest
+
+    strategy:
+      max-parallel: 2
+      matrix:
+        go-version: ["1.25"]
+
+    needs:
+      - go_lint
+      - go_tests
+      - go_vulncheck
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          config: ./.testcoverage.yml
-          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
-          git-branch: badges
+          fetch-depth: 0
 
-  # goreleaser_test:
-  #   needs: devenv_test
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
-  #       with:
-  #         fetch-depth: 0
-  #
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v3
-  #
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v6
-  #       with:
-  #         go-version: "1.25"
-  #
-  #     - name: Run GoReleaser test
-  #       uses: goreleaser/goreleaser-action@v6
-  #       with:
-  #         version: "~> 2"
-  #         args: release --snapshot --clean
-  #         workdir: .
+      - name: Install Nix
+        uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Run GoReleaser test
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          version: "~> 2"
+          args: release --snapshot --clean
+          workdir: .
