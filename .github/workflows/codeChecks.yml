@@ -94,7 +94,7 @@ jobs:
         run: go build -v ./...
 
   goreleaser_test:
-    name: GoReleaser release test
+    name: GoReleaser test release
     runs-on: ubuntu-latest
 
     strategy:
