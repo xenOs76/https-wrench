@@ -285,6 +285,7 @@ func (rd *ResponseData) ImportResponseBody() {
 }
 
 // PrintResponseData prints the collected response data (status, headers, body) if verbose mode is enabled.
+//
 //nolint:revive
 func (rd ResponseData) PrintResponseData(isVerbose bool) {
 	if !isVerbose {

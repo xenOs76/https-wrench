@@ -150,7 +150,7 @@ func createTmpFileWithContent(tempDir string, filePattern string, fileContent []
 		err = errors.Join(err, f.Close())
 	}()
 
-	err = os.WriteFile(f.Name(), fileContent, 0644)
+	err = os.WriteFile(f.Name(), fileContent, 0o644)
 	if err != nil {
 		return emptyString, err
 	}

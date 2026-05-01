@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/xenos76/https-wrench/cmd"
+	"github.com/xenos76/https-wrench/internal/cmd"
 )
 
 func main() {

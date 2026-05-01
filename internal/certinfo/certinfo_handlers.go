@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/dustin/go-humanize"
 	"github.com/xenos76/https-wrench/internal/style"
@@ -25,7 +26,7 @@ import (
 // to the provided writer in a human-readable format.
 //
 //nolint:revive
-func (c *CertinfoConfig) PrintData(w io.Writer) error {
+func (c *Config) PrintData(w io.Writer) error {
 	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
 	sl := style.CertKeyP4.Bold(true)
 	sv := style.CertValue.Bold(false)
@@ -34,6 +35,21 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 	fmt.Fprintln(w, style.LgSprintf(style.Cmd, "Certinfo"))
 	fmt.Fprintln(w)
 
+	c.printPrivateKey(w, ks, sl, sv)
+
+	if err := c.printLocalCerts(w, ks, sl, sv); err != nil {
+		return err
+	}
+
+	if err := c.printRemoteCerts(w, ks, sl, sv); err != nil {
+		return err
+	}
+
+	return c.printCACerts(w, ks, sl, sv)
+}
+
+// printPrivateKey prints the loaded private key information if available.
+func (c *Config) printPrivateKey(w io.Writer, ks, sl, sv lipgloss.Style) {
 	if c.PrivKey != nil {
 		fmt.Fprintln(w, style.LgSprintf(ks, "PrivateKey"))
 		fmt.Fprintln(w, style.LgSprintf(
@@ -43,7 +59,10 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 		))
 		style.PrintKeyInfoStyle(w, c.PrivKey)
 	}
+}
 
+// printLocalCerts prints the information for certificates loaded from a local bundle file.
+func (c *Config) printLocalCerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 	if len(c.CertsBundle) > 0 {
 		fmt.Fprintln(w, style.LgSprintf(ks, "Certificates"))
 
@@ -72,6 +91,11 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 		CertsToTables(w, c.CertsBundle)
 	}
 
+	return nil
+}
+
+// printRemoteCerts prints the information for certificates retrieved from a remote TLS endpoint.
+func (c *Config) printRemoteCerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 	if len(c.TLSEndpointCerts) > 0 {
 		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
 
@@ -109,6 +133,11 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 		CertsToTables(w, c.TLSEndpointCerts)
 	}
 
+	return nil
+}
+
+// printCACerts prints the information for CA certificates loaded from a file.
+func (c *Config) printCACerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 	if len(c.CACertsFilePath) > 0 {
 		fmt.Fprintln(w, style.LgSprintf(ks, "CA Certificates"))
 		fmt.Fprintln(w,
@@ -139,7 +168,7 @@ func (c *CertinfoConfig) PrintData(w io.Writer) error {
 
 // GetRemoteCerts establishes a TLS connection to the configured endpoint and retrieves
 // the peer certificate chain. It also performs certificate verification unless TLSInsecure is true.
-func (c *CertinfoConfig) GetRemoteCerts() error {
+func (c *Config) GetRemoteCerts() error {
 	tlsConfig := &tls.Config{
 		RootCAs:            c.CACertsPool,
 		InsecureSkipVerify: c.TLSInsecure,

@@ -100,7 +100,7 @@ func TestGenerateJWKS_Errors(t *testing.T) {
 
 	t.Run("Invalid PEM", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.pem")
-		err := os.WriteFile(invalidFile, []byte("not a pem"), 0644)
+		err := os.WriteFile(invalidFile, []byte("not a pem"), 0o644)
 		require.NoError(t, err)
 
 		_, err = GenerateJWKS(context.Background(), invalidFile, "")

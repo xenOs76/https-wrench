@@ -241,82 +241,55 @@ func isValidJSON(data []byte) bool {
 //
 //nolint:revive
 func (jtd *JwtTokenData) DecodeBase64() error {
-	tokens := []struct {
-		name string
-		raw  string
-	}{
-		{
-			name: "AccessToken",
-			raw:  jtd.AccessTokenRaw,
-		},
-		{
-			name: "RefreshToken",
-			raw:  jtd.RefreshTokenRaw,
-		},
+	if jtd.AccessTokenRaw != emptyString {
+		header, claims, err := decodeToken("AccessToken", jtd.AccessTokenRaw)
+		if err != nil {
+			return err
+		}
+
+		jtd.AccessTokenHeader = header
+		jtd.AccessTokenClaims = claims
 	}
 
-	for _, token := range tokens {
-		if token.raw == emptyString {
-			continue
-		}
-
-		var tokenHeader []byte
-
-		var tokenClaims []byte
-
-		var err error
-
-		tokenB64Elements := strings.Split(token.raw, ".")
-		if len(tokenB64Elements) != 3 {
-			return fmt.Errorf("invalid three dotted JWT format in %s", token.name)
-		}
-
-		tokenHeader, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
+	if jtd.RefreshTokenRaw != emptyString {
+		header, claims, err := decodeToken("RefreshToken", jtd.RefreshTokenRaw)
 		if err != nil {
-			return fmt.Errorf(
-				"unable to decode base64 header from %s: %w",
-				token.name,
-				err,
-			)
+			return err
 		}
 
-		if !isValidJSON(tokenHeader) {
-			return fmt.Errorf(
-				"invalid JSON found in header from %s: %w",
-				token.name,
-				err,
-			)
-		}
-
-		tokenClaims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
-		if err != nil {
-			return fmt.Errorf(
-				"unable to decode base64 claims from %s: %w",
-				token.name,
-				err,
-			)
-		}
-
-		if !isValidJSON(tokenClaims) {
-			return fmt.Errorf(
-				"invalid JSON found in claims from %s: %w",
-				token.name,
-				err,
-			)
-		}
-
-		if token.name == "AccessToken" {
-			jtd.AccessTokenHeader = tokenHeader
-			jtd.AccessTokenClaims = tokenClaims
-		}
-
-		if token.name == "RefreshToken" {
-			jtd.RefreshTokenHeader = tokenHeader
-			jtd.RefreshTokenClaims = tokenClaims
-		}
+		jtd.RefreshTokenHeader = header
+		jtd.RefreshTokenClaims = claims
 	}
 
 	return nil
+}
+
+// decodeToken decodes and validates a single JWT token string (header and claims).
+func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
+	tokenB64Elements := strings.Split(raw, ".")
+	if len(tokenB64Elements) != 3 {
+		return nil, nil, fmt.Errorf("invalid three dotted JWT format in %s", name)
+	}
+
+	header, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to decode base64 header from %s: %w", name, err)
+	}
+
+	if !isValidJSON(header) {
+		return nil, nil, fmt.Errorf("invalid JSON found in header from %s", name)
+	}
+
+	claims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to decode base64 claims from %s: %w", name, err)
+	}
+
+	if !isValidJSON(claims) {
+		return nil, nil, fmt.Errorf("invalid JSON found in claims from %s", name)
+	}
+
+	return header, claims, nil
 }
 
 // ParseUnverified parses the access token without verifying its signature.

@@ -139,7 +139,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 
 			defer ts.Close()
 
-			cc, err := NewCertinfoConfig()
+			cc, err := New()
 			require.NoError(t, err)
 
 			cc.SetTLSServerName(tt.srvCfg.serverName)
@@ -412,7 +412,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 	t.Run("PrintData local cert private key match error", func(t *testing.T) {
 		buffer := bytes.Buffer{}
-		cc, err := NewCertinfoConfig()
+		cc, err := New()
 		require.NoError(t, err)
 
 		// Inject a bad public key to force certMatchPrivateKey to fail
@@ -429,7 +429,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 	t.Run("PrintData remote cert private key match error", func(t *testing.T) {
 		buffer := bytes.Buffer{}
-		cc, err := NewCertinfoConfig()
+		cc, err := New()
 		require.NoError(t, err)
 
 		cc.PrivKey = "dummy_key"
@@ -446,7 +446,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 	t.Run("PrintData CA cert file read error", func(t *testing.T) {
 		buffer := bytes.Buffer{}
-		cc, err := NewCertinfoConfig()
+		cc, err := New()
 		require.NoError(t, err)
 
 		cc.CACertsFilePath = "non_existent_file.pem"
@@ -476,7 +476,7 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 
 	buffer := bytes.Buffer{}
 
-	cc, err := NewCertinfoConfig()
+	cc, err := New()
 	require.NoError(t, err)
 
 	require.NoError(t, cc.SetPrivateKeyFromFile(tt.keyFile, "notSet", inputReader))
