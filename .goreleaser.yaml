@@ -2,18 +2,24 @@
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 ---
 version: 2
+
 project_name: https-wrench
+
 dist: ./dist/
+
 force_token: github
+
 env_files:
   gitea_token: ~/nope
   github_token: ~/nope
+
 release:
   disable: false
   skip_upload: false
   github:
     owner: xenos76
     name: https-wrench
+
 before:
   hooks:
     - go mod download
@@ -50,6 +56,15 @@ archives:
       - LICENSE
       - completions/*
       - manpages/*
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+  - id: source
+    artifacts: source
 
 nfpms:
   - maintainer: Zeno Belli <xeno@os76.xyz>
