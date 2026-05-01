@@ -704,11 +704,11 @@ func executeSingleRequest(
 		ua = r.UserAgent
 	}
 
-	req.Header.Add("User-Agent", ua)
-
 	for _, header := range r.RequestHeaders {
 		req.Header.Add(header.Key, header.Value)
 	}
+
+	req.Header.Set("User-Agent", ua)
 
 	if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
