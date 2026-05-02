@@ -1,3 +1,15 @@
+## 0.11.0 (2026-05-02)
+
+### Feat
+
+    Automatic token refresh capability—tokens stay fresh in background until expiration
+    Save tokens to file with optional background refresh functionality
+    Enhanced token lifecycle management with configurable thresholds
+
+### Doc
+
+    Updated usage examples demonstrating token refresh workflows and file persistence features
+
 ## 0.10.1 (2026-05-01)
 
 ### Refactor
