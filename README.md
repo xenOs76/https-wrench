@@ -242,7 +242,7 @@ Usage:
 
 Flags:
   -h, --help                         help for jwtinfo
-      --refresh                      Enable background token refresh before expiration
+      --refresh                      Run in foreground and automatically refresh the token
       --renew-threshold float        Token renewal threshold as a percentage of lifetime (default 80)
       --request-url string           HTTP address to use for the JWT token request
       --request-values-file string   File containing the JSON encoded values to use for the JWT token request
@@ -270,7 +270,7 @@ Request a token and save it to a file:
 ❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt
 ```
 
-Request a token, save it to a file, and keep it refreshed in the background:
+Request a token, save it to a file, and keep it refreshed until interrupted:
 
 ```shell
 ❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt --refresh --renew-threshold 90

@@ -64,8 +64,10 @@ Examples:
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		var (
-			err       error
-			tokenData *jwtinfo.JwtTokenData
+			err              error
+			tokenData        *jwtinfo.JwtTokenData
+			client           = &http.Client{}
+			requestValuesMap = make(map[string]string)
 		)
 
 		// TODO: remove global --config option
@@ -82,9 +84,6 @@ Examples:
 		}
 
 		if requestURL != "" {
-			client := &http.Client{}
-			requestValuesMap := make(map[string]string)
-
 			if requestValuesFile != "" {
 				requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
 					requestValuesFile,
@@ -171,28 +170,13 @@ Examples:
 					cancel()
 				}()
 
-				// Note: RequestValuesMap and client are recreated here if needed or reused
-				// Since they were declared inside the if block, we reconstruct them or declare them outside
-				// But wait, requestValuesMap and client aren't in scope here.
-				// Let's redefine them for the refresh loop since they are just configured from flags
-				refreshClient := &http.Client{}
-				refreshValuesMap := make(map[string]string)
-
-				if requestValuesFile != "" {
-					refreshValuesMap, _ = jwtinfo.ReadRequestValuesFile(requestValuesFile, refreshValuesMap)
-				}
-
-				if requestJSONValues != "" {
-					refreshValuesMap, _ = jwtinfo.ParseRequestJSONValues(requestJSONValues, refreshValuesMap)
-				}
-
 				cmd.Printf("Starting refresh loop...\n")
 
 				err := tokenData.RefreshLoop(
 					ctx,
 					requestURL,
-					refreshValuesMap,
-					refreshClient,
+					requestValuesMap,
+					client,
 					io.ReadAll,
 					renewThreshold,
 					tokenOutputFile,

@@ -234,3 +234,15 @@ func TestJwtTokenData_RefreshLoop_ErrorRetry(t *testing.T) {
 	require.Contains(t, buf.String(), "Failed to refresh token")
 	require.Contains(t, buf.String(), "network error")
 }
+
+func TestJwtTokenData_CalculateWaitDuration_Validation(t *testing.T) {
+	jtd := &JwtTokenData{}
+
+	_, err := jtd.calculateWaitDuration(-1.0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "renewThreshold must be between 0 and 100")
+
+	_, err = jtd.calculateWaitDuration(101.0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "renewThreshold must be between 0 and 100")
+}

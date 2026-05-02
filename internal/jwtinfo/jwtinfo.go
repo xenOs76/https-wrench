@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -611,6 +612,10 @@ func (jtd *JwtTokenData) RefreshLoop(
 // calculateWaitDuration determines how long to wait before the next token refresh
 // based on the expiration time and the renewal threshold.
 func (jtd *JwtTokenData) calculateWaitDuration(renewThreshold float64) (time.Duration, error) {
+	if renewThreshold < 0 || renewThreshold > 100 {
+		return 0, fmt.Errorf("renewThreshold must be between 0 and 100, got %.2f", renewThreshold)
+	}
+
 	exp, err := jtd.GetExpiration()
 	if err != nil {
 		return 0, fmt.Errorf("unable to determine expiration: %w", err)
@@ -650,15 +655,56 @@ func (jtd *JwtTokenData) calculateWaitDuration(renewThreshold float64) (time.Dur
 // WriteTokenToFile handles the persistence or display of a newly
 // acquired token, either writing it to a file or printing it to the console.
 func (jtd *JwtTokenData) WriteTokenToFile(outFileName string, outWriter io.Writer) {
-	if outFileName != "" {
-		if err := os.WriteFile(outFileName, []byte(jtd.AccessTokenRaw), 0o600); err != nil {
-			fmt.Fprintf(outWriter, "Failed to write token to file %s: %v\n", outFileName, err)
-		} else {
-			ts := time.Now().Format(time.RFC3339)
-			fmt.Fprintf(outWriter, "[%s] Token persisted to %s\n", ts, outFileName)
-		}
-	} else {
+	if outFileName == "" {
 		fmt.Fprintf(outWriter, "\n--- Token Refreshed at %s ---\n", time.Now().Format(time.RFC3339))
 		_ = PrintTokenInfo(jtd, outWriter)
+
+		return
 	}
+
+	dir := filepath.Dir(outFileName)
+
+	tmp, err := os.CreateTemp(dir, ".token-*")
+	if err != nil {
+		fmt.Fprintf(outWriter, "Failed to create temp token file for %s: %v\n", outFileName, err)
+		return
+	}
+
+	tmpName := tmp.Name()
+
+	if _, err := tmp.WriteString(jtd.AccessTokenRaw); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+
+		fmt.Fprintf(outWriter, "Failed to write token to temp file for %s: %v\n", outFileName, err)
+
+		return
+	}
+
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+
+		fmt.Fprintf(outWriter, "Failed to close temp token file for %s: %v\n", outFileName, err)
+
+		return
+	}
+
+	if err := os.Chmod(tmpName, 0o600); err != nil {
+		_ = os.Remove(tmpName)
+
+		fmt.Fprintf(outWriter, "Failed to set token file permissions for %s: %v\n", outFileName, err)
+
+		return
+	}
+
+	if err := os.Rename(tmpName, outFileName); err != nil {
+		_ = os.Remove(tmpName)
+
+		fmt.Fprintf(outWriter, "Failed to replace token file %s: %v\n", outFileName, err)
+
+		return
+	}
+
+	ts := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(outWriter, "[%s] Token persisted to %s\n", ts, outFileName)
 }
