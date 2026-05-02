@@ -5,8 +5,12 @@ Copyright © 2026 Zeno Belli <xeno@os76.xyz>
 package cmd
 
 import (
+	"context"
 	"io"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/spf13/cobra"
@@ -19,11 +23,17 @@ var (
 	flagNameRequestURL        = "request-url"
 	flagNameTokenFile         = "token-file"
 	flagNameJwksURL           = "validation-url"
+	flagNameRefresh           = "refresh"
+	flagNameTokenOutputFile   = "token-output-file"
+	flagNameRenewThreshold    = "renew-threshold"
 	requestJSONValues         string
 	requestValuesFile         string
 	requestURL                string
 	tokenFile                 string
 	jwksURL                   string
+	refresh                   bool
+	tokenOutputFile           string
+	renewThreshold            float64
 	keyfuncDefOverride        keyfunc.Override
 )
 
@@ -48,11 +58,16 @@ Examples:
 
   # Request and validate a JWT token 
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
+
+  # Request a JWT token, write it to a file and refresh it before expiration
+  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --token-output-file /tmp/token --refresh
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		var (
-			err       error
-			tokenData jwtinfo.JwtTokenData
+			err              error
+			tokenData        *jwtinfo.JwtTokenData
+			client           = &http.Client{}
+			requestValuesMap = make(map[string]string)
 		)
 
 		// TODO: remove global --config option
@@ -69,9 +84,6 @@ Examples:
 		}
 
 		if requestURL != "" {
-			client := &http.Client{}
-			requestValuesMap := make(map[string]string)
-
 			if requestValuesFile != "" {
 				requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
 					requestValuesFile,
@@ -115,7 +127,7 @@ Examples:
 			}
 		}
 
-		if tokenData.AccessTokenRaw != "" {
+		if tokenData != nil && tokenData.AccessTokenRaw != "" {
 			err = tokenData.DecodeBase64()
 			if err != nil {
 				cmd.Printf("DecodeBase64 error: %s\n", err)
@@ -134,6 +146,47 @@ Examples:
 			if err != nil {
 				cmd.Printf("error while printing token data: %s\n", err)
 				return
+			}
+
+			if tokenOutputFile != "" {
+				tokenData.WriteTokenToFile(tokenOutputFile, cmd.OutOrStdout())
+			}
+
+			if refresh {
+				if requestURL == "" {
+					cmd.Printf("Error: --refresh requires --request-url\n")
+					return
+				}
+
+				// Setup graceful shutdown
+				ctx, cancel := context.WithCancel(cmd.Context())
+				defer cancel()
+
+				sigCh := make(chan os.Signal, 1)
+				signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+				go func() {
+					<-sigCh
+					cancel()
+				}()
+
+				cmd.Printf("Starting refresh loop...\n")
+
+				err := tokenData.RefreshLoop(
+					ctx,
+					requestURL,
+					requestValuesMap,
+					client,
+					io.ReadAll,
+					renewThreshold,
+					tokenOutputFile,
+					cmd.OutOrStdout(),
+				)
+				if err != nil {
+					cmd.Printf("Refresh loop exited with error: %s\n", err)
+				} else {
+					cmd.Printf("Refresh loop stopped gracefully.\n")
+				}
 			}
 		} else {
 			_ = cmd.Help()
@@ -177,6 +230,27 @@ func init() {
 		flagNameJwksURL,
 		"",
 		"Url of the JSON Web Key Set (JWKS) to use for validating the JWT token",
+	)
+
+	jwtinfoCmd.Flags().BoolVar(
+		&refresh,
+		flagNameRefresh,
+		false,
+		"Run in foreground and automatically refresh the token",
+	)
+
+	jwtinfoCmd.Flags().StringVar(
+		&tokenOutputFile,
+		flagNameTokenOutputFile,
+		"",
+		"File to write the refreshed token to",
+	)
+
+	jwtinfoCmd.Flags().Float64Var(
+		&renewThreshold,
+		flagNameRenewThreshold,
+		80.0,
+		"Percentage of token lifetime to wait before refreshing",
 	)
 
 	// Either read a token from a file or request it from an HTTP address
