@@ -57,20 +57,20 @@ type AllReader func(io.Reader) ([]byte, error)
 // response types.
 //
 //nolint:revive
-func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll AllReader) (JwtTokenData, error) {
+func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll AllReader) (*JwtTokenData, error) {
 	if readAll == nil {
-		return JwtTokenData{}, errors.New("nil body reader function")
+		return nil, errors.New("nil body reader function")
 	}
 
 	if reqURL == emptyString {
-		return JwtTokenData{}, errors.New("empty string provided as request URL")
+		return nil, errors.New("empty string provided as request URL")
 	}
 
 	if len(reqValues) == 0 {
-		return JwtTokenData{}, errors.New("empty map provided as request values")
+		return nil, errors.New("empty map provided as request values")
 	}
 
-	var t JwtTokenData
+	t := &JwtTokenData{}
 
 	urlReqValues := url.Values{}
 	for k, v := range reqValues {
@@ -84,7 +84,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 		strings.NewReader(urlReqValues.Encode()),
 	)
 	if err != nil {
-		return JwtTokenData{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"HTTP error while defining token data request: %w",
 			err,
 		)
@@ -96,13 +96,13 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return JwtTokenData{}, err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return JwtTokenData{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"token request returned the following status code: %d",
 			resp.StatusCode,
 		)
@@ -112,7 +112,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	if errBodyRead != nil {
-		return JwtTokenData{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"unable to read body: %w",
 			errBodyRead,
 		)
@@ -125,7 +125,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 
 	if mediaType == "application/json" {
 		if err = json.NewDecoder(resp.Body).Decode(&t); err != nil {
-			return JwtTokenData{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"error validating token request data: %w",
 				err,
 			)
@@ -137,7 +137,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
-		return JwtTokenData{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"unable to parse JWT token from HTTP response: %w",
 			err,
 		)
@@ -148,20 +148,20 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 
 // ReadTokenFromFile reads a JWT token string from the specified file.
 // It returns a JwtTokenData struct containing the raw token string.
-func ReadTokenFromFile(fileName string) (JwtTokenData, error) {
+func ReadTokenFromFile(fileName string) (*JwtTokenData, error) {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		return JwtTokenData{}, fmt.Errorf("unable to read token file: %w", err)
+		return nil, fmt.Errorf("unable to read token file: %w", err)
 	}
 
-	td := JwtTokenData{AccessTokenRaw: strings.TrimSpace(string(data))}
+	td := &JwtTokenData{AccessTokenRaw: strings.TrimSpace(string(data))}
 
 	_, _, err = jwt.NewParser().ParseUnverified(
 		td.AccessTokenRaw,
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
-		return JwtTokenData{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"unable to parse JWT token from file: %w",
 			err,
 		)
@@ -238,8 +238,6 @@ func isValidJSON(data []byte) bool {
 
 // DecodeBase64 decodes the base64-encoded header and claims of the access and
 // refresh tokens stored in the JwtTokenData struct.
-//
-//nolint:revive
 func (jtd *JwtTokenData) DecodeBase64() error {
 	if jtd.AccessTokenRaw != emptyString {
 		header, claims, err := decodeToken("AccessToken", jtd.AccessTokenRaw)
@@ -252,13 +250,18 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 	}
 
 	if jtd.RefreshTokenRaw != emptyString {
-		header, claims, err := decodeToken("RefreshToken", jtd.RefreshTokenRaw)
-		if err != nil {
-			return err
-		}
+		// A refresh token is not strictly required to be a JWT in OAuth2.
+		// If it has 3 parts, we attempt to decode it as a JWT.
+		// If it doesn't, we treat it as an opaque token and continue.
+		if strings.Count(jtd.RefreshTokenRaw, ".") == 2 {
+			header, claims, err := decodeToken("RefreshToken", jtd.RefreshTokenRaw)
+			if err != nil {
+				return err
+			}
 
-		jtd.RefreshTokenHeader = header
-		jtd.RefreshTokenClaims = claims
+			jtd.RefreshTokenHeader = header
+			jtd.RefreshTokenClaims = claims
+		}
 	}
 
 	return nil
@@ -351,7 +354,7 @@ func (jtd *JwtTokenData) ParseWithJWKS(ctx context.Context, jwksURL string, keyf
 // to the provided writer in a human-readable format.
 //
 //nolint:revive
-func PrintTokenInfo(jtd JwtTokenData, w io.Writer) error {
+func PrintTokenInfo(jtd *JwtTokenData, w io.Writer) error {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
 	sTrue := style.BoolTrue.Render
@@ -477,4 +480,185 @@ func unmarshalTokenTimeClaims(claims []byte) (map[string]string, error) {
 	}
 
 	return tokenClaims, nil
+}
+
+// GetExpiration extracts the expiration time (exp) from the token claims.
+func (jtd *JwtTokenData) GetExpiration() (time.Time, error) {
+	if jtd.AccessTokenClaims == nil {
+		return time.Time{}, errors.New("access token claims are empty")
+	}
+
+	var genericClaims map[string]any
+	if err := json.Unmarshal(jtd.AccessTokenClaims, &genericClaims); err != nil {
+		return time.Time{}, fmt.Errorf("unable to unmarshal claims: %w", err)
+	}
+
+	if v, ok := genericClaims["exp"]; ok {
+		if vf, ok := v.(float64); ok {
+			return time.Unix(int64(vf), 0), nil
+		}
+
+		return time.Time{}, errors.New("exp claim is not a numeric timestamp")
+	}
+
+	return time.Time{}, errors.New("exp claim missing")
+}
+
+// GetIssuedAt extracts the issued at time (iat) from the token claims.
+func (jtd *JwtTokenData) GetIssuedAt() (time.Time, error) {
+	if jtd.AccessTokenClaims == nil {
+		return time.Time{}, errors.New("access token claims are empty")
+	}
+
+	var genericClaims map[string]any
+	if err := json.Unmarshal(jtd.AccessTokenClaims, &genericClaims); err != nil {
+		return time.Time{}, fmt.Errorf("unable to unmarshal claims: %w", err)
+	}
+
+	if v, ok := genericClaims["iat"]; ok {
+		if vf, ok := v.(float64); ok {
+			return time.Unix(int64(vf), 0), nil
+		}
+
+		return time.Time{}, errors.New("iat claim is not a numeric timestamp")
+	}
+
+	return time.Time{}, errors.New("iat claim missing")
+}
+
+// Refresh attempts to acquire a new token either by using the refresh token or the original request values.
+func (jtd *JwtTokenData) Refresh(
+	ctx context.Context,
+	reqURL string,
+	reqValues map[string]string,
+	client *http.Client,
+	readAll AllReader,
+) error {
+	refreshValues := maps.Clone(reqValues)
+	if refreshValues == nil {
+		refreshValues = make(map[string]string)
+	}
+
+	if jtd.RefreshTokenRaw != "" {
+		refreshValues["grant_type"] = "refresh_token"
+		refreshValues["refresh_token"] = jtd.RefreshTokenRaw
+	}
+
+	newTokenData, err := RequestToken(ctx, reqURL, refreshValues, client, readAll)
+	if err != nil {
+		return fmt.Errorf("failed to request refreshed token: %w", err)
+	}
+
+	if err := newTokenData.DecodeBase64(); err != nil {
+		return fmt.Errorf("failed to decode refreshed token: %w", err)
+	}
+
+	jtd.AccessTokenRaw = newTokenData.AccessTokenRaw
+	jtd.AccessTokenJwt = newTokenData.AccessTokenJwt
+	jtd.AccessTokenHeader = newTokenData.AccessTokenHeader
+	jtd.AccessTokenClaims = newTokenData.AccessTokenClaims
+
+	if newTokenData.RefreshTokenRaw != "" {
+		jtd.RefreshTokenRaw = newTokenData.RefreshTokenRaw
+		jtd.RefreshTokenJwt = newTokenData.RefreshTokenJwt
+		jtd.RefreshTokenHeader = newTokenData.RefreshTokenHeader
+		jtd.RefreshTokenClaims = newTokenData.RefreshTokenClaims
+	}
+
+	return nil
+}
+
+// RefreshLoop runs a loop that periodically refreshes the JWT token before it
+// expires.
+func (jtd *JwtTokenData) RefreshLoop(
+	ctx context.Context,
+	reqURL string,
+	reqValues map[string]string,
+	client *http.Client,
+	readAll AllReader,
+	renewThreshold float64,
+	outFileName string,
+	outWriter io.Writer,
+) error {
+	for {
+		sleepFor, err := jtd.calculateWaitDuration(renewThreshold)
+		if err != nil {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(sleepFor):
+		}
+
+		if err := jtd.Refresh(ctx, reqURL, reqValues, client, readAll); err != nil {
+			fmt.Fprintf(outWriter, "Failed to refresh token: %v\n", err)
+			// Sleep before retrying on failure
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(10 * time.Second):
+			}
+
+			continue
+		}
+
+		jtd.WriteTokenToFile(outFileName, outWriter)
+	}
+}
+
+// calculateWaitDuration determines how long to wait before the next token refresh
+// based on the expiration time and the renewal threshold.
+func (jtd *JwtTokenData) calculateWaitDuration(renewThreshold float64) (time.Duration, error) {
+	exp, err := jtd.GetExpiration()
+	if err != nil {
+		return 0, fmt.Errorf("unable to determine expiration: %w", err)
+	}
+
+	iat, err := jtd.GetIssuedAt()
+
+	var lifetime time.Duration
+
+	var wakeTime time.Time
+
+	if err == nil {
+		lifetime = exp.Sub(iat)
+		waitDuration := time.Duration(float64(lifetime) * (renewThreshold / 100.0))
+		wakeTime = iat.Add(waitDuration)
+	} else {
+		// Fallback if iat is missing, use current time
+		lifetime = time.Until(exp)
+		waitDuration := time.Duration(float64(lifetime) * (renewThreshold / 100.0))
+		wakeTime = time.Now().Add(waitDuration)
+	}
+
+	if lifetime <= 0 {
+		return 0, errors.New("token lifetime is zero or negative")
+	}
+
+	sleepFor := time.Until(wakeTime)
+	if sleepFor <= 0 {
+		// If we are already past the wake time, trigger a refresh immediately.
+		// But avoid a tight spin loop if refresh fails instantly.
+		sleepFor = 100 * time.Millisecond
+	}
+
+	return sleepFor, nil
+}
+
+// WriteTokenToFile handles the persistence or display of a newly
+// acquired token, either writing it to a file or printing it to the console.
+func (jtd *JwtTokenData) WriteTokenToFile(outFileName string, outWriter io.Writer) {
+	if outFileName != "" {
+		if err := os.WriteFile(outFileName, []byte(jtd.AccessTokenRaw), 0o600); err != nil {
+			fmt.Fprintf(outWriter, "Failed to write token to file %s: %v\n", outFileName, err)
+		} else {
+			ts := time.Now().Format(time.RFC3339)
+			fmt.Fprintf(outWriter, "[%s] Token persisted to %s\n", ts, outFileName)
+		}
+	} else {
+		fmt.Fprintf(outWriter, "\n--- Token Refreshed at %s ---\n", time.Now().Format(time.RFC3339))
+		_ = PrintTokenInfo(jtd, outWriter)
+	}
 }

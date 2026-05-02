@@ -234,15 +234,21 @@ Examples:
   # Request and validate a JWT token 
   https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
 
+  # Request a JWT token, write it to a file and refresh it before expiration
+  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --token-output-file /tmp/token --refresh
+
 Usage:
   https-wrench jwtinfo [flags]
 
 Flags:
   -h, --help                         help for jwtinfo
+      --refresh                      Enable background token refresh before expiration
+      --renew-threshold float        Token renewal threshold as a percentage of lifetime (default 80)
       --request-url string           HTTP address to use for the JWT token request
       --request-values-file string   File containing the JSON encoded values to use for the JWT token request
       --request-values-json string   JSON encoded values to use for the JWT token request
       --token-file string            File containing the JWT token
+      --token-output-file string     File where the acquired/refreshed token will be written
       --validation-url string        Url of the JSON Web Key Set (JWKS) to use for validating the JWT token
 
 Global Flags:
@@ -256,6 +262,18 @@ Decode a token from a file:
 
 ```shell
 ❯ https-wrench jwtinfo --token-file mytoken.jwt
+```
+
+Request a token and save it to a file:
+
+```shell
+❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt
+```
+
+Request a token, save it to a file, and keep it refreshed in the background:
+
+```shell
+❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt --refresh --renew-threshold 90
 ```
 
 ### HTTPS Wrench jwks

@@ -8,6 +8,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -695,7 +696,14 @@ func TestDecodeBase64(t *testing.T) {
 			tdRefreshTokenTest := tdR
 			tdRefreshTokenTest.RefreshTokenRaw = tt.tokenString
 			err = tdRefreshTokenTest.DecodeBase64()
-			require.ErrorContains(t, err, tt.errMsg)
+
+			// Special case: RefreshToken is allowed to be a non-JWT string.
+			// It only fails if it *looks* like a JWT (3 parts) but is invalid.
+			if strings.Count(tt.tokenString, ".") != 2 {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.errMsg)
+			}
 		})
 	}
 }
@@ -981,7 +989,7 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 			AccessTokenClaims: []byte(claimsJSON),
 		}
 
-		err := PrintTokenInfo(jtd, &buffer)
+		err := PrintTokenInfo(&jtd, &buffer)
 		require.NoError(t, err)
 
 		// The json.Indent for header failed and it wrote the raw header.
@@ -997,7 +1005,7 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 			AccessTokenClaims: []byte("invalid json"),
 		}
 
-		err := PrintTokenInfo(jtd, &buffer)
+		err := PrintTokenInfo(&jtd, &buffer)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "unable to unmarshal time claims from AccessToken")
 	})
