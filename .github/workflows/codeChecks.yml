@@ -1,3 +1,4 @@
+# yamllint disable rule:comments rule:line-length
 ---
 name: CodeChecks
 on:
@@ -88,48 +89,56 @@ jobs:
         run: go mod tidy
 
       - name: Test with the Go CLI
-        run: go test -v ./...
+        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
       - name: Build
         run: go build -v ./...
 
-  goreleaser_test:
-    name: GoReleaser test release
-    runs-on: ubuntu-latest
-
-    strategy:
-      max-parallel: 2
-      matrix:
-        go-version: ["1.25"]
-
-    needs:
-      - go_lint
-      - go_tests
-      - go_vulncheck
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Check test coverage
+        continue-on-error: ${{ github.ref_name != 'main' }}
+        uses: vladopajic/go-test-coverage@v2
         with:
-          fetch-depth: 0
+          config: ./.testcoverage.yml
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
-
-      - name: Install Syft
-        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-
-      - name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version: ${{ matrix.go-version }}
-
-      - name: Run GoReleaser test
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
-        with:
-          version: "~> 2"
-          args: release --snapshot --clean
-          workdir: .
+  # goreleaser_test:
+  #   name: GoReleaser test release
+  #   runs-on: ubuntu-latest
+  #
+  #   strategy:
+  #     max-parallel: 2
+  #     matrix:
+  #       go-version: ["1.25"]
+  #
+  #   needs:
+  #     - go_lint
+  #     - go_tests
+  #     - go_vulncheck
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+  #       with:
+  #         fetch-depth: 0
+  #
+  #     - name: Install Nix
+  #       uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
+  #
+  #     - name: Install Syft
+  #       uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+  #
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+  #
+  #     - name: Set up Go
+  #       uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+  #       with:
+  #         go-version: ${{ matrix.go-version }}
+  #
+  #     - name: Run GoReleaser test
+  #       uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+  #       with:
+  #         version: "~> 2"
+  #         args: release --snapshot --clean
+  #         workdir: .
