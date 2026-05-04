@@ -188,13 +188,16 @@ Global Flags:
 Get info about a certificate and a key and see if their public keys match:
 
 ```shell
-❯ https-wrench certinfo --cert-bundle rsa-pkcs8-crt.pem --key-file rsa-pkcs8-plaintext-private-key.pem
+❯ https-wrench certinfo \
+  --cert-bundle rsa-pkcs8-crt.pem \
+  --key-file rsa-pkcs8-plaintext-private-key.pem
 ```
 
 Get info about a certificate exposed by a remote TLS endpoint:
 
 ```shell
-❯ https-wrench certinfo --tls-endpoint repo.os76.xyz:443
+❯ https-wrench certinfo \
+  --tls-endpoint repo.os76.xyz:443
 ```
 
 Get info about a self signed certificate exposed by a remote TLS endpoint,
@@ -202,7 +205,10 @@ validate it against a CA certificate and check if a specific privave key has
 been used to generate the certificate:
 
 ```shell
-❯ https-wrench certinfo --tls-endpoint localhost:9443 --ca-bundle rootCA.pem --key-file key.pem
+❯ https-wrench certinfo \
+  --tls-endpoint localhost:9443 \
+  --ca-bundle rootCA.pem \
+  --key-file key.pem
 ```
 
 ### HTTPS Wrench jwtinfo
@@ -226,16 +232,34 @@ Examples:
   https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
 
   # Request a JWT token using inline values
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES
 
   # Request a JWT token using values file
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-file request-values.json
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-file request-values.json
+
+  # Request a JWT token using request-values flag
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values username=test \
+   --request-values password=test \
+   --request-values scope=login
 
   # Request and validate a JWT token 
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES \
+   --validation-url $VALIDATION_URL
 
   # Request a JWT token, write it to a file and refresh it before expiration
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --token-output-file /tmp/token --refresh
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES \
+   --token-output-file /tmp/token \
+   --refresh
 
 Usage:
   https-wrench jwtinfo [flags]
@@ -243,12 +267,13 @@ Usage:
 Flags:
   -h, --help                         help for jwtinfo
       --refresh                      Run in foreground and automatically refresh the token
-      --renew-threshold float        Token renewal threshold as a percentage of lifetime (default 80)
+      --renew-threshold float        Percentage of token lifetime to wait before refreshing (default 80)
       --request-url string           HTTP address to use for the JWT token request
+      --request-values string        Key-value pairs to use for the JWT token request (e.g., key=value)
       --request-values-file string   File containing the JSON encoded values to use for the JWT token request
       --request-values-json string   JSON encoded values to use for the JWT token request
       --token-file string            File containing the JWT token
-      --token-output-file string     File where the acquired/refreshed token will be written
+      --token-output-file string     File to write the refreshed token to
       --validation-url string        Url of the JSON Web Key Set (JWKS) to use for validating the JWT token
 
 Global Flags:
@@ -267,13 +292,30 @@ Decode a token from a file:
 Request a token and save it to a file:
 
 ```shell
-❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt
+❯ https-wrench jwtinfo \
+  --request-url https://auth.example.com/token \
+  --request-values-json '{"client_id":"foo"}' \
+  --token-output-file ./token.jwt
+```
+
+Request a token using key-value pairs:
+
+```shell
+❯ https-wrench jwtinfo \
+  --request-url https://auth.example.com/token \
+  --request-values client_id=foo \
+  --request-values client_secret=bar
 ```
 
 Request a token, save it to a file, and keep it refreshed until interrupted:
 
 ```shell
-❯ https-wrench jwtinfo --request-url https://auth.example.com/token --request-values-json '{"client_id":"foo"}' --token-output-file ./token.jwt --refresh --renew-threshold 90
+❯ https-wrench jwtinfo \
+  --request-url https://auth.example.com/token \
+  --request-values-json '{"client_id":"foo"}' \
+  --token-output-file ./token.jwt \
+  --renew-threshold 90 \
+  --refresh
 ```
 
 ### HTTPS Wrench jwks

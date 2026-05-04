@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,9 +16,11 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/spf13/cobra"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
+	"github.com/xenos76/https-wrench/internal/style"
 )
 
 var (
+	flagNameRequestValues     = "request-values"
 	flagNameRequestJSONValues = "request-values-json"
 	flagNameRequestValuesFile = "request-values-file"
 	flagNameRequestURL        = "request-url"
@@ -26,8 +29,6 @@ var (
 	flagNameRefresh           = "refresh"
 	flagNameTokenOutputFile   = "token-output-file"
 	flagNameRenewThreshold    = "renew-threshold"
-	requestJSONValues         string
-	requestValuesFile         string
 	requestURL                string
 	tokenFile                 string
 	jwksURL                   string
@@ -35,7 +36,31 @@ var (
 	tokenOutputFile           string
 	renewThreshold            float64
 	keyfuncDefOverride        keyfunc.Override
+
+	// requestSteps tracks the sequence of request-related flags as they appear on the command line.
+	requestSteps []requestValueStep
 )
+
+// requestValueStep represents a single occurrence of a request flag and its value.
+type requestValueStep struct {
+	kind  string // "json", "file", or "kv"
+	value string
+}
+
+// stepFlag implements the pflag.Value interface to capture the order of flag occurrences.
+type stepFlag struct {
+	kind string
+}
+
+func (*stepFlag) String() string { return "" }
+
+// Set appends the flag's value and its type to the global requestSteps slice.
+func (f *stepFlag) Set(s string) error {
+	requestSteps = append(requestSteps, requestValueStep{kind: f.kind, value: s})
+	return nil
+}
+
+func (*stepFlag) Type() string { return "string" }
 
 var jwtinfoCmd = &cobra.Command{
 	Use:   "jwtinfo",
@@ -51,16 +76,34 @@ Examples:
   https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
 
   # Request a JWT token using inline values
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES
 
   # Request a JWT token using values file
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-file request-values.json
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-file request-values.json
+
+  # Request a JWT token using request-values flag
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values username=test \
+   --request-values password=test \
+   --request-values scope=login
 
   # Request and validate a JWT token 
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --validation-url $VALIDATION_URL
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES \
+   --validation-url $VALIDATION_URL
 
   # Request a JWT token, write it to a file and refresh it before expiration
-  https-wrench jwtinfo --request-url $REQ_URL --request-values-json $REQ_VALUES --token-output-file /tmp/token --refresh
+  https-wrench jwtinfo \
+   --request-url $REQ_URL \
+   --request-values-json $REQ_VALUES \
+   --token-output-file /tmp/token \
+   --refresh
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		var (
@@ -70,7 +113,11 @@ Examples:
 			requestValuesMap = make(map[string]string)
 		)
 
-		// TODO: remove global --config option
+		if refresh && requestURL == "" {
+			fmt.Fprintln(cmd.OutOrStdout(), style.LgSprintf(style.Error, "Error: --refresh requires --request-url"))
+			return
+		}
+
 		if tokenFile != "" {
 			tokenData, err = jwtinfo.ReadTokenFromFile(tokenFile)
 			if err != nil {
@@ -84,32 +131,29 @@ Examples:
 		}
 
 		if requestURL != "" {
-			if requestValuesFile != "" {
-				requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
-					requestValuesFile,
-					requestValuesMap,
-				)
-				if err != nil {
-					cmd.Printf(
-						"error while reading request's values from file: %s",
-						err,
+			for _, step := range requestSteps {
+				switch step.kind {
+				case "json":
+					requestValuesMap, err = jwtinfo.ParseRequestJSONValues(
+						step.value,
+						requestValuesMap,
 					)
-
-					return
+				case "file":
+					requestValuesMap, err = jwtinfo.ReadRequestValuesFile(
+						step.value,
+						requestValuesMap,
+					)
+				case "kv":
+					requestValuesMap, err = jwtinfo.ParseKVValue(
+						step.value,
+						requestValuesMap,
+					)
+				default:
+					continue
 				}
-			}
 
-			if requestJSONValues != "" {
-				requestValuesMap, err = jwtinfo.ParseRequestJSONValues(
-					requestJSONValues,
-					requestValuesMap,
-				)
 				if err != nil {
-					cmd.Printf(
-						"error while parsing request's values JSON string: %s",
-						err,
-					)
-
+					cmd.Printf("error processing %s: %s\n", step.kind, err)
 					return
 				}
 			}
@@ -153,11 +197,6 @@ Examples:
 			}
 
 			if refresh {
-				if requestURL == "" {
-					cmd.Printf("Error: --refresh requires --request-url\n")
-					return
-				}
-
 				// Setup graceful shutdown
 				ctx, cancel := context.WithCancel(cmd.Context())
 				defer cancel()
@@ -211,18 +250,22 @@ func init() {
 		"HTTP address to use for the JWT token request",
 	)
 
-	jwtinfoCmd.Flags().StringVar(
-		&requestJSONValues,
+	jwtinfoCmd.Flags().Var(
+		&stepFlag{kind: "json"},
 		flagNameRequestJSONValues,
-		"",
 		"JSON encoded values to use for the JWT token request",
 	)
 
-	jwtinfoCmd.Flags().StringVar(
-		&requestValuesFile,
+	jwtinfoCmd.Flags().Var(
+		&stepFlag{kind: "file"},
 		flagNameRequestValuesFile,
-		"",
 		"File containing the JSON encoded values to use for the JWT token request",
+	)
+
+	jwtinfoCmd.Flags().Var(
+		&stepFlag{kind: "kv"},
+		flagNameRequestValues,
+		"Key-value pairs to use for the JWT token request (e.g., key=value)",
 	)
 
 	jwtinfoCmd.Flags().StringVar(
