@@ -1,3 +1,22 @@
+## 0.11.1 (2026-05-04)
+
+### Docs
+
+    Reformatted example commands in README with clearer multi-line invocations for better readability.
+    Expanded jwtinfo examples to demonstrate combined flag usage.
+
+### Feat
+
+    Enhanced jwtinfo command to support combined request-value flags for greater flexibility.
+
+### Fix
+
+    Added validation requiring --request-url when using --refresh flag.
+
+### CI
+
+    Expanded test coverage with additional scenarios and improved test structure.
+
 ## 0.11.0 (2026-05-02)
 
 ### Feat
