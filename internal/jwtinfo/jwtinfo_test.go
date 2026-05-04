@@ -1010,3 +1010,48 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 		require.ErrorContains(t, err, "unable to unmarshal time claims from AccessToken")
 	})
 }
+
+func TestParseKVValue(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		inputMap := map[string]string{"existing": "value"}
+		outputMap, err := ParseKVValue("key=val", inputMap)
+		require.NoError(t, err)
+		require.Equal(t, "val", outputMap["key"])
+		require.Equal(t, "value", outputMap["existing"])
+	})
+
+	t.Run("Overwrite", func(t *testing.T) {
+		t.Parallel()
+
+		inputMap := map[string]string{"key": "old"}
+		outputMap, err := ParseKVValue("key=new", inputMap)
+		require.NoError(t, err)
+		require.Equal(t, "new", outputMap["key"])
+	})
+
+	t.Run("Error_NoEqual", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := ParseKVValue("invalid", nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "expected key=value")
+	})
+
+	t.Run("Error_Empty", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := ParseKVValue("", nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty string provided")
+	})
+
+	t.Run("Error_EmptyKey", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := ParseKVValue("=value", nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty request parameter name")
+	})
+}

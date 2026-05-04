@@ -708,3 +708,36 @@ func (jtd *JwtTokenData) WriteTokenToFile(outFileName string, outWriter io.Write
 	ts := time.Now().Format(time.RFC3339)
 	fmt.Fprintf(outWriter, "[%s] Token persisted to %s\n", ts, outFileName)
 }
+
+// ParseKVValue parses a string in the format "key=value" and adds it to the provided map.
+// It returns an error if the format is invalid or the string is empty.
+func ParseKVValue(
+	kv string,
+	reqValuesMap map[string]string,
+) (
+	map[string]string,
+	error,
+) {
+	if kv == "" {
+		return nil, errors.New("empty string provided as key-value pair")
+	}
+
+	parts := strings.SplitN(kv, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid key-value pair: %s (expected key=value)", kv)
+	}
+
+	key := strings.TrimSpace(parts[0])
+	if key == "" {
+		return nil, fmt.Errorf("empty request parameter name in: %s", kv)
+	}
+
+	newMap := maps.Clone(reqValuesMap)
+	if newMap == nil {
+		newMap = make(map[string]string)
+	}
+
+	newMap[key] = parts[1]
+
+	return newMap, nil
+}
