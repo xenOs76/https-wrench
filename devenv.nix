@@ -659,6 +659,21 @@ in {
     ./dist/https-wrench jwtinfo --request-url "$REQ_URL" --request-values-file ~/.config/https-wrench/jwtinfo_test_keycloak_req_values.json --validation-url "$VALIDATION_URL"
   '';
 
+  scripts.run-jwtinfo-test-keycloak-mixed-value-flags.exec = ''
+    gum format "### JwtInfo request against priv Keycloak with mixed values flags"
+
+    REQ_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/token"
+    VALIDATION_URL="https://keycloak.k3s.os76.xyz/realms/os76/protocol/openid-connect/certs"
+
+    ./dist/https-wrench jwtinfo --request-url "$REQ_URL" \
+      --request-values client_id=istio-test-01 \
+      --request-values-file ~/.config/https-wrench/jwtinfo_test_keycloak_req_values_pw_only.json \
+      --request-values username=xeno \
+      --request-values scope=openid \
+      --request-values grant_type=password \
+      --validation-url "$VALIDATION_URL"
+  '';
+
   scripts.run-go-tests.exec = ''
     gum format "## Run GO tests"
 
