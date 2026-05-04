@@ -727,12 +727,17 @@ func ParseKVValue(
 		return nil, fmt.Errorf("invalid key-value pair: %s (expected key=value)", kv)
 	}
 
+	key := strings.TrimSpace(parts[0])
+	if key == "" {
+		return nil, fmt.Errorf("empty request parameter name in: %s", kv)
+	}
+
 	newMap := maps.Clone(reqValuesMap)
 	if newMap == nil {
 		newMap = make(map[string]string)
 	}
 
-	newMap[parts[0]] = parts[1]
+	newMap[key] = parts[1]
 
 	return newMap, nil
 }

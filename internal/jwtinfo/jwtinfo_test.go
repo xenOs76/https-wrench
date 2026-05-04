@@ -1046,4 +1046,12 @@ func TestParseKVValue(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "empty string provided")
 	})
+
+	t.Run("Error_EmptyKey", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := ParseKVValue("=value", nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty request parameter name")
+	})
 }
