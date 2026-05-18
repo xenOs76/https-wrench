@@ -14,6 +14,7 @@ var (
 	tlsEndpoint   string
 	tlsServerName string
 	tlsInsecure   bool
+	tlsInfo       bool
 	keyPwEnvVar   = "CERTINFO_PKEY_PW"
 )
 
@@ -33,16 +34,29 @@ If the private key is password protected, the password can be provided via the C
 environment variable or will be prompted on stdin.
 
 Examples:
-  https-wrench certinfo --tls-endpoint example.com:443
+
+  # Print info about local certificates and keys 
+  # with optional CA and public key match validation
+
   https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --cert-bundle ./bundle.pem
   https-wrench certinfo --key-file ./key.pem
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+
+  # Print info about remote certificates 
+  # with optional CA and public key match validation
+
+  https-wrench certinfo --tls-endpoint example.com:443
   https-wrench certinfo --tls-endpoint example.com:443 --key-file ./key.pem
   https-wrench certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
   https-wrench certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
   https-wrench certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
-  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+
+  # Print info about remote certificates 
+  # with optional display of negotiated and supported TLS protocols and ciphers
+
+  https-wrench certinfo --tls-endpoint example.com:443 --tls-info
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		caBundleValue := viper.GetString("ca-bundle")
@@ -52,6 +66,11 @@ Examples:
 
 		if versionRequested {
 			cmd.Print(version)
+			return
+		}
+
+		if tlsInfo && tlsEndpoint == "" {
+			cmd.Print("Error: --tls-info requires --tls-endpoint\n")
 			return
 		}
 
@@ -75,13 +94,14 @@ Examples:
 			cmd.Printf("Error importing Certificate bundle from file: %s", err)
 		}
 
-		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName)
+		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName).SetTLSInfoRequested(tlsInfo)
 
 		// SetTLSEndpoint may need the SNI/ServerName and insecure options to be set
 		// before being able to ask details about the certificate we want to a
 		// webserver using self-signed and valid certificates
 		if err = certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
 			cmd.Printf("Error setting TLS endpoint: %s", err)
+			return
 		}
 
 		if err = certinfoCfg.SetPrivateKeyFromFile(
@@ -114,5 +134,9 @@ IPv6 addresses must be enclosed in square brackets, as in '[::1]:80'`)
 		"tls-insecure",
 		false,
 		"Skip certificate validation when connecting to a TLS endpoint")
+	certinfoCmd.Flags().BoolVar(&tlsInfo,
+		"tls-info",
+		false,
+		"Show negotiated TLS info and probe supported protocols/ciphers")
 	rootCmd.AddCommand(certinfoCmd)
 }

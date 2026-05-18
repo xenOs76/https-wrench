@@ -25,7 +25,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 			srvCfg: demoHTTPServerConfig{
 				serverAddr:     "localhost:46301",
 				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
+				serverCertFile: RSASampleCertBundleFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
 			caCertFile:    RSACaCertFile,
@@ -132,8 +132,6 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc
 		t.Run(tt.desc, func(t *testing.T) {
-			t.Parallel()
-
 			ts, err := NewHTTPSTestServer(tt.srvCfg)
 			require.NoError(t, err)
 
@@ -472,8 +470,6 @@ type printDataTestCase struct {
 }
 
 func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
-	t.Parallel()
-
 	buffer := bytes.Buffer{}
 
 	cc, err := New()

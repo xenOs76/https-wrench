@@ -3,6 +3,9 @@ package cmd
 import (
 	"bytes"
 	_ "embed"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	_ "github.com/breml/rootcerts"
@@ -97,11 +100,29 @@ func TestCertinfoCmd(t *testing.T) {
 		},
 		{
 			//nolint:revive
-			name: "invalid files and endpoints",
+			name: "invalid files",
 			//nolint:revive
-			args:        []string{"certinfo", "--ca-bundle", "non_existent.pem", "--cert-bundle", "non_existent.pem", "--key-file", "non_existent.pem", "--tls-endpoint", "invalid://"},
+			args:        []string{"certinfo", "--ca-bundle", "non_existent.pem", "--cert-bundle", "non_existent.pem", "--key-file", "non_existent.pem"},
 			expectError: false,
-			expected:    []string{"Error importing CA Certificate bundle", "Error importing Certificate bundle", "Error importing key", "Error setting TLS endpoint"},
+			expected:    []string{"Error importing CA Certificate bundle", "Error importing Certificate bundle", "Error importing key"},
+		},
+		{
+			name:        "invalid tls-endpoint",
+			args:        []string{"certinfo", "--tls-endpoint", "invalid://"},
+			expectError: false,
+			expected:    []string{"Error setting TLS endpoint"},
+		},
+		{
+			name:        "tls-info flag without tls-endpoint",
+			args:        []string{"certinfo", "--tls-info"},
+			expectError: false,
+			expected:    []string{"Error: --tls-info requires --tls-endpoint"},
+		},
+		{
+			name:        "tls-info flag with invalid tls-endpoint",
+			args:        []string{"certinfo", "--tls-info", "--tls-endpoint", "invalid://"},
+			expectError: false,
+			expected:    []string{"Error setting TLS endpoint"},
 		},
 	}
 
@@ -115,6 +136,7 @@ func TestCertinfoCmd(t *testing.T) {
 				require.NoError(t, certinfoCmd.Flags().Set("tls-endpoint", ""))
 				require.NoError(t, certinfoCmd.Flags().Set("tls-servername", ""))
 				require.NoError(t, certinfoCmd.Flags().Set("tls-insecure", "false"))
+				require.NoError(t, certinfoCmd.Flags().Set("tls-info", "false"))
 				require.NoError(t, certinfoCmd.Flags().Set("cert-bundle", ""))
 				require.NoError(t, certinfoCmd.Flags().Set("key-file", ""))
 			})
@@ -146,4 +168,43 @@ func TestCertinfoCmd(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCertinfoCmd_WithTLSInfo(t *testing.T) {
+	// Start a local TLS server
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Parse host and port from server URL
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, rootCmd.PersistentFlags().Set("version", "false"))
+		require.NoError(t, certinfoCmd.Flags().Set("ca-bundle", ""))
+		require.NoError(t, certinfoCmd.Flags().Set("tls-endpoint", ""))
+		require.NoError(t, certinfoCmd.Flags().Set("tls-servername", ""))
+		require.NoError(t, certinfoCmd.Flags().Set("tls-insecure", "false"))
+		require.NoError(t, certinfoCmd.Flags().Set("tls-info", "false"))
+		require.NoError(t, certinfoCmd.Flags().Set("cert-bundle", ""))
+		require.NoError(t, certinfoCmd.Flags().Set("key-file", ""))
+	})
+
+	reqOut := new(bytes.Buffer)
+	reqCmd := rootCmd
+
+	reqCmd.SetOut(reqOut)
+	reqCmd.SetErr(reqOut)
+	reqCmd.SetArgs([]string{"certinfo", "--tls-endpoint", u.Host, "--tls-info", "--tls-insecure"})
+
+	err = reqCmd.Execute()
+	require.NoError(t, err)
+
+	got := reqOut.String()
+
+	require.Contains(t, got, "Negotiated TLS Connection")
+	require.Contains(t, got, "Protocol Support Scan")
+	require.Contains(t, got, "Cipher Suite Scan")
 }

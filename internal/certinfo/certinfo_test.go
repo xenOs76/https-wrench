@@ -1,9 +1,15 @@
 package certinfo
 
 import (
+	"bytes"
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 )
@@ -411,4 +417,263 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			require.ErrorContains(t, err, tt.expectMsg)
 		})
 	}
+}
+
+func TestCertinfo_ProbeTLSInfo(t *testing.T) {
+	// Start a local TLS server
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Parse host and port from server URL
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.SetTLSInfoRequested(true)
+	require.True(t, cc.TLSInfoRequested)
+
+	// Skip verification to allow connection to the self-signed test server
+	cc.SetTLSInsecure(true)
+	cc.SetTLSServerName("example.com")
+
+	err = cc.SetTLSEndpoint(u.Host)
+	require.NoError(t, err)
+
+	err = cc.ProbeTLSInfo()
+	require.NoError(t, err)
+
+	// Since it's a local TLS server run by Go's httptest, it supports TLS 1.3 or TLS 1.2
+	hasSupported := false
+
+	for _, supported := range cc.ProbedProtocols {
+		if supported {
+			hasSupported = true
+
+			break
+		}
+	}
+
+	require.True(t, hasSupported)
+	require.NotEmpty(t, cc.ProbedCiphers)
+}
+
+func TestCertinfo_ProbeTLSInfo_NotRequested(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.SetTLSInfoRequested(false)
+	require.False(t, cc.TLSInfoRequested)
+
+	err = cc.ProbeTLSInfo()
+	require.NoError(t, err)
+	require.Empty(t, cc.NegotiatedProtocol)
+}
+
+func TestCertinfo_ProbeTLSInfo_NoEndpoint(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.SetTLSInfoRequested(true)
+
+	err = cc.ProbeTLSInfo()
+	require.NoError(t, err)
+	require.Empty(t, cc.ProbedProtocols)
+}
+
+func TestCertinfo_ProbeTLSInfo_Unreachable(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.SetTLSInfoRequested(true)
+	cc.SetTLSInsecure(true)
+
+	// Manually populate fields to bypass pre-flight certificate fetch in SetTLSEndpoint
+	cc.TLSEndpoint = "127.0.0.1:54321"
+	cc.TLSEndpointHost = "127.0.0.1"
+	cc.TLSEndpointPort = "54321"
+
+	err = cc.ProbeTLSInfo()
+	require.NoError(t, err)
+
+	// When unreachable, all scanned protocols should be unsupported
+	for _, supported := range cc.ProbedProtocols {
+		require.False(t, supported)
+	}
+}
+
+func TestCertinfo_GettersAndSetters(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.NegotiatedProtocol = "TLS 1.3"
+	require.Equal(t, "TLS 1.3", cc.NegotiatedProtocol)
+
+	cc.NegotiatedCipher = "TLS_AES_128_GCM_SHA256"
+	require.Equal(t, "TLS_AES_128_GCM_SHA256", cc.NegotiatedCipher)
+}
+
+func TestCertinfo_PrintTLSInfo_NotRequested(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.TLSInfoRequested = false
+
+	var buf bytes.Buffer
+
+	ks := lipgloss.NewStyle()
+	sl := lipgloss.NewStyle()
+	sv := lipgloss.NewStyle()
+
+	cc.printTLSInfo(&buf, ks, sl, sv)
+	require.Empty(t, buf.String())
+}
+
+func TestCertinfo_PrintTLSInfo_HappyPath(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.TLSInfoRequested = true
+	cc.NegotiatedProtocol = "TLS 1.3"
+	cc.NegotiatedCipher = "TLS_AES_128_GCM_SHA256"
+	cc.ProbedProtocols = map[string]bool{
+		"TLS 1.3": true,
+		"TLS 1.2": true,
+		"TLS 1.1": false,
+		"TLS 1.0": false,
+	}
+	cc.ProbedCiphers = []ProbedCipher{
+		{
+			Name:      "TLS_AES_128_GCM_SHA256",
+			Protocol:  "TLS 1.3",
+			Supported: true,
+			Insecure:  false,
+		},
+		{
+			Name:      "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+			Protocol:  "TLS 1.2",
+			Supported: true,
+			Insecure:  true,
+		},
+	}
+
+	var buf bytes.Buffer
+
+	ks := lipgloss.NewStyle()
+	sl := lipgloss.NewStyle()
+	sv := lipgloss.NewStyle()
+
+	cc.printTLSInfo(&buf, ks, sl, sv)
+
+	got := buf.String()
+	require.Contains(t, got, "Negotiated TLS Connection")
+	require.Contains(t, got, "TLS 1.3")
+	require.Contains(t, got, "TLS_AES_128_GCM_SHA256")
+	require.Contains(t, got, "Protocol Support Scan")
+	require.Contains(t, got, "Cipher Suite Scan")
+	require.Contains(t, got, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
+	require.Contains(t, got, "Insecure")
+	require.Contains(t, got, "Secure")
+}
+
+func TestCertinfo_PrintTLSInfo_NoSupportedCiphers(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.TLSInfoRequested = true
+	cc.NegotiatedProtocol = "TLS 1.2"
+	cc.NegotiatedCipher = "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+	cc.ProbedProtocols = map[string]bool{
+		"TLS 1.3": false,
+		"TLS 1.2": true,
+		"TLS 1.1": false,
+		"TLS 1.0": false,
+	}
+	cc.ProbedCiphers = []ProbedCipher{
+		{
+			Name:      "TLS_AES_128_GCM_SHA256",
+			Protocol:  "TLS 1.3",
+			Supported: false,
+			Insecure:  false,
+		},
+	}
+
+	var buf bytes.Buffer
+
+	ks := lipgloss.NewStyle()
+	sl := lipgloss.NewStyle()
+	sv := lipgloss.NewStyle()
+
+	cc.printTLSInfo(&buf, ks, sl, sv)
+
+	got := buf.String()
+	require.Contains(t, got, "Negotiated TLS Connection")
+	require.Contains(t, got, "No supported cipher suites found")
+}
+
+func TestCertinfo_TLSVersionToString_Unknown(t *testing.T) {
+	t.Parallel()
+
+	res := tlsVersionToString(0x1234)
+	require.Equal(t, "Unknown (0x1234)", res)
+}
+
+func TestCertinfo_ProbeTLSInfo_SingleCipher(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.TLSInfoRequested = true
+	cc.TLSEndpoint = "127.0.0.1:54321"
+	cc.TLSEndpointHost = "127.0.0.1"
+	cc.TLSEndpointPort = "54321"
+
+	// Mock only 1 cipher suite to trigger numWorkers > numJobs inside probeCiphersConcurrently
+	ciphers := []*tls.CipherSuite{
+		{
+			ID:       tls.TLS_AES_128_GCM_SHA256,
+			Name:     "TLS_AES_128_GCM_SHA256",
+			Insecure: false,
+		},
+	}
+
+	res := cc.probeCiphersConcurrently(ciphers)
+	require.Len(t, res, 1)
+	require.Equal(t, "TLS_AES_128_GCM_SHA256", res[0].Name)
+	require.False(t, res[0].Supported)
+}
+
+func TestCertinfo_PrintData_WithTLSInfo(t *testing.T) {
+	t.Parallel()
+
+	cc, err := New()
+	require.NoError(t, err)
+
+	cc.TLSInfoRequested = true
+	cc.NegotiatedProtocol = "TLS 1.3"
+	cc.NegotiatedCipher = "TLS_AES_128_GCM_SHA256"
+
+	var buf bytes.Buffer
+
+	err = cc.PrintData(&buf)
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "Negotiated TLS Connection")
 }
