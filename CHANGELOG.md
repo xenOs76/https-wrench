@@ -1,5 +1,15 @@
 # https-wrench - changelog
 
+## 0.12.0 (2026-05-18)
+
+### Feat
+
+    Added --tls-info flag to display negotiated TLS protocol and cipher information from remote endpoints, with probing of supported protocols and cipher suites.
+
+### Docs
+
+    Updated README with expanded certinfo command examples and documentation for the new --tls-info flag.
+
 ## 0.11.2 (2026-05-18)
 
 ### Fix
