@@ -1,5 +1,11 @@
 # https-wrench - changelog
 
+## 0.12.1 (2026-05-18)
+
+### Fix
+
+    Fix version injection in Goreleaser config
+
 ## 0.12.0 (2026-05-18)
 
 ### Feat
