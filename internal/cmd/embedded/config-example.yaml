@@ -1,91 +1,90 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
 ---
-#
-#   HTTPS Wrench - sample configuration file
-#
+##
+##   HTTPS Wrench - sample configuration file
+##
 
-# debug: Enables global debug mode to print additional diagnostic information.
+## debug - Enables global debug mode to print additional diagnostic information.
 debug: false
 
-# verbose: Enables verbose output, showing more details during execution. Required option.
+## verbose - Enables verbose output, showing more details during execution. Required option.
 verbose: true
 
-# caBundle: A PEM-encoded CA certificate bundle as a multiline string to be used for verifying server certificates.
-# When testing inside the devenv environment, the 'devenv up' command will create new self-signed certificates and
-# start a local, HTTPS-enabled Nginx server.
-# The server will take the certificate from $CAROOT/full-cert.pem.
-# If caBundle is not set, the requests made using this configuration file will fail with a TLS certificate verification error.
-# Add the content of $CAROOT/rootCA.pem to the variable caBundle to test the sample configuration against the local
-# webserver.
-#
+## caBundle - A PEM-encoded CA certificate bundle as a multiline string to be used for verifying server certificates.
+## When testing inside the devenv environment, the 'devenv up' command will create new self-signed certificates and
+## start a local, HTTPS-enabled Nginx server.
+## The server will take the certificate from $CAROOT/full-cert.pem.
+## If caBundle is not set, the requests made using this configuration file will fail with a TLS certificate verification error.
+## Add the content of $CAROOT/rootCA.pem to the variable caBundle to test the sample configuration against the local
+## webserver.
 caBundle: |
   -----BEGIN CERTIFICATE-----
   MIIEbTCCAtWgAwIBAgIQJdy/eKgQx9G54MUxW+ow5zANBgkqhkiG9w0BAQsFADBP
   ...
 
-# requests: List of HTTP requests to execute. Required option.
+## requests - List of HTTP requests to execute. Required option.
 requests:
-  # name: The name of the request, used for display purposes. Required option.
+  ## name - The name of the request, used for display purposes. Required option.
   - name: SampleRequestAgainstLocalWebserver
 
-    # transportOverrideUrl: Override URL for the transport layer. Can be used to force a connection to a specific IP or proxy. Must start with https://
+    ## transportOverrideUrl - Override URL for the transport layer. Can be used to force a connection to a specific IP or proxy. Must start with https://
     transportOverrideUrl: https://127.0.0.1:9443
 
-    # enableProxyProtocolV2: Enables sending an HAProxy PROXY protocol v2 header. Requires 'transportOverrideUrl' to be set.
+    ## enableProxyProtocolV2 - Enables sending an HAProxy PROXY protocol v2 header. Requires 'transportOverrideUrl' to be set.
     enableProxyProtocolV2: false
 
-    # clientTimeout: The timeout for the HTTP client in seconds.
+    ## clientTimeout - The timeout for the HTTP client in seconds.
     clientTimeout: 5
 
-    # insecure: If true, skips TLS certificate verification (InsecureSkipVerify).
+    ## insecure - If true, skips TLS certificate verification (InsecureSkipVerify).
     insecure: false
 
-    # requestDebug: If true, dumps the raw HTTP request to the output for debugging.
+    ## requestDebug - If true, dumps the raw HTTP request to the output for debugging.
     requestDebug: false
 
-    # responseDebug: If true, dumps the raw HTTP response, including TLS connection details, for debugging.
+    ## responseDebug - If true, dumps the raw HTTP response, including TLS connection details, for debugging.
     responseDebug: false
 
-    # printResponseBody: If true, prints the body of the HTTP response.
+    ## printResponseBody - If true, prints the body of the HTTP response.
     printResponseBody: true
 
-    # responseBodyMatchRegexp: A regular expression to match against the response body.
+    ## responseBodyMatchRegexp - A regular expression to match against the response body.
     responseBodyMatchRegexp: ".*https-wrench-agent.*"
 
-    # printResponseHeaders: If true, prints the headers of the HTTP response.
+    ## printResponseHeaders - If true, prints the headers of the HTTP response.
     printResponseHeaders: true
 
-    # responseHeadersFilter: A list of specific response headers to filter and display.
+    ## responseHeadersFilter - A list of specific response headers to filter and display.
     responseHeadersFilter:
       - Content-Type
       - Server
 
-    # printResponseCertificates: If true, prints the TLS certificates returned in the response.
+    ## printResponseCertificates - If true, prints the TLS certificates returned in the response.
     printResponseCertificates: true
 
-    # requestMethod: The HTTP method to use for the request (e.g., GET, POST, PUT, DELETE).
+    ## requestMethod - The HTTP method to use for the request (e.g., GET, POST, PUT, DELETE). Defaults to GET.
     requestMethod: POST
 
-    # requestHeaders: A list of custom headers to send with the HTTP request.
+    ## requestHeaders - A list of custom headers to send with the HTTP request.
     requestHeaders:
-      # key: The name of the header.
+      ## key - The name of the header.
       - key: Content-Type
-        # value: The value of the header.
+        ## value - The value of the header.
         value: application/json
       - key: X-Custom-Header
         value: custom-value
 
-    # requestBody: The body payload to send with the HTTP request.
+    ## requestBody - The body payload to send with the HTTP request.
     requestBody: "{\"key\": \"value\"}"
 
-    # userAgent: A custom User-Agent string to send with the request.
+    ## userAgent - A custom User-Agent string to send with the request.
     userAgent: custom-https-wrench-agent/1.0
 
-    # hosts: The target hosts to send the request to. Required option.
+    ## hosts - The target hosts to send the request to. Required option.
     hosts:
-      # name: The hostname (used for the Host header and TLS ServerName indication). Required option.
+      ## name - The hostname (used for the Host header and TLS ServerName indication). Required option.
       - name: example.com
-        # uriList: A list of URIs (paths) to request on this host. Must start with a forward slash (/).
+        ## uriList - A list of URIs (paths) to request on this host. Must start with a forward slash (/).
         uriList:
           - /post
           - /status/503

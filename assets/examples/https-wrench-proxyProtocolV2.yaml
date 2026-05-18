@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+---
+##
+##   HTTPS Wrench - ProxyProtocolV2 test
+##
+## Test to validate the connection against a webserver implementing ProxyProtocolV2.
+## This configuration file can be run against the Devenv testing environment defined
+## in devenv.nix.
+
+debug: false
+verbose: true
+
+requests:
+  - name: RequestOverProxyPtorocolV2
+    transportOverrideUrl: https://127.0.0.1:9444
+    enableProxyProtocolV2: true
+    clientTimeout: 2
+    insecure: true
+    printResponseBody: true
+    responseBodyMatchRegexp: ".*https-wrench-request.*"
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Content-Type
+      - Server
+
+    requestMethod: POST
+
+    hosts:
+      - name: example.com
+        uriList:
+          - /post
