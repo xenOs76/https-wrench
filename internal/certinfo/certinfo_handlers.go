@@ -323,7 +323,7 @@ func (c *Config) probeProtocol(version uint16) bool {
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
 	dialer := &net.Dialer{
-		Timeout: 1 * time.Second,
+		Timeout: TLSTimeout,
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
@@ -352,7 +352,7 @@ func (c *Config) probeCipher(suite *tls.CipherSuite) (bool, string) {
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
 	dialer := &net.Dialer{
-		Timeout: 1 * time.Second,
+		Timeout: TLSTimeout,
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
