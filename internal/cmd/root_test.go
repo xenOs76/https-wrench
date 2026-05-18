@@ -95,7 +95,17 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 
 func TestRootCmd_Execute(t *testing.T) {
 	t.Run("Execute empty config", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			rootCmd.SetArgs(nil)
+		})
+
 		cfgFile = ""
+
+		rootCmd.SetArgs([]string{"--config"})
 
 		initConfig()
 

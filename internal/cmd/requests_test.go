@@ -147,3 +147,33 @@ func TestRequestsCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestRequestsCmd_ShowSampleConfigStdout(t *testing.T) {
+	t.Cleanup(func() {
+		require.NoError(t, rootCmd.Flags().Set("version", "false"))
+		require.NoError(t, requestsCmd.Flags().Set("ca-bundle", ""))
+		require.NoError(t, rootCmd.Flags().Set("config", ""))
+		require.NoError(t, requestsCmd.Flags().Set("show-sample-config", "false"))
+		rootCmd.SetArgs(nil)
+	})
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	reqCmd := rootCmd
+	reqCmd.SetOut(stdout)
+	reqCmd.SetErr(stderr)
+	reqCmd.SetArgs([]string{"requests", "--show-sample-config"})
+
+	err := reqCmd.Execute()
+	require.NoError(t, err)
+
+	// Verify that the output was written to stdout
+	gotStdout := stdout.String()
+	require.Contains(t, gotStdout, "https-wrench.schema.json")
+	require.Contains(t, gotStdout, "requests:")
+
+	// Verify that nothing was written to stderr
+	gotStderr := stderr.String()
+	require.Empty(t, gotStderr, "Expected stderr to be empty, but got: %s", gotStderr)
+}

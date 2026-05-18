@@ -6,6 +6,7 @@ package cmd
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 
 	"github.com/gookit/goutil/dump"
@@ -49,7 +50,7 @@ Examples:
 		}
 
 		if showSampleConfig {
-			cmd.Print(sampleYamlConfig)
+			fmt.Fprint(cmd.OutOrStdout(), sampleYamlConfig)
 			return
 		}
 
