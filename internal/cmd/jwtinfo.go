@@ -70,7 +70,7 @@ var jwtinfoCmd = &cobra.Command{
 Examples:
   export REQ_URL="https://sample.provider/oauth/token"
   export REQ_VALUES="{\"login\":\"values\"}"
-  export VALIDATION_URL="https://url.to/jwks.json"
+  export VALIDATION_URL="https://oidc.sample.url/oicd-sample-id/.well-known/jwks.json"
 
   # Read a JWT token from a local file
   https-wrench jwtinfo --token-file /var/run/secrets/kubernetes.io/serviceaccount/token
