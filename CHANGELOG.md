@@ -1,3 +1,15 @@
+# https-wrench - changelog
+
+## 0.11.2 (2026-05-18)
+
+### Fix
+
+    requests: --show-sample-config print to Stdout instead of Strerr.
+
+### Docs
+
+    Updated jwtinfo command help text to display a concrete OIDC provider JWKS discovery URL example instead of a generic placeholder.
+
 ## 0.11.1 (2026-05-04)
 
 ### Docs
