@@ -152,16 +152,29 @@ If the private key is password protected, the password can be provided via the C
 environment variable or will be prompted on stdin.
 
 Examples:
-  https-wrench certinfo --tls-endpoint example.com:443
+
+  # Print info about local certificates and keys 
+  # with optional CA and public key match validation
+
   https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --cert-bundle ./bundle.pem
   https-wrench certinfo --key-file ./key.pem
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+
+  # Print info about remote certificates 
+  # with optional CA and public key match validation
+
+  https-wrench certinfo --tls-endpoint example.com:443
   https-wrench certinfo --tls-endpoint example.com:443 --key-file ./key.pem
   https-wrench certinfo --tls-endpoint example.com:443 --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --tls-endpoint example.com:443 --tls-servername www.example.com
   https-wrench certinfo --tls-endpoint [2001:db8::1]:443 --tls-insecure
   https-wrench certinfo --ca-bundle ./ca-bundle.pem --tls-endpoint example.com:443
-  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem
+
+  # Print info about remote certificates 
+  # with optional display of negotiated and supported TLS protocols and ciphers
+
+  https-wrench certinfo --tls-endpoint example.com:443 --tls-info
 
 Usage:
   https-wrench certinfo [flags]
@@ -175,6 +188,7 @@ Flags:
       --tls-endpoint string     TLS enabled endpoint exposing certificates to fetch. 
                                 Forms: 'host:port', '[host]:port'. 
                                 IPv6 addresses must be enclosed in square brackets, as in '[::1]:80'
+      --tls-info                Show negotiated TLS info and probe supported protocols/ciphers
       --tls-insecure            Skip certificate validation when connecting to a TLS endpoint
       --tls-servername string   ServerName to use when connecting to an SNI enabled TLS endpoint
 

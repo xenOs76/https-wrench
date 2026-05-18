@@ -5,6 +5,7 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package certinfo
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,8 +13,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -43,6 +46,11 @@ func (c *Config) PrintData(w io.Writer) error {
 
 	if err := c.printRemoteCerts(w, ks, sl, sv); err != nil {
 		return err
+	}
+
+	if c.TLSInfoRequested {
+		_ = c.ProbeTLSInfo()
+		c.printTLSInfo(w, ks, sl, sv)
 	}
 
 	return c.printCACerts(w, ks, sl, sv)
@@ -197,6 +205,8 @@ func (c *Config) GetRemoteCerts() error {
 
 	cs := conn.ConnectionState()
 	c.TLSEndpointCerts = cs.PeerCertificates
+	c.NegotiatedProtocol = tlsVersionToString(cs.Version)
+	c.NegotiatedCipher = tls.CipherSuiteName(cs.CipherSuite)
 
 	// do not verify server certificates if TLSInsecure
 	if c.TLSInsecure {
@@ -276,4 +286,277 @@ func CertsToTables(w io.Writer, certs []*x509.Certificate) {
 		fmt.Fprintln(w, t.Render())
 		t.ClearRows()
 	}
+}
+
+// tlsVersionToString converts TLS version uint16 to standard string representation.
+func tlsVersionToString(version uint16) string {
+	switch version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+
+	default:
+		return fmt.Sprintf("Unknown (0x%04x)", version)
+	}
+}
+
+// probeProtocol tests whether the TLS endpoint supports a specific TLS protocol version.
+func (c *Config) probeProtocol(version uint16) bool {
+	tlsConfig := &tls.Config{
+		MinVersion:         version,
+		MaxVersion:         version,
+		InsecureSkipVerify: true,
+	}
+
+	if c.TLSServerName != emptyString {
+		tlsConfig.ServerName = c.TLSServerName
+	}
+
+	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
+
+	dialer := &net.Dialer{
+		Timeout: TLSTimeout,
+	}
+
+	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
+	if err == nil {
+		conn.Close()
+
+		return true
+	}
+
+	return false
+}
+
+// probeCipher tests whether a specific TLS 1.0-1.2 cipher suite is supported.
+func (c *Config) probeCipher(suite *tls.CipherSuite) (bool, string) {
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS10,
+		MaxVersion:         tls.VersionTLS12,
+		CipherSuites:       []uint16{suite.ID},
+		InsecureSkipVerify: true,
+	}
+
+	if c.TLSServerName != emptyString {
+		tlsConfig.ServerName = c.TLSServerName
+	}
+
+	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
+
+	dialer := &net.Dialer{
+		Timeout: TLSTimeout,
+	}
+
+	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
+	if err == nil {
+		state := conn.ConnectionState()
+
+		conn.Close()
+
+		return true, tlsVersionToString(state.Version)
+	}
+
+	return false, ""
+}
+
+// ProbeTLSInfo concurrently scans the endpoint for supported TLS versions and cipher suites.
+func (c *Config) ProbeTLSInfo() error {
+	if c.TLSEndpoint == emptyString {
+		return nil
+	}
+
+	c.ProbedProtocols = make(map[string]bool)
+
+	// 1. Probe protocols
+	versions := []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
+
+	for _, v := range versions {
+		supported := c.probeProtocol(v)
+
+		c.ProbedProtocols[tlsVersionToString(v)] = supported
+	}
+
+	// 2. Probe ciphers concurrently
+	suites := append(tls.CipherSuites(), tls.InsecureCipherSuites()...)
+
+	c.ProbedCiphers = c.probeCiphersConcurrently(suites)
+
+	return nil
+}
+
+// probeCiphersConcurrently manages the worker pool to concurrently scan cipher suites.
+//
+//nolint:gocognit,revive,wsl
+func (c *Config) probeCiphersConcurrently(suites []*tls.CipherSuite) []ProbedCipher {
+	type job struct {
+		suite *tls.CipherSuite
+	}
+
+	type result struct {
+		probed ProbedCipher
+	}
+
+	numJobs := len(suites)
+	jobs := make(chan job, numJobs)
+	results := make(chan result, numJobs)
+
+	// Start 10 concurrent workers
+	numWorkers := 10
+	if numWorkers > numJobs {
+		numWorkers = numJobs
+	}
+
+	var wg sync.WaitGroup
+
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for j := range jobs {
+				suite := j.suite
+				isTLS13 := false
+
+				for _, v := range suite.SupportedVersions {
+					if v == tls.VersionTLS13 {
+						isTLS13 = true
+
+						break
+					}
+				}
+
+				var (
+					supported bool
+					protoName string
+				)
+
+				if isTLS13 {
+					supported = c.ProbedProtocols["TLS 1.3"]
+					protoName = "TLS 1.3"
+				} else {
+					ok, name := c.probeCipher(suite)
+
+					supported = ok
+					protoName = name
+				}
+
+				results <- result{
+					probed: ProbedCipher{
+						ID:        suite.ID,
+						Name:      suite.Name,
+						Protocol:  protoName,
+						Insecure:  suite.Insecure,
+						Supported: supported,
+					},
+				}
+			}
+		}()
+	}
+
+	// Queue up all jobs
+	for _, s := range suites {
+		jobs <- job{suite: s}
+	}
+
+	close(jobs)
+
+	// Wait for workers to finish
+	wg.Wait()
+
+	close(results)
+
+	// Collect results
+	var list []ProbedCipher
+
+	for r := range results {
+		list = append(list, r.probed)
+	}
+
+	// Sort ciphers by Name for stable output
+	slices.SortFunc(list, func(a, b ProbedCipher) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return list
+}
+
+// printTLSInfo formats and prints the scanned TLS info tables.
+func (c *Config) printTLSInfo(w io.Writer, ks, _, _ lipgloss.Style) {
+	if !c.TLSInfoRequested {
+		return
+	}
+
+	// 1. Render Negotiated Connection details
+	fmt.Fprintln(w, style.LgSprintf(ks, "Negotiated TLS Connection"))
+
+	t1 := table.New().Border(style.LGDefBorder)
+	t1.Row(style.CertKeyP4.Render("Protocol Version"), style.CertValue.Render(c.NegotiatedProtocol))
+	t1.Row(style.CertKeyP4.Render("Cipher Suite"), style.CertValue.Render(c.NegotiatedCipher))
+	fmt.Fprintln(w, t1.Render())
+
+	// 2. Render Supported Protocol Versions Scan
+	fmt.Fprintln(w, style.LgSprintf(ks, "Protocol Support Scan"))
+
+	t2 := table.New().Border(style.LGDefBorder)
+	protoOrder := []string{"TLS 1.3", "TLS 1.2", "TLS 1.1", "TLS 1.0"}
+
+	for _, protoName := range protoOrder {
+		supported := c.ProbedProtocols[protoName]
+		statusStr, statusStyle := "No", style.BoolFalse.Render
+
+		if supported {
+			statusStr, statusStyle = "Yes", style.BoolTrue.Render
+		}
+
+		t2.Row(style.CertKeyP4.Render(protoName), statusStyle(statusStr))
+	}
+
+	fmt.Fprintln(w, t2.Render())
+
+	// 3. Render Probed Cipher Suites
+	fmt.Fprintln(w, style.LgSprintf(ks, "Cipher Suite Scan"))
+
+	slRender := style.CertKeyP4.Bold(true).Render
+	slNoPadRender := style.CertKeyP4.PaddingLeft(0).Bold(true).Render
+	t3 := table.New().Border(style.LGDefBorder).Headers(
+		slRender("Cipher Suite Name"),
+		slNoPadRender("Protocol"),
+		slNoPadRender("Status"),
+		slNoPadRender("Security"),
+	)
+
+	var hasSupported bool
+
+	for _, pc := range c.ProbedCiphers {
+		if pc.Supported {
+			hasSupported = true
+			secStr, secStyle := "Secure", style.BoolTrue.Render
+
+			if pc.Insecure {
+				secStr, secStyle = "Insecure", style.Warn.Render
+			}
+
+			t3.Row(
+				style.CertKeyP4.Render(pc.Name),
+				style.CertValue.Render(pc.Protocol),
+				style.BoolTrue.Render("Yes"),
+				secStyle(secStr),
+			)
+		}
+	}
+
+	if !hasSupported {
+		t3.Row(style.CertKeyP4.Render("No supported cipher suites found"), "", "", "")
+	}
+
+	fmt.Fprintln(w, t3.Render())
 }

@@ -108,13 +108,13 @@ func TestMain(m *testing.M) {
 		panic(errDataDir)
 	}
 
-	// Cleanup (register early so panics in setup still clean up what was created)
 	defer func() {
 		filesToDel := []string{
 			RSACaCertKeyFile,
 			RSACaCertFile,
 			RSASampleCertFile,
 			RSASampleCertKeyFile,
+			RSASampleCertBundleFile,
 		}
 		for _, fileToDel := range filesToDel {
 			err := os.Remove(fileToDel)
@@ -196,6 +196,15 @@ func generateRSACertificateData() {
 		testdataDir,
 		"RSASampleCert",
 		[]byte(RSASampleCertPEMString),
+	)
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	RSASampleCertBundleFile, err = createTmpFileWithContent(
+		testdataDir,
+		"RSASampleCertBundle",
+		[]byte(RSASampleCertPEMString+RSACaCertPEMString),
 	)
 	if err != nil {
 		fmt.Print(err)

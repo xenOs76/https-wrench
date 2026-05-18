@@ -50,6 +50,16 @@ type Config struct {
 	TLSServerName string
 	// TLSInsecure indicates if certificate verification should be skipped.
 	TLSInsecure bool
+	// TLSInfoRequested indicates if negotiated TLS info and supported protocol/cipher scan was requested.
+	TLSInfoRequested bool
+	// NegotiatedProtocol is the TLS protocol version negotiated in the primary connection.
+	NegotiatedProtocol string
+	// NegotiatedCipher is the TLS cipher suite negotiated in the primary connection.
+	NegotiatedCipher string
+	// ProbedProtocols maps a TLS protocol name to whether the remote endpoint supports it.
+	ProbedProtocols map[string]bool
+	// ProbedCiphers is a slice of ciphers that were probed against the endpoint.
+	ProbedCiphers []ProbedCipher
 }
 
 // Reader defines an interface for reading files and passwords.
@@ -196,5 +206,20 @@ func (c *Config) SetTLSServerName(serverName string) *Config {
 		c.TLSServerName = serverName
 	}
 
+	return c
+}
+
+// ProbedCipher holds the result of a single cipher suite probe.
+type ProbedCipher struct {
+	ID        uint16
+	Name      string
+	Protocol  string
+	Insecure  bool
+	Supported bool
+}
+
+// SetTLSInfoRequested sets whether to probe and print remote TLS protocol/cipher information.
+func (c *Config) SetTLSInfoRequested(requested bool) *Config {
+	c.TLSInfoRequested = requested
 	return c
 }
