@@ -1,5 +1,15 @@
 # https-wrench - changelog
 
+## 0.13.0 (2026-05-19)
+
+### Feat
+
+    Added selective filtering for TLS certificate chain fields. Users can now control which certificate properties are displayed by index and field name, or leave empty to show all fields.
+
+### Docs
+
+    Added configuration examples demonstrating certificate filtering usage.
+
 ## 0.12.1 (2026-05-18)
 
 ### Fix
