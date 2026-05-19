@@ -62,6 +62,15 @@ requests:
     ## printResponseCertificates - If true, prints the TLS certificates returned in the response.
     printResponseCertificates: true
 
+    ## responseCertificatesFilter - Filter the printed TLS certificates to show only specific certificates in the chain (0-indexed) and/or a subset of fields.
+    # responseCertificatesFilter:
+    #   - 0:
+    #     - Subject
+    #     - DNSNames
+    #     - Issuer
+    #     - NotAfter
+    #     - Expiration
+
     ## requestMethod - The HTTP method to use for the request (e.g., GET, POST, PUT, DELETE). Defaults to GET.
     requestMethod: POST
 
