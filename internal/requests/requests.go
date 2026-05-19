@@ -122,6 +122,12 @@ type RequestConfig struct {
 	PrintResponseHeaders bool `mapstructure:"printResponseHeaders"`
 	// PrintResponseCertificates indicates if the response TLS certificates should be printed.
 	PrintResponseCertificates bool `mapstructure:"printResponseCertificates"`
+	// ResponseCertificatesFilter is a list of filters mapping certificate chain indices
+	// (0 for leaf, 1, 2, etc. for intermediates/roots) to specific fields that should be printed.
+	// Valid fields include: "Subject", "DNSNames", "Issuer", "NotBefore", "NotAfter",
+	// "Expiration", "IsCA", "AuthorityKeyId", "SubjectKeyId", "PublicKeyAlgorithm",
+	// "SignatureAlgorithm", "SerialNumber", and "Fingerprint SHA-256".
+	ResponseCertificatesFilter []map[int][]string `mapstructure:"responseCertificatesFilter"`
 	// Hosts is a list of target hosts and their URIs.
 	Hosts []Host `mapstructure:"hosts"`
 }

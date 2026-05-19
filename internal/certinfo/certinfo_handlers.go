@@ -231,59 +231,164 @@ func (c *Config) GetRemoteCerts() error {
 }
 
 // CertsToTables formats and prints a list of x509 certificates as tables to the provided writer.
-func CertsToTables(w io.Writer, certs []*x509.Certificate) {
+// An optional filter slice of maps can be provided to filter printed output by certificate index and field names.
+//
+//nolint:gocognit,funlen,gocyclo,wsl,revive,cyclop
+func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][]string) {
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
 	svn := style.CertValueNotice.Render
 
+	var f []map[int][]string
+	if len(filter) > 0 {
+		f = filter[0]
+	}
+
+	// If a filter is provided, map it for fast lookup by certificate index
+	requestedCerts := make(map[int][]string)
+
+	hasFilter := len(f) > 0
+	if hasFilter {
+		for _, m := range f {
+			for k, fields := range m {
+				requestedCerts[k] = fields
+			}
+		}
+	}
+
 	for i := range certs {
+		var fields []string
+
+		if hasFilter {
+			var ok bool
+
+			fields, ok = requestedCerts[i]
+			if !ok {
+				// Certificate index not in filter list, skip displaying it
+				continue
+			}
+		}
+
 		header := style.LgSprintf(
 			style.CertKeyP4.Bold(true),
 			"Certificate %d",
 			i)
 		cert := certs[i]
 
-		subject := cert.Subject.String()
-		dnsNames := "[" + strings.Join(cert.DNSNames, ", ") + "]"
-		issuer := cert.Issuer.String()
+		// Helper to check if a specific field is requested (case-insensitive)
+		hasField := func(fieldName string) bool {
+			if !hasFilter || len(fields) == 0 {
+				return true // Print all fields if no filter is active or if field list is empty for this cert
+			}
 
-		notBefore := cert.NotBefore
-		notAfter := cert.NotAfter
-		expiration := humanize.Time(notAfter)
-		daysUntilExpiration := time.Until(notAfter).Hours() / 24
+			for _, field := range fields {
+				if strings.EqualFold(field, fieldName) {
+					return true
+				}
+			}
 
-		expStyle := sv
-		if (0 < daysUntilExpiration) && (daysUntilExpiration < CertExpWarnDays) {
-			expStyle = style.Warn.Render
+			return false
 		}
-
-		if daysUntilExpiration <= 0 {
-			expStyle = style.Crit.Render
-		}
-
-		isCA := strconv.FormatBool(cert.IsCA)
-		publicKeyAlgorithm := cert.PublicKeyAlgorithm.String()
-		authorityKeyID := hex.EncodeToString(cert.AuthorityKeyId)
-		subjectKeyID := hex.EncodeToString(cert.SubjectKeyId)
-		signatureAlgorithm := cert.SignatureAlgorithm.String()
-		fingerprintSha256 := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-		serialNumber := cert.SerialNumber.String()
 
 		t := table.New().Border(style.LGDefBorder).Headers(header)
-		t.Row(sl("Subject"), sv(subject))
-		t.Row(sl("DNSNames"), sv(dnsNames))
-		t.Row(sl("Issuer"), sv(issuer))
-		t.Row(sl("NotBefore"), sv(notBefore.String()))
-		t.Row(sl("NotAfter"), expStyle(notAfter.String()))
-		t.Row(sl("Expiration"), expStyle(expiration))
-		t.Row(sl("IsCA"), svn(isCA))
-		t.Row(sl("AuthorityKeyId"), svn(authorityKeyID))
-		t.Row(sl("SubjectKeyId"), svn(subjectKeyID))
-		t.Row(sl("PublicKeyAlgorithm"), sv(publicKeyAlgorithm))
-		t.Row(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
-		t.Row(sl("SerialNumber"), sv(serialNumber))
-		t.Row(sl("Fingerprint SHA-256"), sv(fingerprintSha256))
-		fmt.Fprintln(w, t.Render())
+		hasRows := false
+		addRow := func(k, v string) {
+			t.Row(k, v)
+
+			hasRows = true
+		}
+
+		if hasField("Subject") {
+			subject := cert.Subject.String()
+			addRow(sl("Subject"), sv(subject))
+		}
+
+		if hasField("DNSNames") {
+			dnsNames := strings.Join(cert.DNSNames, "\n")
+			addRow(sl("DNSNames"), sv(dnsNames))
+		}
+
+		if hasField("Issuer") {
+			issuer := cert.Issuer.String()
+			addRow(sl("Issuer"), sv(issuer))
+		}
+
+		if hasField("NotBefore") {
+			notBefore := cert.NotBefore
+			addRow(sl("NotBefore"), sv(notBefore.String()))
+		}
+
+		// Calculate expiration colors if needed
+		var expStyle func(...string) string
+
+		getExpStyle := func() func(...string) string {
+			if expStyle != nil {
+				return expStyle
+			}
+
+			daysUntilExpiration := time.Until(cert.NotAfter).Hours() / 24
+
+			expStyle = sv
+			if (0 < daysUntilExpiration) && (daysUntilExpiration < CertExpWarnDays) {
+				expStyle = style.Warn.Render
+			}
+
+			if daysUntilExpiration <= 0 {
+				expStyle = style.Crit.Render
+			}
+
+			return expStyle
+		}
+
+		if hasField("NotAfter") {
+			notAfter := cert.NotAfter
+			addRow(sl("NotAfter"), getExpStyle()(notAfter.String()))
+		}
+
+		if hasField("Expiration") {
+			expiration := humanize.Time(cert.NotAfter)
+			addRow(sl("Expiration"), getExpStyle()(expiration))
+		}
+
+		if hasField("IsCA") {
+			isCA := strconv.FormatBool(cert.IsCA)
+			addRow(sl("IsCA"), svn(isCA))
+		}
+
+		if hasField("AuthorityKeyId") {
+			authorityKeyID := hex.EncodeToString(cert.AuthorityKeyId)
+			addRow(sl("AuthorityKeyId"), svn(authorityKeyID))
+		}
+
+		if hasField("SubjectKeyId") {
+			subjectKeyID := hex.EncodeToString(cert.SubjectKeyId)
+			addRow(sl("SubjectKeyId"), svn(subjectKeyID))
+		}
+
+		if hasField("PublicKeyAlgorithm") {
+			publicKeyAlgorithm := cert.PublicKeyAlgorithm.String()
+			addRow(sl("PublicKeyAlgorithm"), sv(publicKeyAlgorithm))
+		}
+
+		if hasField("SignatureAlgorithm") {
+			signatureAlgorithm := cert.SignatureAlgorithm.String()
+			addRow(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
+		}
+
+		if hasField("SerialNumber") {
+			serialNumber := cert.SerialNumber.String()
+			addRow(sl("SerialNumber"), sv(serialNumber))
+		}
+
+		if hasField("Fingerprint SHA-256") || hasField("Fingerprint") {
+			fingerprintSha256 := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+			addRow(sl("Fingerprint SHA-256"), sv(fingerprintSha256))
+		}
+
+		if hasRows {
+			fmt.Fprintln(w, t.Render())
+		}
+
 		t.ClearRows()
 	}
 }

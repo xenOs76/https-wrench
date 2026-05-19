@@ -315,7 +315,7 @@ func (rd ResponseData) PrintResponseData(isVerbose bool) {
 			style.StatusCodeParse(rd.Response.StatusCode)))
 
 		if rd.Request.PrintResponseCertificates {
-			RenderTLSData(os.Stdout, rd.Response)
+			RenderTLSData(os.Stdout, rd.Response, rd.Request.ResponseCertificatesFilter)
 		}
 
 		if rd.Request.PrintResponseHeaders {
@@ -342,7 +342,8 @@ func (rd ResponseData) PrintResponseData(isVerbose bool) {
 }
 
 // RenderTLSData prints TLS version, cipher suite, and peer certificates for an HTTP response.
-func RenderTLSData(w io.Writer, r *http.Response) {
+// An optional filter can be provided to only print specific certificate indices and fields.
+func RenderTLSData(w io.Writer, r *http.Response, filter ...[]map[int][]string) {
 	respTLS := r.TLS
 	sl := style.CertKeyP4.Render
 	sv := style.CertValue.Render
@@ -373,5 +374,10 @@ func RenderTLSData(w io.Writer, r *http.Response) {
 	fmt.Fprintln(w, t.Render())
 	t.ClearRows()
 
-	certinfo.CertsToTables(w, respTLS.PeerCertificates)
+	var f []map[int][]string
+	if len(filter) > 0 {
+		f = filter[0]
+	}
+
+	certinfo.CertsToTables(w, respTLS.PeerCertificates, f)
 }

@@ -64,6 +64,37 @@
         "printResponseCertificates": {
           "type": "boolean"
         },
+        "responseCertificatesFilter": {
+          "type": "array",
+          "description": "Filter to display only specific certificates from the peer chain and/or only subset of fields for each certificate. Each item in the array is a map of certificate index (0-indexed, where 0 is the leaf certificate) to a list of certificate fields to render (e.g. Subject, DNSNames, Issuer, NotBefore, NotAfter, Expiration). If the list of fields is empty, all fields for that certificate are printed.",
+          "items": {
+            "type": "object",
+            "patternProperties": {
+              "^[0-9]+$": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Subject",
+                    "DNSNames",
+                    "Issuer",
+                    "NotBefore",
+                    "NotAfter",
+                    "Expiration",
+                    "IsCA",
+                    "AuthorityKeyId",
+                    "SubjectKeyId",
+                    "PublicKeyAlgorithm",
+                    "SignatureAlgorithm",
+                    "SerialNumber",
+                    "Fingerprint SHA-256"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
         "enableProxyProtocolV2": {
           "type": "boolean"
         },
@@ -107,6 +138,9 @@
       "dependencies": {
         "enableProxyProtocolV2": [
           "transportOverrideUrl"
+        ],
+        "responseCertificatesFilter": [
+          "printResponseCertificates"
         ]
       },
       "title": "Request"

@@ -3,7 +3,10 @@ package certinfo
 import (
 	"bytes"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -204,7 +207,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			subject:            "Subject             CN=RSA Testing CA",
 			isCA:               "IsCA                true",
 			expiration:         "Expiration          23 hours from now",
-			dnsNames:           "DNSNames            []",
+			dnsNames:           "DNSNames",
 			publicKeyAlgorithm: "PublicKeyAlgorithm  RSA",
 			signatureAlgorithm: "SignatureAlgorithm  SHA256-RSA",
 		},
@@ -214,7 +217,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			subject:            "Subject             CN=RSA Testing Sample Certificate",
 			isCA:               "IsCA                false",
 			expiration:         "Expiration          23 hours from now",
-			dnsNames:           "DNSNames            [example.com, example.net, example.de]",
+			dnsNames:           "example.com",
 			publicKeyAlgorithm: "PublicKeyAlgorithm  RSA",
 			signatureAlgorithm: "SignatureAlgorithm  SHA256-RSA",
 		},
@@ -224,7 +227,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			subject:            "Subject             CN=example.com,O=example Ltd,L=Berlin,ST=Some-State,C=DE",
 			isCA:               "IsCA                false",
 			expiration:         "ago",
-			dnsNames:           "DNSNames            []",
+			dnsNames:           "DNSNames",
 			publicKeyAlgorithm: "PublicKeyAlgorithm  RSA",
 			signatureAlgorithm: "SignatureAlgorithm  SHA256-RSA",
 		},
@@ -234,7 +237,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			cert:               ecdsaCert[0],
 			subject:            "Subject             CN=example.com,O=Example Org",
 			isCA:               "IsCA                true",
-			dnsNames:           "DNSNames            []",
+			dnsNames:           "DNSNames",
 			publicKeyAlgorithm: "PublicKeyAlgorithm  ECDSA",
 			signatureAlgorithm: "SignatureAlgorithm  ECDSA-SHA256",
 		},
@@ -243,7 +246,7 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 			cert:               ed25519Cert[0],
 			subject:            "Subject             CN=example.com,O=Example Org",
 			isCA:               "IsCA                true",
-			dnsNames:           "DNSNames            []",
+			dnsNames:           "DNSNames",
 			publicKeyAlgorithm: "PublicKeyAlgorithm  Ed25519",
 			signatureAlgorithm: "SignatureAlgorithm  Ed25519",
 		},
@@ -289,7 +292,75 @@ func TestCertinfo_CertsToTables(t *testing.T) {
 	}
 }
 
-//nolint:revive
+func TestCertinfo_CertsToTables_FilteringAndWarning(t *testing.T) {
+	warnCert := &x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "warning.example.com",
+			Organization: []string{"Warning Corp"},
+		},
+		Issuer: pkix.Name{
+			CommonName:   "warning.example.com",
+			Organization: []string{"Warning Corp"},
+		},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(10 * 24 * time.Hour), // 10 days -> warning (< 40 days)!
+		Raw:          []byte("dummy raw cert bytes"),
+		SerialNumber: big.NewInt(999),
+		DNSNames:     []string{"warning.example.com", "alt.warning.example.com"},
+	}
+
+	t.Run("Warning Style", func(t *testing.T) {
+		var buf bytes.Buffer
+		CertsToTables(&buf, []*x509.Certificate{warnCert})
+		got := buf.String()
+		require.Contains(t, got, "warning.example.com")
+		require.Contains(t, got, "1 week from now")
+	})
+
+	t.Run("Filtered Output", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		filter := []map[int][]string{
+			{
+				0: []string{"Subject", "DNSNames"},
+			},
+		}
+		CertsToTables(&buf, []*x509.Certificate{warnCert}, filter)
+		got := buf.String()
+		require.Contains(t, got, "Subject")
+		require.Contains(t, got, "warning.example.com")
+		require.Contains(t, got, "alt.warning.example.com")
+		require.NotContains(t, got, "Issuer")
+		require.NotContains(t, got, "NotAfter")
+	})
+
+	t.Run("Filtered Empty List", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		filter := []map[int][]string{
+			{
+				0: []string{}, // empty list means print all fields for this cert
+			},
+		}
+		CertsToTables(&buf, []*x509.Certificate{warnCert}, filter)
+		got := buf.String()
+		require.Contains(t, got, "Subject")
+		require.Contains(t, got, "Issuer")
+	})
+
+	t.Run("Filtered Mismatched Index", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		filter := []map[int][]string{
+			{
+				1: []string{"Subject"}, // index 1 doesn't exist for single cert, so cert 0 skipped
+			},
+		}
+		CertsToTables(&buf, []*x509.Certificate{warnCert}, filter)
+		got := buf.String()
+		require.NotContains(t, got, "warning.example.com")
+	})
+}
 
 //nolint:revive
 func TestCertinfo_PrintData(t *testing.T) {
