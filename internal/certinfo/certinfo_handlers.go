@@ -308,6 +308,17 @@ func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][
 			addRow(sl("DNSNames"), sv(dnsNames))
 		}
 
+		if hasField("IPAddresses") {
+			var ipStrs []string
+
+			for _, ip := range cert.IPAddresses {
+				ipStrs = append(ipStrs, ip.String())
+			}
+
+			ips := strings.Join(ipStrs, "\n")
+			addRow(sl("IPAddresses"), sv(ips))
+		}
+
 		if hasField("Issuer") {
 			issuer := cert.Issuer.String()
 			addRow(sl("Issuer"), sv(issuer))

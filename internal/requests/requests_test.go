@@ -1309,6 +1309,17 @@ func TestImportResponseBody_Errors(t *testing.T) {
 		require.False(t, rd.ResponseBodyRegexpMatched)
 		require.Equal(t, "test body", rd.ResponseBody)
 	})
+
+	t.Run("html content type highlighting", func(t *testing.T) {
+		rd := ResponseData{
+			Response: &http.Response{
+				Header: http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
+				Body:   io.NopCloser(bytes.NewBufferString("<html><body>hello</body></html>")),
+			},
+		}
+		rd.ImportResponseBody()
+		require.Contains(t, rd.ResponseBody, "hello")
+	})
 }
 
 type newHTTPClientFromRequestConfigTestCase struct {

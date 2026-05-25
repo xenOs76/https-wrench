@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -254,6 +255,20 @@ func TestRequestToken(t *testing.T) {
 		})
 	}
 	//nolint:revive
+}
+
+func TestRequestToken_nilReadAll(t *testing.T) {
+	t.Parallel()
+
+	_, err := RequestToken(
+		context.Background(),
+		"http://example.com/token",
+		map[string]string{"grant_type": "client_credentials"},
+		&http.Client{},
+		nil,
+	)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "nil body reader")
 }
 
 type requestTokenTestCase struct {

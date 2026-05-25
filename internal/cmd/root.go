@@ -69,6 +69,8 @@ or remote JWKS endpoints.
 jwks: Generate pretty-printed JSON Web Key Sets (JWKS) from public keys for 
 exposure on well-known endpoints.
 
+mcp: Run a Model Context Protocol server on stdin/stdout for AI agent integration.
+
 Distributed under an open-source license: https://github.com/xenOs76/https-wrench`,
 
 	Run: func(cmd *cobra.Command, _ []string) {
@@ -118,6 +120,10 @@ func init() {
 }
 
 func initConfig() {
+	if isMCPCommand() {
+		return
+	}
+
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -147,6 +153,16 @@ func LoadConfig() (*HTTPSWrenchConfig, error) {
 	}
 
 	return config, nil
+}
+
+func isMCPCommand() bool {
+	for _, arg := range os.Args[1:] {
+		if arg == "mcp" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func addCaBundleFlag(cmd *cobra.Command) {

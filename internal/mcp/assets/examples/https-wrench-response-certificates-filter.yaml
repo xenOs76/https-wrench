@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+## HTTPS Wrench — Response Certificates Filter Example
+##
+## This example demonstrates how to use the 'responseCertificatesFilter' option
+## to selectively print certificate chains in your HTTP responses.
+##
+## Note: This option depends on 'printResponseCertificates: true' being enabled.
+
+debug: false
+verbose: true
+
+requests:
+  - name: selective-certificate-display
+    printResponseCertificates: true
+    responseCertificatesFilter:
+      # Filter for the leaf certificate (index 0) in the peer chain
+      - 0:
+          - Subject
+          - DNSNames
+          - Issuer
+          - NotAfter
+          - Expiration
+      # Filter for the intermediate/CA certificate (index 1) in the peer chain
+      - 1:
+          - Subject
+          - Issuer
+          - IsCA
+
+    hosts:
+      - name: google.com
+      - name: github.com

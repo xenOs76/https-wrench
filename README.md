@@ -45,6 +45,8 @@ or remote JWKS endpoints.
 jwks: Generate pretty-printed JSON Web Key Sets (JWKS) from public keys for 
 exposure on well-known endpoints.
 
+mcp: Run a Model Context Protocol server on stdin/stdout for AI agent integration.
+
 Distributed under an open-source license: https://github.com/xenOs76/https-wrench
 
 Usage:
@@ -57,6 +59,7 @@ Available Commands:
   help        Help about any command
   jwks        Generate a JSON Web Key Set (JWKS) from a public key
   jwtinfo     Inspect and validate JSON Web Tokens (JWT)
+  mcp         Run an MCP server for AI agent integration
   requests    Execute YAML-defined HTTPS requests
 
 Flags:
@@ -374,6 +377,35 @@ Generate a JWKS with a SHA-256-derived KID:
 ```shell
 ❯ https-wrench jwks --public-key-file public.pem
 ```
+
+### HTTPS Wrench mcp
+
+`mcp` runs a Model Context Protocol server on stdin/stdout. Connect it from Cursor, Claude Desktop, or other MCP clients to author `requests` YAML, validate configs, build CLI commands, and run https-wrench operations directly.
+
+```shell
+https-wrench mcp
+```
+
+Cursor configuration example:
+
+```json
+{
+  "mcpServers": {
+    "https-wrench": {
+      "command": "https-wrench",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**Resources:** JSON schema, sample config, example YAML files, and a requests cheat sheet (`https-wrench://schema`, `https-wrench://sample-config`, `https-wrench://examples/{name}`, `https-wrench://docs/requests`).
+
+**Prompts:** `author_requests_config` — parameterized guidance for writing requests YAML.
+
+**Tools (assist):** `validate_requests_config`, `requests_config_template`, `build_cli_command`.
+
+**Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`. Encrypted private keys for `certinfo` require the `CERTINFO_PKEY_PW` environment variable (no interactive prompt under MCP).
 
 ## Sample output
 

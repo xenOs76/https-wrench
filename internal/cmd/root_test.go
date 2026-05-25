@@ -74,6 +74,45 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		require.Equal(t, "SampleRequestAgainstLocalWebserver", config.Requests[0].Name)
 		require.Equal(t, "https://127.0.0.1:9443", config.Requests[0].TransportOverrideURL)
 	})
+
+	t.Run("LoadConfig YAML anchor and merge keys", func(t *testing.T) {
+		oldCfg := cfgFile
+
+		t.Cleanup(func() {
+			cfgFile = oldCfg
+
+			viper.Reset()
+		})
+
+		cfgFile = "../../assets/examples/https-wrench-k3s-anchor-and-aliases.yaml"
+
+		initConfig()
+
+		config, err := LoadConfig()
+		require.NoError(t, err)
+		require.True(t, config.Verbose)
+		require.Len(t, config.Requests, 4)
+
+		for _, req := range config.Requests {
+			require.True(t, req.PrintResponseHeaders)
+			require.Equal(t, []string{"Server"}, req.ResponseHeadersFilter)
+			require.Len(t, req.Hosts, 1)
+			require.Equal(t, "httpbingo.k3s.os76.xyz", req.Hosts[0].Name)
+		}
+
+		require.Equal(t, "k3sOs76ViaCaddyDnsDirect", config.Requests[0].Name)
+		require.Empty(t, config.Requests[0].TransportOverrideURL)
+
+		require.Equal(t, "k3sOs76NoLbShouldFail", config.Requests[1].Name)
+		require.Equal(t, "https://rpi501.home.arpa", config.Requests[1].TransportOverrideURL)
+
+		require.Equal(t, "k3sOs76ViaIstioDnsOverride", config.Requests[2].Name)
+		require.Equal(t, "https://192.168.1.114:30443", config.Requests[2].TransportOverrideURL)
+
+		require.Equal(t, "k3sOs76ViaNginxDnsOverride", config.Requests[3].Name)
+		require.Equal(t, "https://argo.home.arpa", config.Requests[3].TransportOverrideURL)
+	})
+
 	t.Run("LoadConfig unmarshal error", func(t *testing.T) {
 		oldCfg := cfgFile
 
