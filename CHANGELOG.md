@@ -1,5 +1,21 @@
 # https-wrench - changelog
 
+## 0.14.0 (2026-05-25)
+
+### Feat
+
+    Added an MCP server mode exposed via a new mcp CLI subcommand and shown in CLI help.
+    New MCP tools: validate configs, build CLI commands, generate JWKS, run requests, inspect certs and JWTs.
+    MCP prompts/resources to generate starter request configs and reference docs.
+
+### Doc
+
+    New/expanded JSON schema, sample config and multiple example YAMLs demonstrating usage and options.
+
+### Fix
+
+    Certificate display now includes IP addresses when filtered.
+
 ## 0.13.0 (2026-05-19)
 
 ### Feat
