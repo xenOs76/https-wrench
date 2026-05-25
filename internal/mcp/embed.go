@@ -26,8 +26,7 @@ var exampleFiles = map[string]string{
 	"proxy-protocol-v2":            "assets/examples/https-wrench-proxyProtocolV2.yaml",
 }
 
-const schemaCommentHeader = "# yaml-language-server: $schema=" +
-	"https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json"
+const schemaCommentHeader = "# yaml-language-server: $schema=" + uriSchema
 
 const requestsDocsMarkdown = `# https-wrench requests
 

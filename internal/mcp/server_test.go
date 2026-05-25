@@ -251,7 +251,7 @@ func TestRequestsConfigTemplate(t *testing.T) {
 	out := decodeStructuredOutput(t, res)
 	yaml, ok := out["configYaml"].(string)
 	require.True(t, ok)
-	require.Contains(t, yaml, "transportOverrideUrl: https://edge.example.net")
+	require.Contains(t, yaml, `transportOverrideUrl: "https://edge.example.net"`)
 	require.Contains(t, yaml, "www.example.com")
 	require.Contains(t, yaml, "/health")
 }
@@ -274,9 +274,10 @@ func TestAuthorRequestsConfigPrompt(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, res.Messages)
-	text := res.Messages[0].Content.(*sdkmcp.TextContent).Text
-	require.Contains(t, text, "app.example.com")
-	require.Contains(t, text, "validate_requests_config")
+	content, ok := res.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
+	require.Contains(t, content.Text, "app.example.com")
+	require.Contains(t, content.Text, "validate_requests_config")
 }
 
 func callValidateTool(t *testing.T, yaml string) map[string]any {

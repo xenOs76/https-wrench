@@ -262,7 +262,7 @@ func TestRequestToken_nilReadAll(t *testing.T) {
 
 	_, err := RequestToken(
 		context.Background(),
-		"http://example.com/token",
+		"http://127.0.0.1/token",
 		map[string]string{"grant_type": "client_credentials"},
 		&http.Client{},
 		nil,

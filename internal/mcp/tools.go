@@ -239,11 +239,11 @@ func buildRequestsConfigYAML(input requestsConfigTemplateInput) (string, []strin
 	fmt.Fprintln(&b, "---")
 	fmt.Fprintln(&b, "verbose: true")
 	fmt.Fprintln(&b, "requests:")
-	fmt.Fprintf(&b, "  - name: %s\n", name)
-	fmt.Fprintf(&b, "    requestMethod: %s\n", method)
+	fmt.Fprintf(&b, "  - name: %s\n", yamlQuotedScalar(name))
+	fmt.Fprintf(&b, "    requestMethod: %s\n", yamlQuotedScalar(method))
 
 	if transport := strings.TrimSpace(input.TransportOverrideURL); transport != "" {
-		fmt.Fprintf(&b, "    transportOverrideUrl: %s\n", transport)
+		fmt.Fprintf(&b, "    transportOverrideUrl: %s\n", yamlQuotedScalar(transport))
 	}
 
 	if input.Insecure {
@@ -251,11 +251,11 @@ func buildRequestsConfigYAML(input requestsConfigTemplateInput) (string, []strin
 	}
 
 	fmt.Fprintln(&b, "    hosts:")
-	fmt.Fprintf(&b, "      - name: %s\n", hostname)
+	fmt.Fprintf(&b, "      - name: %s\n", yamlQuotedScalar(hostname))
 	fmt.Fprintln(&b, "        uriList:")
 
 	for _, p := range paths {
-		fmt.Fprintf(&b, "          - %s\n", p)
+		fmt.Fprintf(&b, "          - %s\n", yamlQuotedScalar(p))
 	}
 
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
@@ -282,6 +282,11 @@ func parsePaths(paths string) []string {
 	}
 
 	return out
+}
+
+// yamlQuotedScalar returns a YAML-safe double-quoted scalar.
+func yamlQuotedScalar(s string) string {
+	return strconv.Quote(s)
 }
 
 var allowedCLICommands = map[string]cliCommandDef{

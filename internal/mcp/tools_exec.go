@@ -166,7 +166,17 @@ func generateJWKSHandler(
 	return nil, out, nil
 }
 
-func executeRunRequests(_ context.Context, input runRequestsInput) (execToolOutput, error) {
+func executeRunRequests(ctx context.Context, input runRequestsInput) (execToolOutput, error) {
+	return runWithContext(ctx, func(ctx context.Context) (execToolOutput, error) {
+		if err := ctx.Err(); err != nil {
+			return execToolOutput{}, err
+		}
+
+		return runRequestsExec(input)
+	})
+}
+
+func runRequestsExec(input runRequestsInput) (execToolOutput, error) {
 	yamlContent, err := loadConfigYAML(input.ConfigYAML, input.ConfigPath)
 	if err != nil {
 		return execToolOutput{}, err
@@ -199,7 +209,17 @@ func executeRunRequests(_ context.Context, input runRequestsInput) (execToolOutp
 	return execToolOutput{Output: output}, nil
 }
 
-func executeCertinfo(_ context.Context, input certinfoInput) (execToolOutput, error) {
+func executeCertinfo(ctx context.Context, input certinfoInput) (execToolOutput, error) {
+	return runWithContext(ctx, func(ctx context.Context) (execToolOutput, error) {
+		if err := ctx.Err(); err != nil {
+			return execToolOutput{}, err
+		}
+
+		return certinfoExec(input)
+	})
+}
+
+func certinfoExec(input certinfoInput) (execToolOutput, error) {
 	if !certinfoInputProvided(input) {
 		return execToolOutput{}, errors.New(
 			"one of tlsEndpoint, certBundle, keyFile, or caBundle is required",
@@ -408,4 +428,32 @@ func captureOutput(fn func(io.Writer) error) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func runWithContext[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	done := make(chan struct {
+		v   T
+		err error
+	}, 1)
+
+	go func() {
+		v, err := fn(ctx)
+		done <- struct {
+			v   T
+			err error
+		}{v: v, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		var zero T
+
+		return zero, ctx.Err()
+	case r := <-done:
+		return r.v, r.err
+	}
 }

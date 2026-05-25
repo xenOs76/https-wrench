@@ -56,7 +56,8 @@
           "description": "TLS/TCP dial address (https://host or https://ip:port). The logical hostname remains hosts[].name for Host header and SNI."
         },
         "clientTimeout": {
-          "type": "number",
+          "type": "integer",
+          "minimum": 0,
           "description": "HTTP client timeout in seconds."
         },
         "requestDebug": {
