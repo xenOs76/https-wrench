@@ -5,6 +5,8 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
@@ -99,7 +101,7 @@ Examples:
 		// SetTLSEndpoint may need the SNI/ServerName and insecure options to be set
 		// before being able to ask details about the certificate we want to a
 		// webserver using self-signed and valid certificates
-		if err = certinfoCfg.SetTLSEndpoint(tlsEndpoint); err != nil {
+		if err = certinfoCfg.SetTLSEndpoint(context.Background(), tlsEndpoint); err != nil {
 			cmd.Printf("Error setting TLS endpoint: %s", err)
 			return
 		}
@@ -113,7 +115,7 @@ Examples:
 		}
 
 		// dump.Print(certinfoCfg)
-		if err = certinfoCfg.PrintData(cmd.OutOrStdout()); err != nil {
+		if err = certinfoCfg.PrintData(context.Background(), cmd.OutOrStdout()); err != nil {
 			cmd.Printf("error printing Certinfo data: %s", err)
 		}
 	},

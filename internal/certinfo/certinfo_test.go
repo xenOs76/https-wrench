@@ -2,6 +2,7 @@ package certinfo
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -400,7 +401,7 @@ func TestCertinfo_SetTLSEndpoint(t *testing.T) {
 			cc, errNew := New()
 			require.NoError(t, errNew)
 
-			err := cc.SetTLSEndpoint(tt.endpoint)
+			err := cc.SetTLSEndpoint(context.Background(), tt.endpoint)
 
 			if !tt.processErr {
 				// skip requiring NoError since SetTLSEndpoint will always return network errors
@@ -440,10 +441,10 @@ func TestCertinfo_ProbeTLSInfo(t *testing.T) {
 	cc.SetTLSInsecure(true)
 	cc.SetTLSServerName("example.com")
 
-	err = cc.SetTLSEndpoint(u.Host)
+	err = cc.SetTLSEndpoint(context.Background(), u.Host)
 	require.NoError(t, err)
 
-	err = cc.ProbeTLSInfo()
+	err = cc.ProbeTLSInfo(context.Background())
 	require.NoError(t, err)
 
 	// Since it's a local TLS server run by Go's httptest, it supports TLS 1.3 or TLS 1.2
@@ -470,7 +471,7 @@ func TestCertinfo_ProbeTLSInfo_NotRequested(t *testing.T) {
 	cc.SetTLSInfoRequested(false)
 	require.False(t, cc.TLSInfoRequested)
 
-	err = cc.ProbeTLSInfo()
+	err = cc.ProbeTLSInfo(context.Background())
 	require.NoError(t, err)
 	require.Empty(t, cc.NegotiatedProtocol)
 }
@@ -483,7 +484,7 @@ func TestCertinfo_ProbeTLSInfo_NoEndpoint(t *testing.T) {
 
 	cc.SetTLSInfoRequested(true)
 
-	err = cc.ProbeTLSInfo()
+	err = cc.ProbeTLSInfo(context.Background())
 	require.NoError(t, err)
 	require.Empty(t, cc.ProbedProtocols)
 }
@@ -502,7 +503,7 @@ func TestCertinfo_ProbeTLSInfo_Unreachable(t *testing.T) {
 	cc.TLSEndpointHost = "127.0.0.1"
 	cc.TLSEndpointPort = "54321"
 
-	err = cc.ProbeTLSInfo()
+	err = cc.ProbeTLSInfo(context.Background())
 	require.NoError(t, err)
 
 	// When unreachable, all scanned protocols should be unsupported
@@ -655,7 +656,7 @@ func TestCertinfo_ProbeTLSInfo_SingleCipher(t *testing.T) {
 		},
 	}
 
-	res := cc.probeCiphersConcurrently(ciphers)
+	res := cc.probeCiphersConcurrently(context.Background(), ciphers)
 	require.Len(t, res, 1)
 	require.Equal(t, "TLS_AES_128_GCM_SHA256", res[0].Name)
 	require.False(t, res[0].Supported)
@@ -673,7 +674,7 @@ func TestCertinfo_PrintData_WithTLSInfo(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err = cc.PrintData(&buf)
+	err = cc.PrintData(context.Background(), &buf)
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), "Negotiated TLS Connection")
 }

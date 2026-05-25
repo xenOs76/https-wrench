@@ -6,6 +6,7 @@ package certinfo
 
 import (
 	"cmp"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -29,7 +30,7 @@ import (
 // to the provided writer in a human-readable format.
 //
 //nolint:revive
-func (c *Config) PrintData(w io.Writer) error {
+func (c *Config) PrintData(ctx context.Context, w io.Writer) error {
 	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
 	sl := style.CertKeyP4.Bold(true)
 	sv := style.CertValue.Bold(false)
@@ -49,7 +50,7 @@ func (c *Config) PrintData(w io.Writer) error {
 	}
 
 	if c.TLSInfoRequested {
-		_ = c.ProbeTLSInfo()
+		_ = c.ProbeTLSInfo(ctx)
 		c.printTLSInfo(w, ks, sl, sv)
 	}
 
@@ -174,30 +175,47 @@ func (c *Config) printCACerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 	return nil
 }
 
+// dialTLS connects to serverAddr and completes a TLS handshake using ctx for cancellation.
+func dialTLS(ctx context.Context, serverAddr string, tlsConfig *tls.Config) (*tls.Conn, error) {
+	dialer := &net.Dialer{Timeout: TLSTimeout}
+
+	rawConn, err := dialer.DialContext(ctx, "tcp", serverAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := tls.Client(rawConn, tlsConfig)
+
+	if err = conn.HandshakeContext(ctx); err != nil {
+		_ = rawConn.Close()
+
+		return nil, err
+	}
+
+	return conn, nil
+}
+
 // GetRemoteCerts establishes a TLS connection to the configured endpoint and retrieves
 // the peer certificate chain. It also performs certificate verification unless TLSInsecure is true.
-func (c *Config) GetRemoteCerts() error {
+func (c *Config) GetRemoteCerts(ctx context.Context) error {
 	tlsConfig := &tls.Config{
 		RootCAs:            c.CACertsPool,
 		InsecureSkipVerify: c.TLSInsecure,
 	}
 
-	if c.TLSServerName != emptyString {
+	verifyName := c.TLSServerName
+	switch {
+	case c.TLSServerName != emptyString:
 		tlsConfig.ServerName = c.TLSServerName
+	case c.TLSEndpointHost != emptyString:
+		tlsConfig.ServerName = c.TLSEndpointHost
+		verifyName = c.TLSEndpointHost
+	default:
 	}
 
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
-	dialer := &net.Dialer{
-		Timeout: TLSTimeout,
-	}
-
-	conn, err := tls.DialWithDialer(
-		dialer,
-		"tcp",
-		serverAddr,
-		tlsConfig,
-	)
+	conn, err := dialTLS(ctx, serverAddr, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("TLS handshake failed: %w", err)
 	}
@@ -214,7 +232,7 @@ func (c *Config) GetRemoteCerts() error {
 	}
 
 	opts := x509.VerifyOptions{
-		DNSName:       c.TLSServerName,
+		DNSName:       verifyName,
 		Roots:         c.CACertsPool,
 		Intermediates: x509.NewCertPool(),
 	}
@@ -306,6 +324,17 @@ func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][
 		if hasField("DNSNames") {
 			dnsNames := strings.Join(cert.DNSNames, "\n")
 			addRow(sl("DNSNames"), sv(dnsNames))
+		}
+
+		if hasField("IPAddresses") {
+			var ipStrs []string
+
+			for _, ip := range cert.IPAddresses {
+				ipStrs = append(ipStrs, ip.String())
+			}
+
+			ips := strings.Join(ipStrs, "\n")
+			addRow(sl("IPAddresses"), sv(ips))
 		}
 
 		if hasField("Issuer") {
@@ -414,7 +443,7 @@ func tlsVersionToString(version uint16) string {
 }
 
 // probeProtocol tests whether the TLS endpoint supports a specific TLS protocol version.
-func (c *Config) probeProtocol(version uint16) bool {
+func (c *Config) probeProtocol(ctx context.Context, version uint16) bool {
 	tlsConfig := &tls.Config{
 		MinVersion:         version,
 		MaxVersion:         version,
@@ -423,17 +452,15 @@ func (c *Config) probeProtocol(version uint16) bool {
 
 	if c.TLSServerName != emptyString {
 		tlsConfig.ServerName = c.TLSServerName
+	} else if c.TLSEndpointHost != emptyString {
+		tlsConfig.ServerName = c.TLSEndpointHost
 	}
 
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
-	dialer := &net.Dialer{
-		Timeout: TLSTimeout,
-	}
-
-	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
+	conn, err := dialTLS(ctx, serverAddr, tlsConfig)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 
 		return true
 	}
@@ -442,7 +469,7 @@ func (c *Config) probeProtocol(version uint16) bool {
 }
 
 // probeCipher tests whether a specific TLS 1.0-1.2 cipher suite is supported.
-func (c *Config) probeCipher(suite *tls.CipherSuite) (bool, string) {
+func (c *Config) probeCipher(ctx context.Context, suite *tls.CipherSuite) (bool, string) {
 	tlsConfig := &tls.Config{
 		MinVersion:         tls.VersionTLS10,
 		MaxVersion:         tls.VersionTLS12,
@@ -452,19 +479,17 @@ func (c *Config) probeCipher(suite *tls.CipherSuite) (bool, string) {
 
 	if c.TLSServerName != emptyString {
 		tlsConfig.ServerName = c.TLSServerName
+	} else if c.TLSEndpointHost != emptyString {
+		tlsConfig.ServerName = c.TLSEndpointHost
 	}
 
 	serverAddr := net.JoinHostPort(c.TLSEndpointHost, c.TLSEndpointPort)
 
-	dialer := &net.Dialer{
-		Timeout: TLSTimeout,
-	}
-
-	conn, err := tls.DialWithDialer(dialer, "tcp", serverAddr, tlsConfig)
+	conn, err := dialTLS(ctx, serverAddr, tlsConfig)
 	if err == nil {
 		state := conn.ConnectionState()
 
-		conn.Close()
+		_ = conn.Close()
 
 		return true, tlsVersionToString(state.Version)
 	}
@@ -473,7 +498,7 @@ func (c *Config) probeCipher(suite *tls.CipherSuite) (bool, string) {
 }
 
 // ProbeTLSInfo concurrently scans the endpoint for supported TLS versions and cipher suites.
-func (c *Config) ProbeTLSInfo() error {
+func (c *Config) ProbeTLSInfo(ctx context.Context) error {
 	if c.TLSEndpoint == emptyString {
 		return nil
 	}
@@ -484,7 +509,11 @@ func (c *Config) ProbeTLSInfo() error {
 	versions := []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
 
 	for _, v := range versions {
-		supported := c.probeProtocol(v)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		supported := c.probeProtocol(ctx, v)
 
 		c.ProbedProtocols[tlsVersionToString(v)] = supported
 	}
@@ -492,7 +521,7 @@ func (c *Config) ProbeTLSInfo() error {
 	// 2. Probe ciphers concurrently
 	suites := append(tls.CipherSuites(), tls.InsecureCipherSuites()...)
 
-	c.ProbedCiphers = c.probeCiphersConcurrently(suites)
+	c.ProbedCiphers = c.probeCiphersConcurrently(ctx, suites)
 
 	return nil
 }
@@ -500,7 +529,7 @@ func (c *Config) ProbeTLSInfo() error {
 // probeCiphersConcurrently manages the worker pool to concurrently scan cipher suites.
 //
 //nolint:gocognit,revive,wsl
-func (c *Config) probeCiphersConcurrently(suites []*tls.CipherSuite) []ProbedCipher {
+func (c *Config) probeCiphersConcurrently(ctx context.Context, suites []*tls.CipherSuite) []ProbedCipher {
 	type job struct {
 		suite *tls.CipherSuite
 	}
@@ -528,6 +557,10 @@ func (c *Config) probeCiphersConcurrently(suites []*tls.CipherSuite) []ProbedCip
 			defer wg.Done()
 
 			for j := range jobs {
+				if err := ctx.Err(); err != nil {
+					return
+				}
+
 				suite := j.suite
 				isTLS13 := false
 
@@ -548,7 +581,7 @@ func (c *Config) probeCiphersConcurrently(suites []*tls.CipherSuite) []ProbedCip
 					supported = c.ProbedProtocols["TLS 1.3"]
 					protoName = "TLS 1.3"
 				} else {
-					ok, name := c.probeCipher(suite)
+					ok, name := c.probeCipher(ctx, suite)
 
 					supported = ok
 					protoName = name

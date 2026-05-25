@@ -1,6 +1,7 @@
 package certinfo
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"fmt"
@@ -67,6 +68,12 @@ type (
 	Reader interface {
 		ReadFile(name string) ([]byte, error)
 		ReadPassword(fd int) ([]byte, error)
+	}
+
+	// NoPasswordPromptReader is implemented by readers that must not use an
+	// interactive terminal prompt (for example MCP or automated tests).
+	NoPasswordPromptReader interface {
+		NoPasswordPrompt() bool
 	}
 
 	// InputReader implements the Reader interface using standard OS calls.
@@ -174,7 +181,7 @@ func (c *Config) SetPrivateKeyFromFile(
 }
 
 // SetTLSEndpoint parses a host:port string and fetches the remote certificates from that endpoint.
-func (c *Config) SetTLSEndpoint(hostport string) error {
+func (c *Config) SetTLSEndpoint(ctx context.Context, hostport string) error {
 	if hostport != emptyString {
 		eHost, ePort, err := net.SplitHostPort(hostport)
 		if err != nil {
@@ -185,7 +192,7 @@ func (c *Config) SetTLSEndpoint(hostport string) error {
 		c.TLSEndpointHost = eHost
 		c.TLSEndpointPort = ePort
 
-		err = c.GetRemoteCerts()
+		err = c.GetRemoteCerts(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to get endpoint certificates: %w", err)
 		}

@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -10,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -212,13 +212,23 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 }
 
 // HandleRequests iterates through all configured requests and processes them, returning a map of response data.
-func HandleRequests(w io.Writer, cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
+func HandleRequests(
+	ctx context.Context,
+	w io.Writer,
+	cfg *RequestsMetaConfig,
+) (map[string][]ResponseData, error) {
 	responseDataMap := make(map[string][]ResponseData)
 
 	cfg.PrintCmd(w)
 
 	for _, r := range cfg.Requests {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		responseDataList, err := processHTTPRequestsByHost(
+			ctx,
+			w,
 			r,
 			cfg.CACertsPool,
 			cfg.RequestVerbose,
@@ -287,58 +297,58 @@ func (rd *ResponseData) ImportResponseBody() {
 // PrintResponseData prints the collected response data (status, headers, body) if verbose mode is enabled.
 //
 //nolint:revive
-func (rd ResponseData) PrintResponseData(isVerbose bool) {
+func (rd ResponseData) PrintResponseData(w io.Writer, isVerbose bool) {
 	if !isVerbose {
 		return
 	}
 
-	fmt.Println(style.LgSprintf(style.ItemKey,
+	fmt.Fprintln(w, style.LgSprintf(style.ItemKey,
 		"- Url: %s",
 		style.URL.Render(rd.URL)),
 	)
 
-	fmt.Print(style.LgSprintf(style.ItemKeyP3, "StatusCode: "))
+	fmt.Fprint(w, style.LgSprintf(style.ItemKeyP3, "StatusCode: "))
 
 	if rd.Error != nil {
-		fmt.Println(style.LgSprintf(style.StatusError, "0"))
-		fmt.Println(style.LgSprintf(
+		fmt.Fprintln(w, style.LgSprintf(style.StatusError, "0"))
+		fmt.Fprintln(w, style.LgSprintf(
 			style.ItemKeyP3,
 			"Error: %s",
-			style.Error.Render(rd.Error.Error())),
-		)
-		fmt.Println()
+			style.Error.Render(rd.Error.Error()),
+		))
+		fmt.Fprintln(w)
+
+		return
 	}
 
-	if rd.Error == nil {
-		fmt.Println(style.LgSprintf(style.Status,
-			"%v",
-			style.StatusCodeParse(rd.Response.StatusCode)))
+	fmt.Fprintln(w, style.LgSprintf(style.Status,
+		"%v",
+		style.StatusCodeParse(rd.Response.StatusCode)))
 
-		if rd.Request.PrintResponseCertificates {
-			RenderTLSData(os.Stdout, rd.Response, rd.Request.ResponseCertificatesFilter)
-		}
-
-		if rd.Request.PrintResponseHeaders {
-			headersStr := filterResponseHeaders(
-				rd.Response.Header,
-				rd.Request.ResponseHeadersFilter)
-
-			fmt.Println(style.LgSprintf(style.ItemKeyP3, "Headers: "))
-			fmt.Println(headersStr)
-		}
-
-		if rd.Request.ResponseBodyMatchRegexp != "" {
-			fmt.Print(style.LgSprintf(style.ItemKeyP3, "BodyRegexpMatch: "))
-			fmt.Println(rd.ResponseBodyRegexpMatched)
-		}
-
-		if rd.Request.PrintResponseBody {
-			fmt.Println(style.LgSprintf(style.ItemKeyP3, "Body:"))
-			fmt.Println(rd.ResponseBody)
-		}
-
-		fmt.Println()
+	if rd.Request.PrintResponseCertificates {
+		RenderTLSData(w, rd.Response, rd.Request.ResponseCertificatesFilter)
 	}
+
+	if rd.Request.PrintResponseHeaders {
+		headersStr := filterResponseHeaders(
+			rd.Response.Header,
+			rd.Request.ResponseHeadersFilter)
+
+		fmt.Fprintln(w, style.LgSprintf(style.ItemKeyP3, "Headers: "))
+		fmt.Fprintln(w, headersStr)
+	}
+
+	if rd.Request.ResponseBodyMatchRegexp != "" {
+		fmt.Fprint(w, style.LgSprintf(style.ItemKeyP3, "BodyRegexpMatch: "))
+		fmt.Fprintln(w, rd.ResponseBodyRegexpMatched)
+	}
+
+	if rd.Request.PrintResponseBody {
+		fmt.Fprintln(w, style.LgSprintf(style.ItemKeyP3, "Body:"))
+		fmt.Fprintln(w, rd.ResponseBody)
+	}
+
+	fmt.Fprintln(w)
 }
 
 // RenderTLSData prints TLS version, cipher suite, and peer certificates for an HTTP response.

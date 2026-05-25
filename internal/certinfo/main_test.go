@@ -151,6 +151,8 @@ func (MockErrReader) ReadFile(name string) ([]byte, error) {
 	return nil, fmt.Errorf("unable to read file %s", name)
 }
 
+func (MockErrReader) NoPasswordPrompt() bool { return true }
+
 func (MockErrReader) ReadPassword(fd int) ([]byte, error) {
 	return func(_ int) ([]byte, error) {
 		return []byte{}, errors.New("mockErrReader: unable to read password")

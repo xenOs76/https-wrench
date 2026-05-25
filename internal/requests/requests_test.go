@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -1247,7 +1248,7 @@ func TestProcessHTTPRequestsByHost_Errors(t *testing.T) {
 				{Name: "localhost", URIList: []URI{"invalid"}},
 			},
 		}
-		_, err := processHTTPRequestsByHost(reqConf, nil, false)
+		_, err := processHTTPRequestsByHost(context.Background(), io.Discard, reqConf, nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "invalid uri")
 	})
@@ -1308,6 +1309,17 @@ func TestImportResponseBody_Errors(t *testing.T) {
 		rd.ImportResponseBody()
 		require.False(t, rd.ResponseBodyRegexpMatched)
 		require.Equal(t, "test body", rd.ResponseBody)
+	})
+
+	t.Run("html content type highlighting", func(t *testing.T) {
+		rd := ResponseData{
+			Response: &http.Response{
+				Header: http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
+				Body:   io.NopCloser(bytes.NewBufferString("<html><body>hello</body></html>")),
+			},
+		}
+		rd.ImportResponseBody()
+		require.Contains(t, rd.ResponseBody, "hello")
 	})
 }
 
@@ -1571,6 +1583,8 @@ func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByH
 	defer ts.Close()
 
 	respList, err := processHTTPRequestsByHost(
+		context.Background(),
+		io.Discard,
 		tt.reqConf,
 		tt.pool,
 		tt.verbose,
