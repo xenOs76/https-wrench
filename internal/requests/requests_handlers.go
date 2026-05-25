@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -211,13 +212,22 @@ func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto
 }
 
 // HandleRequests iterates through all configured requests and processes them, returning a map of response data.
-func HandleRequests(w io.Writer, cfg *RequestsMetaConfig) (map[string][]ResponseData, error) {
+func HandleRequests(
+	ctx context.Context,
+	w io.Writer,
+	cfg *RequestsMetaConfig,
+) (map[string][]ResponseData, error) {
 	responseDataMap := make(map[string][]ResponseData)
 
 	cfg.PrintCmd(w)
 
 	for _, r := range cfg.Requests {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		responseDataList, err := processHTTPRequestsByHost(
+			ctx,
 			w,
 			r,
 			cfg.CACertsPool,

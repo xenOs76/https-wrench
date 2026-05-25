@@ -23,8 +23,6 @@ func TestIsMCPCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			oldArgs := os.Args
 
 			t.Cleanup(func() { os.Args = oldArgs })

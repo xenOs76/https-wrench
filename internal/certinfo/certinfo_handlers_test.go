@@ -2,6 +2,7 @@ package certinfo
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
@@ -145,10 +146,10 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 
 			cc.SetTLSServerName(tt.srvCfg.serverName)
 			cc.SetCaPoolFromFile(tt.caCertFile, inputReader)
-			cc.SetTLSEndpoint(tt.srvCfg.serverAddr)
+			cc.SetTLSEndpoint(context.Background(), tt.srvCfg.serverAddr)
 			cc.SetTLSInsecure(tt.insecure)
 
-			err = cc.GetRemoteCerts()
+			err = cc.GetRemoteCerts(context.Background())
 			if !tt.expectError {
 				require.NoError(t, err, "check error not expected")
 				require.Equal(t, tt.srvCfg.serverName, cc.TLSServerName, "check TLSServerName")
@@ -491,7 +492,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 		})
 		cc.CertsBundleFilePath = "dummy"
 
-		errPrint := cc.PrintData(&buffer)
+		errPrint := cc.PrintData(context.Background(), &buffer)
 		require.Error(t, errPrint)
 		require.ErrorContains(t, errPrint, "unable to check if private key matches local certificate")
 	})
@@ -508,7 +509,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 		cc.TLSEndpointHost = "localhost"
 		cc.TLSEndpointPort = "443"
 
-		errPrint := cc.PrintData(&buffer)
+		errPrint := cc.PrintData(context.Background(), &buffer)
 		require.Error(t, errPrint)
 		require.ErrorContains(t, errPrint, "unable to check if private key matches remote TLS Endpoint certificate")
 	})
@@ -520,7 +521,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 		cc.CACertsFilePath = "non_existent_file.pem"
 
-		errPrint := cc.PrintData(&buffer)
+		errPrint := cc.PrintData(context.Background(), &buffer)
 		require.Error(t, errPrint)
 		require.ErrorContains(t, errPrint, "unable for read Root certificates")
 	})
@@ -559,7 +560,7 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 		cc.SetTLSServerName(tt.tlsServerName)
 		cc.SetTLSInsecure(tt.tlsInsecure)
 
-		err = cc.SetTLSEndpoint(tt.tlsEndpoint)
+		err = cc.SetTLSEndpoint(context.Background(), tt.tlsEndpoint)
 		if tt.expectCertsFetchErr {
 			require.EqualError(t, err, tt.expectCertsFetcMsg)
 		} else {
@@ -567,7 +568,7 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 		}
 	}
 
-	errPrint := cc.PrintData(&buffer)
+	errPrint := cc.PrintData(context.Background(), &buffer)
 	require.NoError(t, errPrint)
 
 	got := buffer.String()

@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -396,6 +397,7 @@ func TestRenderTLSData(t *testing.T) {
 			defer ts.Close()
 
 			respList, err := processHTTPRequestsByHost(
+				context.Background(),
 				io.Discard,
 				tt.reqConf,
 				tt.pool,
@@ -519,7 +521,7 @@ func runHandleRequestsSubtest(t *testing.T, tt handleRequestsTestCase) {
 	defer ts.Close()
 
 	buffer := bytes.Buffer{}
-	respMap, err := HandleRequests(&buffer, &tt.reqMeta)
+	respMap, err := HandleRequests(context.Background(), &buffer, &tt.reqMeta)
 
 	if tt.expectErr {
 		require.Error(t, err)

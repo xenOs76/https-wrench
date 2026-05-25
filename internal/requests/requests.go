@@ -633,6 +633,7 @@ func NewHTTPClientFromRequestConfig(
 //
 //nolint:revive
 func processHTTPRequestsByHost(
+	ctx context.Context,
 	w io.Writer,
 	r RequestConfig,
 	caPool *x509.CertPool,
@@ -643,7 +644,11 @@ func processHTTPRequestsByHost(
 	r.PrintTitle(w, isVerbose)
 
 	for _, host := range r.Hosts {
-		hostResults, err := processRequestsForHost(w, r, host, caPool, isVerbose)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		hostResults, err := processRequestsForHost(ctx, w, r, host, caPool, isVerbose)
 		if err != nil {
 			return nil, err
 		}
@@ -656,6 +661,7 @@ func processHTTPRequestsByHost(
 
 // processRequestsForHost initializes the HTTP client and executes all configured URIs for a single host.
 func processRequestsForHost(
+	ctx context.Context,
 	w io.Writer,
 	r RequestConfig,
 	host Host,
@@ -677,7 +683,11 @@ func processRequestsForHost(
 	requestBodyBytes := []byte(r.RequestBody)
 
 	for _, reqURL := range urlList {
-		responseData := executeSingleRequest(w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		responseData := executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
 		responseDataList = append(responseDataList, responseData)
 		responseData.PrintResponseData(w, isVerbose)
 	}
@@ -687,6 +697,7 @@ func processRequestsForHost(
 
 // executeSingleRequest performs a single HTTP request and returns the collected response data.
 func executeSingleRequest(
+	ctx context.Context,
 	w io.Writer,
 	r RequestConfig,
 	reqClient *RequestHTTPClient,
@@ -702,7 +713,7 @@ func executeSingleRequest(
 
 	requestBodyReader := bytes.NewReader(requestBodyBytes)
 
-	req, err := http.NewRequest(reqClient.method, reqURL, requestBodyReader)
+	req, err := http.NewRequestWithContext(ctx, reqClient.method, reqURL, requestBodyReader)
 	if err != nil {
 		responseData.Error = fmt.Errorf("failed to create request: %w", err)
 		return responseData

@@ -5,6 +5,7 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -95,7 +96,7 @@ Examples:
 			cmd.Print(err)
 		}
 
-		responseMap, err := requests.HandleRequests(cmd.OutOrStdout(), requestsCfg)
+		responseMap, err := requests.HandleRequests(context.Background(), cmd.OutOrStdout(), requestsCfg)
 		if err != nil {
 			cmd.Print(err)
 		}

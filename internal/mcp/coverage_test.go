@@ -260,8 +260,10 @@ func TestExecuteHelpers(t *testing.T) {
 	require.Error(t, err)
 
 	_, err = executeCertinfo(context.Background(), certinfoInput{
-		TLSEndpoint: "example.com:443",
-		TLSInfo:     true,
+		TLSEndpoint:   "example.com:443",
+		TLSInsecure:   true,
+		TLSInfo:       true,
+		TLSServername: "example.com",
 	})
 	require.NoError(t, err)
 

@@ -172,11 +172,15 @@ func executeRunRequests(ctx context.Context, input runRequestsInput) (execToolOu
 			return execToolOutput{}, err
 		}
 
-		return runRequestsExec(input)
+		return runRequestsExec(ctx, input)
 	})
 }
 
-func runRequestsExec(input runRequestsInput) (execToolOutput, error) {
+func runRequestsExec(ctx context.Context, input runRequestsInput) (execToolOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return execToolOutput{}, err
+	}
+
 	yamlContent, err := loadConfigYAML(input.ConfigYAML, input.ConfigPath)
 	if err != nil {
 		return execToolOutput{}, err
@@ -198,7 +202,7 @@ func runRequestsExec(input runRequestsInput) (execToolOutput, error) {
 	}
 
 	output, err := captureOutput(func(w io.Writer) error {
-		_, handleErr := requests.HandleRequests(w, meta)
+		_, handleErr := requests.HandleRequests(ctx, w, meta)
 
 		return handleErr
 	})
@@ -215,11 +219,15 @@ func executeCertinfo(ctx context.Context, input certinfoInput) (execToolOutput, 
 			return execToolOutput{}, err
 		}
 
-		return certinfoExec(input)
+		return certinfoExec(ctx, input)
 	})
 }
 
-func certinfoExec(input certinfoInput) (execToolOutput, error) {
+func certinfoExec(ctx context.Context, input certinfoInput) (execToolOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return execToolOutput{}, err
+	}
+
 	if !certinfoInputProvided(input) {
 		return execToolOutput{}, errors.New(
 			"one of tlsEndpoint, certBundle, keyFile, or caBundle is required",
@@ -237,6 +245,10 @@ func certinfoExec(input certinfoInput) (execToolOutput, error) {
 
 	reader := mcpFileReader{}
 
+	if err = ctx.Err(); err != nil {
+		return execToolOutput{}, err
+	}
+
 	if err = cfg.SetCaPoolFromFile(input.CaBundle, reader); err != nil {
 		return execToolOutput{}, err
 	}
@@ -245,11 +257,19 @@ func certinfoExec(input certinfoInput) (execToolOutput, error) {
 		return execToolOutput{}, err
 	}
 
+	if err = ctx.Err(); err != nil {
+		return execToolOutput{}, err
+	}
+
 	cfg.SetTLSInsecure(input.TLSInsecure).
 		SetTLSServerName(input.TLSServername).
 		SetTLSInfoRequested(input.TLSInfo)
 
-	if err = cfg.SetTLSEndpoint(input.TLSEndpoint); err != nil {
+	if err = cfg.SetTLSEndpoint(ctx, input.TLSEndpoint); err != nil {
+		return execToolOutput{}, err
+	}
+
+	if err = ctx.Err(); err != nil {
 		return execToolOutput{}, err
 	}
 
@@ -257,7 +277,9 @@ func certinfoExec(input certinfoInput) (execToolOutput, error) {
 		return execToolOutput{}, err
 	}
 
-	output, err := captureOutput(cfg.PrintData)
+	output, err := captureOutput(func(w io.Writer) error {
+		return cfg.PrintData(ctx, w)
+	})
 	if err != nil {
 		return execToolOutput{}, err
 	}
