@@ -337,6 +337,7 @@ func TestMCPFileReader(t *testing.T) {
 	data, err := reader.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "ok", string(data))
+	require.True(t, reader.NoPasswordPrompt())
 
 	_, err = reader.ReadPassword(0)
 	require.Error(t, err)

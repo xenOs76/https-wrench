@@ -6,9 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
-	"io"
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -58,19 +56,9 @@ func TestPrintResponseData(t *testing.T) {
 }
 
 func capturePrintResponseData(rd ResponseData, verbose bool) string {
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	rd.PrintResponseData(verbose)
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
 	var buf bytes.Buffer
 
-	_, _ = io.Copy(&buf, r)
-	_ = r.Close()
+	rd.PrintResponseData(&buf, verbose)
 
 	return buf.String()
 }

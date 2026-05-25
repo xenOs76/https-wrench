@@ -189,6 +189,15 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) (
 		return []byte(pkeyEnvPw), nil
 	}
 
+	if noPrompt, ok := pwReader.(NoPasswordPromptReader); ok && noPrompt.NoPasswordPrompt() {
+		pw, trErr := pwReader.ReadPassword(int(os.Stdin.Fd()))
+		if trErr != nil {
+			return nil, fmt.Errorf("error reading passphrase: %w", trErr)
+		}
+
+		return pw, nil
+	}
+
 	fmt.Print("Private key is encrypted, please enter passphrase: ")
 
 	pw, trErr := pwReader.ReadPassword(int(os.Stdin.Fd()))

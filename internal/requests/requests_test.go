@@ -1247,7 +1247,7 @@ func TestProcessHTTPRequestsByHost_Errors(t *testing.T) {
 				{Name: "localhost", URIList: []URI{"invalid"}},
 			},
 		}
-		_, err := processHTTPRequestsByHost(reqConf, nil, false)
+		_, err := processHTTPRequestsByHost(io.Discard, reqConf, nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "invalid uri")
 	})
@@ -1582,6 +1582,7 @@ func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByH
 	defer ts.Close()
 
 	respList, err := processHTTPRequestsByHost(
+		io.Discard,
 		tt.reqConf,
 		tt.pool,
 		tt.verbose,

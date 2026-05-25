@@ -69,6 +69,12 @@ type (
 		ReadPassword(fd int) ([]byte, error)
 	}
 
+	// NoPasswordPromptReader is implemented by readers that must not use an
+	// interactive terminal prompt (for example MCP or automated tests).
+	NoPasswordPromptReader interface {
+		NoPasswordPrompt() bool
+	}
+
 	// InputReader implements the Reader interface using standard OS calls.
 	InputReader struct{}
 )

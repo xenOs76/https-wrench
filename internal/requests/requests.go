@@ -247,14 +247,14 @@ func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 // PrintTitle prints the request name and transport override information if verbose mode is enabled.
 //
 //nolint:revive
-func (r *RequestConfig) PrintTitle(isVerbose bool) {
+func (r *RequestConfig) PrintTitle(w io.Writer, isVerbose bool) {
 	if isVerbose {
-		fmt.Print(style.LgSprintf(style.TitleKey, "Request:"))
-		fmt.Println(style.LgSprintf(style.Title, "%s", r.Name))
+		fmt.Fprint(w, style.LgSprintf(style.TitleKey, "Request:"))
+		fmt.Fprintln(w, style.LgSprintf(style.Title, "%s", r.Name))
 
 		if r.TransportOverrideURL != "" {
-			fmt.Print(style.LgSprintf(style.ItemKey, "Via:"))
-			fmt.Println(style.LgSprintf(style.Via, "%s", r.TransportOverrideURL))
+			fmt.Fprint(w, style.LgSprintf(style.ItemKey, "Via:"))
+			fmt.Fprintln(w, style.LgSprintf(style.Via, "%s", r.TransportOverrideURL))
 		}
 	}
 }
@@ -633,16 +633,17 @@ func NewHTTPClientFromRequestConfig(
 //
 //nolint:revive
 func processHTTPRequestsByHost(
+	w io.Writer,
 	r RequestConfig,
 	caPool *x509.CertPool,
 	isVerbose bool,
 ) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
-	r.PrintTitle(isVerbose)
+	r.PrintTitle(w, isVerbose)
 
 	for _, host := range r.Hosts {
-		hostResults, err := processRequestsForHost(r, host, caPool, isVerbose)
+		hostResults, err := processRequestsForHost(w, r, host, caPool, isVerbose)
 		if err != nil {
 			return nil, err
 		}
@@ -655,6 +656,7 @@ func processHTTPRequestsByHost(
 
 // processRequestsForHost initializes the HTTP client and executes all configured URIs for a single host.
 func processRequestsForHost(
+	w io.Writer,
 	r RequestConfig,
 	host Host,
 	caPool *x509.CertPool,
@@ -675,9 +677,9 @@ func processRequestsForHost(
 	requestBodyBytes := []byte(r.RequestBody)
 
 	for _, reqURL := range urlList {
-		responseData := executeSingleRequest(r, reqClient, reqURL, requestBodyBytes, isVerbose)
+		responseData := executeSingleRequest(w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
 		responseDataList = append(responseDataList, responseData)
-		responseData.PrintResponseData(isVerbose)
+		responseData.PrintResponseData(w, isVerbose)
 	}
 
 	return responseDataList, nil
@@ -685,6 +687,7 @@ func processRequestsForHost(
 
 // executeSingleRequest performs a single HTTP request and returns the collected response data.
 func executeSingleRequest(
+	w io.Writer,
 	r RequestConfig,
 	reqClient *RequestHTTPClient,
 	reqURL string,
@@ -716,7 +719,7 @@ func executeSingleRequest(
 
 	req.Header.Set("User-Agent", ua)
 
-	if err := r.PrintRequestDebug(os.Stdout, req); err != nil {
+	if err := r.PrintRequestDebug(w, req); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
 	}
 
@@ -726,7 +729,7 @@ func executeSingleRequest(
 		return responseData
 	}
 
-	r.PrintResponseDebug(os.Stdout, resp)
+	r.PrintResponseDebug(w, resp)
 
 	responseData.Response = resp
 

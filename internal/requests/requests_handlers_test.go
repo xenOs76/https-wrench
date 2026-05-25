@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -395,6 +396,7 @@ func TestRenderTLSData(t *testing.T) {
 			defer ts.Close()
 
 			respList, err := processHTTPRequestsByHost(
+				io.Discard,
 				tt.reqConf,
 				tt.pool,
 				false,

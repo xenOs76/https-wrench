@@ -74,6 +74,8 @@ func (mcpFileReader) ReadFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
+func (mcpFileReader) NoPasswordPrompt() bool { return true }
+
 func (mcpFileReader) ReadPassword(_ int) ([]byte, error) {
 	return nil, errors.New("encrypted private keys require CERTINFO_PKEY_PW under MCP")
 }
@@ -185,7 +187,7 @@ func executeRunRequests(_ context.Context, input runRequestsInput) (execToolOutp
 		return execToolOutput{}, err
 	}
 
-	output, err := captureWithStdout(func(w io.Writer) error {
+	output, err := captureOutput(func(w io.Writer) error {
 		_, handleErr := requests.HandleRequests(w, meta)
 
 		return handleErr
@@ -406,39 +408,4 @@ func captureOutput(fn func(io.Writer) error) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-func captureWithStdout(fn func(io.Writer) error) (string, error) {
-	pipeR, pipeW, err := os.Pipe()
-	if err != nil {
-		return "", err
-	}
-
-	oldStdout := os.Stdout
-	os.Stdout = pipeW
-
-	var writerBuf bytes.Buffer
-
-	fnErr := fn(&writerBuf)
-
-	if closeErr := pipeW.Close(); closeErr != nil && fnErr == nil {
-		fnErr = closeErr
-	}
-
-	os.Stdout = oldStdout
-
-	var stdoutBuf bytes.Buffer
-
-	if _, copyErr := io.Copy(&stdoutBuf, pipeR); copyErr != nil && fnErr == nil {
-		fnErr = copyErr
-	}
-
-	_ = pipeR.Close()
-
-	var combined bytes.Buffer
-
-	_, _ = combined.Write(stdoutBuf.Bytes())
-	_, _ = combined.Write(writerBuf.Bytes())
-
-	return combined.String(), fnErr
 }
