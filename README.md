@@ -1,16 +1,15 @@
 # https-wrench
 
 [![Test Coverage](https://raw.githubusercontent.com/xenOs76/https-wrench/badges/.badges/main/coverage.svg)](https://github.com/xenOs76/https-wrench/actions/workflows/codeChecks.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/xenos76/https-wrench)](https://goreportcard.com/report/github.com/xenos76/https-wrench)
 
 <p align="center">
     <img width="450" alt="HTTPS Wrench Logo" src="./assets/img/https-wrench-logo.jpg"/><br />
     <i>HTTPS Wrench, a wrench not to bench</i>
 </p>
 
-**HTTPS Wrench** is a tool for maintainers of secure HTTP endpoints.  
-It enables executing YAML-defined HTTPS requests, inspecting x.509 certificates, private keys, JSON Web Tokens (JWT), and
-generating JSON Web Key Sets (JWKS).\
+**HTTPS Wrench** is a tool for maintainers of secure HTTP endpoints.\
+It enables executing YAML-defined HTTPS requests, inspecting x.509 certificates,
+private keys, JSON Web Tokens (JWT), and generating JSON Web Key Sets (JWKS).\
 **HTTPS Wrench** was born from the desire of a disposable Bash script to become
 a reliable companion for mechanics of the World Wide Web.\
 `https-wrench` will, one day, take the place of `curl` in the hearts and the
@@ -122,7 +121,8 @@ https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
 <details>
 <summary>Sample configuration file</summary>
 
-A comprehensive sample configuration file can be found in the repository at [`cmd/embedded/config-example.yaml`](./cmd/embedded/config-example.yaml).
+A comprehensive sample configuration file can be found in the repository at
+[`cmd/embedded/config-example.yaml`](./cmd/embedded/config-example.yaml).
 
 </details>
 
@@ -230,7 +230,8 @@ been used to generate the certificate:
 
 ### HTTPS Wrench jwtinfo
 
-`jwtinfo` allows you to decode and inspect the claims of a JSON Web Token. It can also validate the token signature if a JWKS endpoint is provided.
+`jwtinfo` allows you to decode and inspect the claims of a JSON Web Token. It
+can also validate the token signature if a JWKS endpoint is provided.
 
 <details>
 <summary>View Jwtinfo Help (`https-wrench jwtinfo -h`)</summary>
@@ -337,7 +338,8 @@ Request a token, save it to a file, and keep it refreshed until interrupted:
 
 ### HTTPS Wrench jwks
 
-`jwks` generates a public JSON Web Key Set from a PEM-encoded public key. This is useful for exposing your public keys at a `.well-known/jwks.json` endpoint.
+`jwks` generates a public JSON Web Key Set from a PEM-encoded public key. This
+is useful for exposing your public keys at a `.well-known/jwks.json` endpoint.
 
 <details>
 <summary>View Jwks Help (`https-wrench jwks -h`)</summary>
@@ -380,7 +382,9 @@ Generate a JWKS with a SHA-256-derived KID:
 
 ### HTTPS Wrench mcp
 
-`mcp` runs a Model Context Protocol server on stdin/stdout. Connect it from Cursor, Claude Desktop, or other MCP clients to author `requests` YAML, validate configs, build CLI commands, and run https-wrench operations directly.
+`mcp` runs a Model Context Protocol server on stdin/stdout. Connect it from
+Cursor, Claude Desktop, or other MCP clients to author `requests` YAML, validate
+configs, build CLI commands, and run https-wrench operations directly.
 
 ```shell
 https-wrench mcp
@@ -399,13 +403,19 @@ Cursor configuration example:
 }
 ```
 
-**Resources:** JSON schema, sample config, example YAML files, and a requests cheat sheet (`https-wrench://schema`, `https-wrench://sample-config`, `https-wrench://examples/{name}`, `https-wrench://docs/requests`).
+**Resources:** JSON schema, sample config, example YAML files, and a requests
+cheat sheet (`https-wrench://schema`, `https-wrench://sample-config`,
+`https-wrench://examples/{name}`, `https-wrench://docs/requests`).
 
-**Prompts:** `author_requests_config` — parameterized guidance for writing requests YAML.
+**Prompts:** `author_requests_config` — parameterized guidance for writing
+requests YAML.
 
-**Tools (assist):** `validate_requests_config`, `requests_config_template`, `build_cli_command`.
+**Tools (assist):** `validate_requests_config`, `requests_config_template`,
+`build_cli_command`.
 
-**Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`. Encrypted private keys for `certinfo` require the `CERTINFO_PKEY_PW` environment variable (no interactive prompt under MCP).
+**Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`.
+Encrypted private keys for `certinfo` require the `CERTINFO_PKEY_PW` environment
+variable (no interactive prompt under MCP).
 
 ## Sample output
 

@@ -12,7 +12,7 @@ permissions:
 env:
   CGO_ENABLED: 0
   DOCKER_CLI_EXPERIMENTAL: "enabled"
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.26.5"
 
 jobs:
   code-checks:
@@ -60,6 +60,3 @@ jobs:
           workdir: .
         env:
           GITHUB_TOKEN: ${{ secrets.GH_GORELEASER_TOKEN }}
-
-      - name: Refresh Go Report Card
-        uses: creekorful/goreportcard-action@1f35ced8cdac2cba28c9a2f2288a16aacfd507f9 # v1.0
