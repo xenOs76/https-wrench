@@ -1,5 +1,23 @@
 # https-wrench - changelog
 
+## 0.14.3 (2026-08-23)
+
+### CI
+
+    update crypto to v0.55.0
+
+## 0.14.2 (2026-08-22)
+
+### CI
+
+    switch to Go 1.26.7
+
+## 0.14.1 (2026-07-22)
+
+### CI
+
+    switch to Go 1.26.5
+
 ## 0.14.0 (2026-05-25)
 
 ### Feat
