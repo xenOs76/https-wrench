@@ -4,15 +4,18 @@
   config,
   inputs,
   ...
-}: let
-  pkgs-stable = import inputs.nixpkgs-stable {system = pkgs.stdenv.system;};
-in {
+}:
+let
+  pkgs-stable = import inputs.nixpkgs-stable { system = pkgs.stdenv.system; };
+in
+{
   env = {
     GUM_FORMAT_THEME = "tokyo-night";
     CAROOT = "tests/certs";
     EXAMPLES = "assets/examples";
     ED25519_DIR = "tests/certs/ed25519_cert";
     ECDSA_DIR = "tests/certs/ecdsa-cert";
+    MLDSA_DIR = "tests/certs/mldsa-cert";
     KEY_TEST_PW = "testpassword";
     CGO_ENABLE = "0";
     OS76_DOCKER_REGISTRY = "registry.0.os76.xyz";
@@ -78,11 +81,11 @@ in {
         #
         # Mozilla SSL Configuration Generator
         #
-        # https://ssl-config.mozilla.org/#server=nginx&version=1.27.3&config=intermediate&openssl=3.4.0&guideline=5.7
-        #
+        # generated 2026-09-01, TLSRef Guideline v6.0, nginx 1.27.3, OpenSSL 4.0.1, intermediate config, HSTS, gitrev=d96f668
+        # https://configurator.tlsref.org/#server=nginx&version=1.27.3&config=intermediate&openssl=4.0.1&hsts&guideline=6.0
         ssl_protocols TLSv1.2 TLSv1.3;
-        ssl_ecdh_curve X25519:prime256v1:secp384r1;
-        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305;
+        ssl_ecdh_curve X25519MLKEM768:X25519:prime256v1:secp384r1;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
         ssl_prefer_server_ciphers off;
         ssl_certificate ${config.env.DEVENV_ROOT}/${config.env.CAROOT}/full-cert.pem;
         ssl_certificate_key ${config.env.DEVENV_ROOT}/${config.env.CAROOT}/key.pem;
@@ -152,6 +155,21 @@ in {
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
         }
+
+        server {
+            server_name  _;
+            root ${config.env.DEVENV_ROOT};
+            ssl_certificate ${config.env.DEVENV_ROOT}/${config.env.MLDSA_DIR}/mldsa.crt;
+            ssl_certificate_key ${config.env.DEVENV_ROOT}/${config.env.MLDSA_DIR}/mldsa.key;
+            listen 9447 ssl;
+            listen [::]:9447 ssl;
+            http2 on;
+            location / {
+                proxy_pass       http://localhost:8080;
+                proxy_set_header Host                   $host;
+                proxy_set_header X-Forwarded-For        $remote_addr;
+            }
+        }
     '';
   };
 
@@ -164,7 +182,7 @@ in {
       test -d ${config.env.DEVENV_ROOT}/tests && rm -rf ${config.env.DEVENV_ROOT}/tests
       create-certs
     '';
-    before = ["devenv:processes:nginx"];
+    before = [ "devenv:processes:nginx" ];
   };
 
   scripts.hello.exec = ''
@@ -241,11 +259,35 @@ in {
 
     test -f $ED25519_DIR/ed25519.crt || openssl req -new -x509 -key $ED25519_DIR/ed25519.key -days 365 -out $ED25519_DIR/ed25519.crt \
     -subj "/CN=example.com/O=Example Org" -addext "subjectAltName=DNS:example.com,IP:127.0.0.1"
+
+    # MLDSA_DIR=$CAROOT/mldsa-cert
+    test -d $MLDSA_DIR || mkdir $MLDSA_DIR
+    test -f $MLDSA_DIR/mldsa.key || openssl genpkey -algorithm ML-DSA-65 -out $MLDSA_DIR/mldsa.key
+    test -f $MLDSA_DIR/mldsa.pub || openssl pkey -in $MLDSA_DIR/mldsa.key -pubout -out $MLDSA_DIR/mldsa.pub
+
+    test -f $MLDSA_DIR/encrypted.mldsa.key || openssl pkey -in $MLDSA_DIR/mldsa.key -out $MLDSA_DIR/encrypted.mldsa.key -aes256 -passout pass:$KEY_TEST_PW
+    test -f $MLDSA_DIR/encrypted.mldsa.pub || openssl pkey -passin pass:$KEY_TEST_PW -in $MLDSA_DIR/encrypted.mldsa.key -pubout -out $MLDSA_DIR/encrypted.mldsa.pub
+
+    test -f $MLDSA_DIR/mldsa.crt || openssl req -new -x509 -key $MLDSA_DIR/mldsa.key -days 365 -out $MLDSA_DIR/mldsa.crt \
+        -subj "/CN=example.com/O=Example Org" \
+        -addext "subjectAltName=DNS:example.com,DNS:localhost,IP:127.0.0.1"
   '';
 
   scripts.test-curl.exec = ''
     curl "https://localhost:9443/get" -k -v
   '';
+
+  scripts.certinfo-pq-vhost = {
+    description = "Connect to the local ML-DSA nginx vhost (:9447) and print cert + TLS info";
+    exec = ''
+      gum format "## PQ vhost TLS (localhost:9447, ML-DSA-65)"
+      ./dist/https-wrench certinfo \
+        --tls-endpoint localhost:9447 \
+        --tls-servername example.com \
+        --ca-bundle "$MLDSA_DIR/mldsa.crt" \
+        --tls-info
+    '';
+  };
 
   scripts.test-cmd-root-version.exec = ''
     gum format "## Command root --version"
@@ -705,7 +747,7 @@ in {
   '';
 
   enterShell = ''
-    gum format "# Devenv shell"
+    echo "https-wrench devenv ready"
     go version
     create-certs
   '';
