@@ -149,7 +149,8 @@ func (c *Config) printRemoteCerts(w io.Writer, ks, sl, sv lipgloss.Style) error 
 func (c *Config) printCACerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 	if len(c.CACertsFilePath) > 0 {
 		fmt.Fprintln(w, style.LgSprintf(ks, "CA Certificates"))
-		fmt.Fprintln(w,
+		fmt.Fprintln(
+			w,
 			style.LgSprintf(
 				sl.PaddingTop(1).PaddingBottom(1),
 				"CA Certificates file: %v",
@@ -225,6 +226,7 @@ func (c *Config) GetRemoteCerts(ctx context.Context) error {
 	c.TLSEndpointCerts = cs.PeerCertificates
 	c.NegotiatedProtocol = tlsVersionToString(cs.Version)
 	c.NegotiatedCipher = tls.CipherSuiteName(cs.CipherSuite)
+	c.NegotiatedCurveID = cs.CurveID.String()
 
 	// do not verify server certificates if TLSInsecure
 	if c.TLSInsecure {
@@ -290,7 +292,8 @@ func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][
 		header := style.LgSprintf(
 			style.CertKeyP4.Bold(true),
 			"Certificate %d",
-			i)
+			i,
+		)
 		cert := certs[i]
 
 		// Helper to check if a specific field is requested (case-insensitive)
@@ -639,6 +642,7 @@ func (c *Config) printTLSInfo(w io.Writer, ks, _, _ lipgloss.Style) {
 	t1 := table.New().Border(style.LGDefBorder)
 	t1.Row(style.CertKeyP4.Render("Protocol Version"), style.CertValue.Render(c.NegotiatedProtocol))
 	t1.Row(style.CertKeyP4.Render("Cipher Suite"), style.CertValue.Render(c.NegotiatedCipher))
+	t1.Row(style.CertKeyP4.Render("Key Exchange"), style.CertValue.Render(c.NegotiatedCurveID))
 	fmt.Fprintln(w, t1.Render())
 
 	// 2. Render Supported Protocol Versions Scan

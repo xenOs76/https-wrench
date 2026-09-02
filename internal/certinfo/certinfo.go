@@ -57,6 +57,8 @@ type Config struct {
 	NegotiatedProtocol string
 	// NegotiatedCipher is the TLS cipher suite negotiated in the primary connection.
 	NegotiatedCipher string
+	// NegotiatedCurveID is the TLS key exchange mechanism negotiated in the primary connection.
+	NegotiatedCurveID string
 	// ProbedProtocols maps a TLS protocol name to whether the remote endpoint supports it.
 	ProbedProtocols map[string]bool
 	// ProbedCiphers is a slice of ciphers that were probed against the endpoint.

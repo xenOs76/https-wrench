@@ -1,0 +1,61 @@
+version: "3"
+
+tasks:
+  goreleaser:test:pkg:
+    internal: true
+    desc: Test a package installation
+    vars:
+      CONTAINER_NAME: "test-{{.Image}}-{{.Platform}}"
+    cmds:
+      - defer: docker rm -f {{.CONTAINER_NAME}}
+      - docker create --name {{.CONTAINER_NAME}} --platform linux/{{.Platform}} --workdir /tmp {{.Image}} sh -c 'ls -la /tmp && {{.Cmd}} && https-wrench --version'
+      - docker cp {{.TASKFILE_DIR}}/dist/. {{.CONTAINER_NAME}}:/tmp/
+      - docker start -a {{.CONTAINER_NAME}}
+
+  goreleaser:test:rpm:
+    desc: Tests rpm packages
+    vars:
+      RPM_INSTALL: "rpm --nodeps -ivh"
+    cmds:
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "amd64"
+          Image: fedora
+          Cmd: "{{.RPM_INSTALL}} https-wrench*_linux_amd64.rpm"
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "arm64"
+          Image: fedora
+          Cmd: "{{.RPM_INSTALL}} https-wrench*_linux_arm64.rpm"
+
+  goreleaser:test:deb:
+    desc: Tests deb packages
+    vars:
+      DPKG_INSTALL: "dpkg --ignore-depends=git -i"
+    cmds:
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "amd64"
+          Image: ubuntu
+          Cmd: "{{.DPKG_INSTALL}} https-wrench*_linux_amd64.deb"
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "arm64"
+          Image: ubuntu
+          Cmd: "{{.DPKG_INSTALL}} https-wrench*_linux_arm64.deb"
+
+  goreleaser:test:apk:
+    desc: Tests apk packages
+    vars:
+      APK_INSTALL: "apk add --allow-untrusted -U"
+    cmds:
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "amd64"
+          Image: alpine
+          Cmd: "{{.APK_INSTALL}} https-wrench*_linux_amd64.apk"
+      - task: goreleaser:test:pkg
+        vars:
+          Platform: "arm64"
+          Image: alpine
+          Cmd: "{{.APK_INSTALL}} https-wrench*_linux_arm64.apk"

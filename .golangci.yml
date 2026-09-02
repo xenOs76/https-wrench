@@ -67,10 +67,20 @@ linters:
           exclude: [""]
           arguments: [15]
 
+        - name: epoch-naming
+          disabled: true
+
         - name: unhandled-error
           severity: warning
           disabled: false
           exclude: [""]
+          arguments:
+            - "fmt.Print"
+            - "fmt.Printf"
+            - "fmt.Println"
+            - "fmt.Fprint"
+            - "fmt.Fprintf"
+            - "fmt.Fprintln"
 
   exclusions:
     generated: lax

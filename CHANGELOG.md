@@ -1,5 +1,15 @@
 # https-wrench - changelog
 
+## 0.15.0 (2026-09-02)
+
+### CI
+
+    switch to Go 1.27.0
+
+### Feat
+
+    Certinfo: add initial support for Post Quantum Key Echange Mechanisms
+
 ## 0.14.3 (2026-08-23)
 
 ### CI
