@@ -264,6 +264,10 @@ in
     test -d $MLDSA_DIR || mkdir $MLDSA_DIR
     test -f $MLDSA_DIR/mldsa.key || openssl genpkey -algorithm ML-DSA-65 -out $MLDSA_DIR/mldsa.key
     test -f $MLDSA_DIR/mldsa.pub || openssl pkey -in $MLDSA_DIR/mldsa.key -pubout -out $MLDSA_DIR/mldsa.pub
+    test -f $MLDSA_DIR/mldsa-seed.key || openssl pkey \
+      -in $MLDSA_DIR/mldsa.key \
+      -provparam ml-dsa.output_formats=seed-only \
+      -out $MLDSA_DIR/mldsa-seed.key
 
     test -f $MLDSA_DIR/encrypted.mldsa.key || openssl pkey -in $MLDSA_DIR/mldsa.key -out $MLDSA_DIR/encrypted.mldsa.key -aes256 -passout pass:$KEY_TEST_PW
     test -f $MLDSA_DIR/encrypted.mldsa.pub || openssl pkey -passin pass:$KEY_TEST_PW -in $MLDSA_DIR/encrypted.mldsa.key -pubout -out $MLDSA_DIR/encrypted.mldsa.pub
@@ -493,6 +497,11 @@ in
     ./dist/https-wrench certinfo --key-file $ED25519_DIR/ed25519.key | grep -E 'Type\s+Ed25519'
   '';
 
+  scripts.test-certinfo-pkcs8-mldsa-key.exec = ''
+    gum format "## test certinfo load PKCS8 ML-DSA key"
+    ./dist/https-wrench certinfo --key-file $MLDSA_DIR/mldsa-seed.key | grep -E 'Type\s+ML-DSA'
+  '';
+
   scripts.test-certinfo-rsa-cert.exec = ''
     gum format "## test certinfo load RSA cert"
     ./dist/https-wrench certinfo --cert-bundle $CAROOT/cert.pem | grep -E 'PublicKeyAlgorithm\s+RSA'
@@ -508,6 +517,12 @@ in
     ./dist/https-wrench certinfo --cert-bundle $ECDSA_DIR/ecdsa.crt | grep -E 'PublicKeyAlgorithm\s+ECDSA'
   '';
 
+  scripts.test-certinfo-mldsa-cert.exec = ''
+    gum format "## test certinfo load ML-DSA cert"
+    ./dist/https-wrench certinfo --cert-bundle $MLDSA_DIR/mldsa.crt | grep -E 'PublicKeyAlgorithm\s+ML-DSA'
+    ./dist/https-wrench certinfo --cert-bundle $MLDSA_DIR/mldsa.crt | grep -E 'SignatureAlgorithm\s+ML-DSA-65'
+  '';
+
   scripts.test-certinfo-pkcs8-rsa-key-cert.exec = ''
     gum format "## test certinfo: PKCS8 RSA key + cert "
     ./dist/https-wrench certinfo --key-file $CAROOT/key.pem --cert-bundle $CAROOT/cert.pem | grep 'PrivateKey match: true'
@@ -521,6 +536,11 @@ in
   scripts.test-certinfo-pkcs8-ed25519-key-cert.exec = ''
     gum format "## test certinfo: PKCS8 ED25519 key + cert"
     ./dist/https-wrench certinfo --key-file $ED25519_DIR/ed25519.key --cert-bundle $CAROOT/ed25519.crt | grep 'PrivateKey match: true'
+  '';
+
+  scripts.test-certinfo-pkcs8-mldsa-key-cert.exec = ''
+    gum format "## test certinfo: PKCS8 ML-DSA key + cert"
+    ./dist/https-wrench certinfo --key-file $MLDSA_DIR/mldsa-seed.key --cert-bundle $MLDSA_DIR/mldsa.crt | grep 'PrivateKey match: true'
   '';
 
   scripts.test-certinfo-tlsendpoint.exec = ''
@@ -586,6 +606,22 @@ in
     ./dist/https-wrench certinfo --tls-endpoint localhost:9445 --tls-insecure --tls-servername example.com --key-file $ED25519_DIR/ed25519.key | grep 'PrivateKey match: true'
   '';
 
+  scripts.test-certinfo-tlsendpoint-mldsa.exec = ''
+    gum format "## test certinfo tlsEndpoint: ML-DSA-65 cert"
+    ./dist/https-wrench certinfo --tls-endpoint localhost:9447 --tls-insecure --tls-servername example.com | grep -E 'PublicKeyAlgorithm\s+ML-DSA'
+    ./dist/https-wrench certinfo --tls-endpoint localhost:9447 --tls-insecure --tls-servername example.com | grep -E 'SignatureAlgorithm\s+ML-DSA-65'
+  '';
+
+  scripts.test-certinfo-tlsendpoint-mldsa-key-cert.exec = ''
+    gum format "## test certinfo tlsEndpoint: ML-DSA key + cert"
+    ./dist/https-wrench certinfo --tls-endpoint localhost:9447 --tls-insecure --tls-servername example.com --key-file $MLDSA_DIR/mldsa-seed.key | grep 'PrivateKey match: true'
+  '';
+
+  scripts.test-certinfo-tlsendpoint-mldsa-key-mismatch.exec = ''
+    gum format "## test certinfo tlsEndpoint: ML-DSA cert + ECDSA key mismatch"
+    ./dist/https-wrench certinfo --tls-endpoint localhost:9447 --tls-insecure --tls-servername example.com --key-file $ECDSA_DIR/ecdsa.key | grep 'PrivateKey match: false'
+  '';
+
   scripts.run-requests-tests.exec = ''
     gum format "## Requests tests"
 
@@ -621,6 +657,9 @@ in
     test-certinfo-tlsendpoint-rsa-key-cert
     test-certinfo-tlsendpoint-ecdsa-key-cert
     test-certinfo-tlsendpoint-ed25519-key-cert
+    test-certinfo-tlsendpoint-mldsa
+    test-certinfo-tlsendpoint-mldsa-key-cert
+    test-certinfo-tlsendpoint-mldsa-key-mismatch
   '';
 
   scripts.run-certinfo-priv-key-tests.exec = ''
@@ -638,6 +677,7 @@ in
     test-certinfo-pkcs8-rsa-key
     test-certinfo-pkcs1-ec-key
     test-certinfo-pkcs8-ecdsa-key
+    test-certinfo-pkcs8-mldsa-key
   '';
 
   scripts.run-certinfo-cert-tests.exec = ''
@@ -646,6 +686,8 @@ in
     test-certinfo-rsa-cert
     test-certinfo-ed25519-cert
     test-certinfo-ecdsa-cert
+    test-certinfo-mldsa-cert
+    test-certinfo-pkcs8-mldsa-key-cert
   '';
 
   scripts.run-jwtinfo-test-auth0.exec = ''

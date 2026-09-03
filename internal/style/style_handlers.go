@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"fmt"
 	"io"
@@ -84,6 +85,10 @@ func PrintKeyInfoStyle(w io.Writer, privKey crypto.PrivateKey) {
 
 		size := fmt.Sprintf("%d bytes", len(k))
 		t.Row(sl("Key Size"), sv(size))
+
+	case *mldsa.PrivateKey:
+		t.Row(sl("Type"), sv("ML-DSA"))
+		t.Row(sl("Parameters"), sv(k.PublicKey().Parameters().String()))
 
 	default:
 		unknMsg := fmt.Sprintf("Unknown key type: %T", k)
