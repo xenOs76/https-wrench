@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -51,6 +52,9 @@ func TestPrintKeyInfoStyle(t *testing.T) {
 	ed25519Key, edErr := ED25519GenerateKey()
 	require.NoError(t, edErr)
 
+	mldsaKey, mldsaErr := mldsa.GenerateKey(mldsa.MLDSA65())
+	require.NoError(t, mldsaErr)
+
 	var fakeKey crypto.PrivateKey
 
 	tests := []struct {
@@ -74,7 +78,11 @@ func TestPrintKeyInfoStyle(t *testing.T) {
 			key:          ed25519Key,
 			expectedType: "ED25519",
 		},
-
+		{
+			name:         "mldsa private key",
+			key:          mldsaKey,
+			expectedType: "ML-DSA-65",
+		},
 		{
 			name:         "fake private key",
 			key:          fakeKey,

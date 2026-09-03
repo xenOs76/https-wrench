@@ -2,9 +2,6 @@ package certinfo
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -39,34 +36,21 @@ func PrintCertInfo(cert *x509.Certificate, depth int, w io.Writer) {
 // Check if the PublicKey of a Certificate matches the PrivateKey.
 // certMatchPrivateKey checks if the public key of a certificate matches the given private key.
 func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, error) {
-	if cert == nil {
+	if cert == nil || key == nil {
 		return false, nil
 	}
 
-	if key == nil {
-		return false, nil
-	}
-
-	match := false
-
-	switch pub := cert.PublicKey.(type) {
-	case *rsa.PublicKey:
-		if k, ok := key.(*rsa.PrivateKey); ok && k.PublicKey.N.Cmp(pub.N) == 0 && k.PublicKey.E == pub.E {
-			match = true
-		}
-	case *ecdsa.PublicKey:
-		if k, ok := key.(*ecdsa.PrivateKey); ok && k.PublicKey.X.Cmp(pub.X) == 0 && k.PublicKey.Y.Cmp(pub.Y) == 0 {
-			match = true
-		}
-	case ed25519.PublicKey:
-		if k, ok := key.(ed25519.PrivateKey); ok && k.Public().(ed25519.PublicKey).Equal(pub) {
-			match = true
-		}
-	default:
+	pub, ok := cert.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
+	if !ok {
 		return false, errors.New("unsupported public key type in certificate")
 	}
 
-	return match, nil
+	signer, ok := key.(crypto.Signer)
+	if !ok {
+		return false, nil
+	}
+
+	return pub.Equal(signer.Public()), nil
 }
 
 // GetRootCertsFromFile reads a PEM bundle from a file and returns an x509 CertPool.

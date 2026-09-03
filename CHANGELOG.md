@@ -1,5 +1,11 @@
 # https-wrench - changelog
 
+## 0.15.1 (2026-09-03)
+
+### Feat
+
+    Certinfo: match ML-DSA private keys to certificates and print ML-DSA key type and parameter set. Devenv scripts assert the nginx ML-DSA-65 vhost on localhost:9447.
+
 ## 0.15.0 (2026-09-02)
 
 ### CI
