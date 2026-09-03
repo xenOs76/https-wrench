@@ -746,6 +746,88 @@ in
     golangci-lint run --fix
   '';
 
+  # BenchmarkProbeCiphersConcurrently — pprof / trace helpers
+  #
+  # Wraps the hermetic cipher-scan bench (I/O-bound localhost TLS, 10-worker pool).
+  # One script per profile kind: combining -cpuprofile + -memprofile + -blockprofile
+  # in a single go test run skews the results.
+  #
+  # Shared flags: -run '^$' (skip unit tests), -bench BenchmarkProbeCiphersConcurrently.
+  # pprof / trace HTTP UI: 127.0.0.1:3111 (not 3000). Go 1.27 -http=:port is localhost-only.
+  # Artifacts live under /tmp (*.out). Profiling can also leave internal/certinfo/certinfo.test;
+  # both are removed after the UI exits (Ctrl+C). Do not commit them.
+  # Mutex is last and likely quiet (the pool itself has no mutexes).
+
+  scripts.BenchmarkProbeCiphersConcurrently_bench.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently baseline (-count=6)"
+
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchmem -count=6
+  '';
+
+  scripts.BenchmarkProbeCiphersConcurrently_cpu.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently CPU profile (pprof :3111)"
+
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchtime 2s -benchmem \
+      -cpuprofile BenchmarkProbeCiphersConcurrently.cpu.out \
+      -outputdir /tmp
+    go tool pprof -http=:3111 /tmp/BenchmarkProbeCiphersConcurrently.cpu.out
+    rm -f /tmp/BenchmarkProbeCiphersConcurrently.cpu.out internal/certinfo/certinfo.test
+  '';
+
+  scripts.BenchmarkProbeCiphersConcurrently_mem.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently heap profile (pprof :3111, -alloc_objects)"
+
+    # -alloc_objects = allocation count (GC pressure). Swap to -alloc_space for bytes.
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchtime 2s -benchmem \
+      -memprofile BenchmarkProbeCiphersConcurrently.mem.out \
+      -outputdir /tmp
+    go tool pprof -http=:3111 -alloc_objects /tmp/BenchmarkProbeCiphersConcurrently.mem.out
+    rm -f /tmp/BenchmarkProbeCiphersConcurrently.mem.out internal/certinfo/certinfo.test
+  '';
+
+  scripts.BenchmarkProbeCiphersConcurrently_block.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently block profile (pprof :3111)"
+
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchtime 2s \
+      -blockprofile BenchmarkProbeCiphersConcurrently.block.out \
+      -outputdir /tmp
+    go tool pprof -http=:3111 /tmp/BenchmarkProbeCiphersConcurrently.block.out
+    rm -f /tmp/BenchmarkProbeCiphersConcurrently.block.out internal/certinfo/certinfo.test
+  '';
+
+  scripts.BenchmarkProbeCiphersConcurrently_mutex.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently mutex profile (pprof :3111)"
+
+    # Likely quiet: probeCiphersConcurrently uses WaitGroup/channels, not mutexes.
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchtime 2s \
+      -mutexprofile BenchmarkProbeCiphersConcurrently.mutex.out \
+      -outputdir /tmp
+    go tool pprof -http=:3111 /tmp/BenchmarkProbeCiphersConcurrently.mutex.out
+    rm -f /tmp/BenchmarkProbeCiphersConcurrently.mutex.out internal/certinfo/certinfo.test
+  '';
+
+  scripts.BenchmarkProbeCiphersConcurrently_trace.exec = ''
+    set -e
+    gum format "## BenchmarkProbeCiphersConcurrently execution trace"
+
+    go test ./internal/certinfo/ -run '^$' \
+      -bench BenchmarkProbeCiphersConcurrently -benchtime 1s \
+      -trace /tmp/BenchmarkProbeCiphersConcurrently.trace.out \
+      -outputdir /tmp
+    go tool trace -http=:3111 /tmp/BenchmarkProbeCiphersConcurrently.trace.out
+    rm -f /tmp/BenchmarkProbeCiphersConcurrently.trace.out internal/certinfo/certinfo.test
+  '';
+
   enterShell = ''
     echo "https-wrench devenv ready"
     go version
