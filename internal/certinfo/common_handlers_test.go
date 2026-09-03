@@ -3,8 +3,13 @@ package certinfo
 import (
 	"bytes"
 	"crypto"
+	"crypto/mldsa"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/alecthomas/assert/v2"
 	"github.com/google/go-cmp/cmp"
@@ -494,6 +499,11 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 			cert: RSACaCertParent,
 			key:  nil,
 		},
+		{
+			desc: "key is not a signer",
+			cert: RSACaCertParent,
+			key:  "dummy_key",
+		},
 	}
 
 	for _, tt := range matchFalseTests {
@@ -511,6 +521,71 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 				require.Error(t, err)
 				require.EqualError(t, err, tt.expectMsg)
 			}
+		})
+	}
+}
+
+func issueMLDSACert(t *testing.T, priv *mldsa.PrivateKey) *x509.Certificate {
+	t.Helper()
+
+	template := &x509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "mldsa-test"},
+		NotBefore:          time.Now().Add(-time.Hour),
+		NotAfter:           time.Now().Add(time.Hour),
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		SignatureAlgorithm: x509.MLDSA44,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, template, priv.Public(), priv)
+	require.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+
+	return cert
+}
+
+func TestCertinfo_certMatchPrivateKey_mldsa(t *testing.T) {
+	t.Parallel()
+
+	mine, err := mldsa.GenerateKey(mldsa.MLDSA44())
+	require.NoError(t, err)
+
+	other, err := mldsa.GenerateKey(mldsa.MLDSA44())
+	require.NoError(t, err)
+
+	cert := issueMLDSACert(t, mine)
+
+	tests := []struct {
+		desc  string
+		key   crypto.PrivateKey
+		match bool
+	}{
+		{
+			desc:  "matching key",
+			key:   mine,
+			match: true,
+		},
+		{
+			desc: "different ML-DSA key",
+			key:  other,
+		},
+		{
+			desc: "RSA key",
+			key:  RSASampleCertKey,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			tt := tc
+
+			t.Parallel()
+
+			match, err := certMatchPrivateKey(cert, tt.key)
+			require.NoError(t, err)
+			assert.Equal(t, tt.match, match)
 		})
 	}
 }
