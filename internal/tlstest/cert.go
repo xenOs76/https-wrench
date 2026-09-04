@@ -37,8 +37,8 @@ type Template struct {
 // GenerateCert creates a PEM-encoded x509 certificate from tpl.
 // The returned *x509.Certificate can be used as Parent when issuing a leaf.
 func GenerateCert(tpl Template) ([]byte, *x509.Certificate, error) {
-	if tpl.Key == nil {
-		return nil, nil, errors.New("missing certificate private key")
+	if err := validateTemplate(tpl); err != nil {
+		return nil, nil, err
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
@@ -110,4 +110,24 @@ func GenerateCert(tpl Template) ([]byte, *x509.Certificate, error) {
 	}
 
 	return certPEM, certificate, nil
+}
+
+func validateTemplate(tpl Template) error {
+	if tpl.Key == nil {
+		return errors.New("missing certificate private key")
+	}
+
+	if tpl.IsCA {
+		return nil
+	}
+
+	if tpl.Parent == nil {
+		return errors.New("missing parent certificate")
+	}
+
+	if tpl.CAKey == nil {
+		return errors.New("missing CA private key")
+	}
+
+	return nil
 }

@@ -65,3 +65,42 @@ func TestGenerateCert_missingKey(t *testing.T) {
 	})
 	require.Error(t, err)
 }
+
+func TestGenerateCert_missingIssuer(t *testing.T) {
+	t.Parallel()
+
+	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	_, caCert, err := GenerateCert(Template{
+		CN:   "tlstest CA",
+		IsCA: true,
+		Key:  caKey,
+	})
+	require.NoError(t, err)
+
+	t.Run("missing parent", func(t *testing.T) {
+		t.Parallel()
+
+		_, _, err := GenerateCert(Template{
+			CN:    "example.com",
+			Key:   leafKey,
+			CAKey: caKey,
+		})
+		require.ErrorContains(t, err, "parent certificate")
+	})
+
+	t.Run("missing CA key", func(t *testing.T) {
+		t.Parallel()
+
+		_, _, err := GenerateCert(Template{
+			CN:     "example.com",
+			Key:    leafKey,
+			Parent: caCert,
+		})
+		require.ErrorContains(t, err, "CA private key")
+	})
+}
