@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"time"
 
 	"github.com/pires/go-proxyproto"
@@ -25,19 +26,15 @@ var defaultCurvePreferences = []tls.CurveID{
 	tls.CurveP521,
 }
 
-var defaultCipherSuites = []uint16{
-	tls.TLS_AES_128_GCM_SHA256,
-	tls.TLS_AES_256_GCM_SHA384,
-	tls.TLS_CHACHA20_POLY1305_SHA256,
-}
-
 // ServerConfig configures NewServer.
 type ServerConfig struct {
 	// ListenHost binds the listener to this host (ephemeral port). Empty uses httptest's default.
 	ListenHost string
 	// ProxyprotoEnabled wraps the listener with a PROXY protocol v2 reader.
 	ProxyprotoEnabled bool
-	// TLSCipherSuites override the TLS 1.3 AEAD defaults when non-empty.
+	// TLSCipherSuites, when non-empty, must be TLS 1.0–1.2 cipher suite IDs.
+	// tls.Config.CipherSuites stays nil by default. Callers that pin suites
+	// should also set TLSMaxVersion to tls.VersionTLS12.
 	TLSCipherSuites []uint16
 	// TLSCurvePreferences override the Go 1.27 hybrid defaults when non-empty.
 	TLSCurvePreferences []tls.CurveID
@@ -50,11 +47,13 @@ type ServerConfig struct {
 }
 
 // NewServer starts an httptest TLS server configured by cfg.
-// Cipher suites default to the TLS 1.3 AEADs, CurvePreferences to the Go 1.27
-// PQ hybrids plus classical fallbacks, and MaxVersion to TLS 1.3. Non-empty
-// cfg.TLSCipherSuites, cfg.TLSCurvePreferences, or a non-zero cfg.TLSMaxVersion
-// override those defaults. Optional cfg.ListenHost and cfg.ProxyprotoEnabled
-// replace the listener. The caller must Close the returned server.
+// CipherSuites stays nil by default (Go's TLS 1.3 AEADs plus default TLS 1.2
+// suites). CurvePreferences default to the Go 1.27 PQ hybrids plus classical
+// fallbacks, and MaxVersion to TLS 1.3. Non-empty cfg.TLSCipherSuites must be
+// TLS 1.0–1.2 suite IDs; cfg.TLSCurvePreferences and a non-zero
+// cfg.TLSMaxVersion override those defaults. Optional cfg.ListenHost and
+// cfg.ProxyprotoEnabled replace the listener. The caller must Close the
+// returned server.
 func NewServer(cfg ServerConfig) (*httptest.Server, error) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "DemoHTTPSServer Handler - client output\n")
@@ -89,8 +88,14 @@ func NewServer(cfg ServerConfig) (*httptest.Server, error) {
 		return nil, err
 	}
 
-	tlsCipherSuites := defaultCipherSuites
+	var tlsCipherSuites []uint16
+
 	if len(cfg.TLSCipherSuites) > 0 {
+		if err := validateTLS12CipherSuites(cfg.TLSCipherSuites); err != nil {
+			_ = ts.Listener.Close()
+			return nil, err
+		}
+
 		tlsCipherSuites = cfg.TLSCipherSuites
 	}
 
@@ -114,4 +119,25 @@ func NewServer(cfg ServerConfig) (*httptest.Server, error) {
 	ts.StartTLS()
 
 	return ts, nil
+}
+
+func validateTLS12CipherSuites(ids []uint16) error {
+	allowed := make(map[uint16]struct{})
+
+	for _, suite := range slices.Concat(tls.CipherSuites(), tls.InsecureCipherSuites()) {
+		for _, version := range suite.SupportedVersions {
+			if version <= tls.VersionTLS12 {
+				allowed[suite.ID] = struct{}{}
+				break
+			}
+		}
+	}
+
+	for _, id := range ids {
+		if _, ok := allowed[id]; !ok {
+			return fmt.Errorf("cipher suite 0x%04x is not a TLS 1.0-1.2 suite", id)
+		}
+	}
+
+	return nil
 }

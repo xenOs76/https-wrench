@@ -18,6 +18,8 @@
 
     Tlstest: close the httptest listener when certificate loading fails.
 
+    Tlstest: leave tls.Config.CipherSuites nil by default and accept only TLS 1.0-1.2 suite overrides.
+
     Certinfo: GetRemoteCerts tests apply SetTLSInsecure before SetTLSEndpoint so endpoint certificate retrieval uses the intended TLS verification mode.
 
     Requests: httptest TLS servers bind an ephemeral port so parallel cases do not collide on fixed listeners.

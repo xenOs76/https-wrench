@@ -433,13 +433,17 @@ func TestRenderTLSData(t *testing.T) {
 		t.Run(tt.reqConf.Name, func(t *testing.T) {
 			t.Parallel()
 
-			ts, err := tlstest.NewServer(tlstest.ServerConfig{
-				TLSCipherSuites:     []uint16{tt.srvTLSCipherSuite},
+			cfg := tlstest.ServerConfig{
 				TLSCurvePreferences: tt.tlsCurvePreferences,
 				TLSMaxVersion:       tt.srvTLSMaxVersion,
 				ServerCertFile:      exampleCertFile,
 				ServerKeyFile:       exampleCertKeyFile,
-			})
+			}
+			if tt.srvTLSMaxVersion <= tls.VersionTLS12 {
+				cfg.TLSCipherSuites = []uint16{tt.srvTLSCipherSuite}
+			}
+
+			ts, err := tlstest.NewServer(cfg)
 			require.NoError(t, err)
 
 			t.Cleanup(ts.Close)
