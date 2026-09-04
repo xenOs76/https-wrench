@@ -26,6 +26,17 @@ import (
 	"github.com/xenos76/https-wrench/internal/style"
 )
 
+// defaultCurvePreferences lists Go 1.27 TLS hybrids plus classical fallbacks.
+// Explicit CurvePreferences keeps PQ on when GODEBUG=tlsmlkem=0 / tlssecpmlkem=0.
+var defaultCurvePreferences = []tls.CurveID{
+	tls.X25519MLKEM768,
+	tls.SecP256r1MLKEM768,
+	tls.SecP384r1MLKEM1024,
+	tls.X25519,
+	tls.CurveP256,
+	tls.CurveP384,
+}
+
 // PrintData prints all collected certificate and key information (local files and remote endpoints)
 // to the provided writer in a human-readable format.
 //
@@ -202,6 +213,7 @@ func (c *Config) GetRemoteCerts(ctx context.Context) error {
 	tlsConfig := &tls.Config{
 		RootCAs:            c.CACertsPool,
 		InsecureSkipVerify: c.TLSInsecure,
+		CurvePreferences:   slices.Clone(defaultCurvePreferences),
 	}
 
 	verifyName := c.TLSServerName

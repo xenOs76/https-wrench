@@ -32,13 +32,14 @@ type (
 	}
 
 	demoHTTPServerConfig struct {
-		serverAddr        string
-		proxyprotoEnabled bool
-		serverName        string
-		tlsCipherSuites   []uint16
-		tlsMaxVersion     uint16
-		serverCertFile    string
-		serverKeyFile     string
+		listenHost          string
+		proxyprotoEnabled   bool
+		serverName          string
+		tlsCipherSuites     []uint16
+		tlsCurvePreferences []tls.CurveID
+		tlsMaxVersion       uint16
+		serverCertFile      string
+		serverKeyFile       string
 	}
 
 	MockErrReader   struct{}
@@ -374,6 +375,16 @@ func RSAPrivateKeyToPEM(key *rsa.PrivateKey) []byte {
 	return keyPEM
 }
 
+func testServerHostPort(ts *httptest.Server) string {
+	return ts.Listener.Addr().String()
+}
+
+// NewHTTPSTestServer starts an httptest TLS server configured by cfg.
+// Cipher suites default to the TLS 1.3 AEADs, CurvePreferences to the Go 1.27
+// PQ hybrids plus classical fallbacks, and MaxVersion to TLS 1.3. Non-empty
+// cfg.tlsCipherSuites, cfg.tlsCurvePreferences, or a non-zero cfg.tlsMaxVersion
+// override those defaults. Optional cfg.listenHost and cfg.proxyprotoEnabled
+// replace the listener. The caller must Close the returned server.
 func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "DemoHTTPSServer Handler - client output\n")
@@ -385,27 +396,21 @@ func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
 	ts := httptest.NewUnstartedServer(handler)
 	ts.EnableHTTP2 = true
 
-	if cfg.serverAddr != emptyString && !cfg.proxyprotoEnabled {
-		listener, err := net.Listen("tcp", cfg.serverAddr)
+	if cfg.listenHost != emptyString {
+		ln, err := net.Listen("tcp", net.JoinHostPort(cfg.listenHost, "0"))
 		if err != nil {
 			return nil, fmt.Errorf("error creating listener: %w", err)
 		}
 
-		ts.Listener = listener
+		_ = ts.Listener.Close()
+		ts.Listener = ln
 	}
 
-	if cfg.serverAddr != emptyString && cfg.proxyprotoEnabled {
-		ln, err := net.Listen("tcp", cfg.serverAddr)
-		if err != nil {
-			return nil, fmt.Errorf("error creating proxyproto enabled listener: %w", err)
-		}
-
-		proxyListener := &proxyproto.Listener{
-			Listener:          ln,
+	if cfg.proxyprotoEnabled {
+		ts.Listener = &proxyproto.Listener{
+			Listener:          ts.Listener,
 			ReadHeaderTimeout: 10 * time.Second,
 		}
-
-		ts.Listener = proxyListener
 	}
 
 	cert, err := tls.LoadX509KeyPair(
@@ -428,6 +433,12 @@ func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
 		tlsCipherSuites = cfg.tlsCipherSuites
 	}
 
+	tlsCurvePreferences := defaultCurvePreferences
+
+	if len(cfg.tlsCurvePreferences) > 0 {
+		tlsCurvePreferences = cfg.tlsCurvePreferences
+	}
+
 	// Set default TLS MaxVersion to 1.3
 	var tlsMaxVersion uint16 = tls.VersionTLS13
 
@@ -436,9 +447,10 @@ func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
 	}
 
 	ts.TLS = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		CipherSuites: tlsCipherSuites,
-		MaxVersion:   tlsMaxVersion,
+		Certificates:     []tls.Certificate{cert},
+		CipherSuites:     tlsCipherSuites,
+		CurvePreferences: tlsCurvePreferences,
+		MaxVersion:       tlsMaxVersion,
 	}
 
 	ts.StartTLS()
