@@ -166,8 +166,8 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 
 			cc.SetTLSServerName(tt.srvCfg.serverName)
 			cc.SetCaPoolFromFile(tt.caCertFile, inputReader)
-			cc.SetTLSEndpoint(t.Context(), endpoint)
 			cc.SetTLSInsecure(tt.insecure)
+			cc.SetTLSEndpoint(t.Context(), endpoint)
 
 			err = cc.GetRemoteCerts(t.Context())
 			if !tt.expectError {
