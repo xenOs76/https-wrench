@@ -552,6 +552,7 @@ func TestCertinfo_PrintTLSInfo_HappyPath(t *testing.T) {
 	cc.TLSInfoRequested = true
 	cc.NegotiatedProtocol = "TLS 1.3"
 	cc.NegotiatedCipher = "TLS_AES_128_GCM_SHA256"
+	cc.NegotiatedCurveID = "X25519MLKEM768"
 	cc.ProbedProtocols = map[string]bool{
 		"TLS 1.3": true,
 		"TLS 1.2": true,
@@ -585,6 +586,8 @@ func TestCertinfo_PrintTLSInfo_HappyPath(t *testing.T) {
 	require.Contains(t, got, "Negotiated TLS Connection")
 	require.Contains(t, got, "TLS 1.3")
 	require.Contains(t, got, "TLS_AES_128_GCM_SHA256")
+	require.Contains(t, got, "Key Exchange")
+	require.Contains(t, got, "X25519MLKEM768")
 	require.Contains(t, got, "Protocol Support Scan")
 	require.Contains(t, got, "Cipher Suite Scan")
 	require.Contains(t, got, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")

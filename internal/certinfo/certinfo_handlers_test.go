@@ -3,9 +3,11 @@ package certinfo
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"net"
 	"testing"
 	"time"
 
@@ -15,31 +17,26 @@ import (
 //nolint:revive
 func TestCertinfo_GetRemoteCerts(t *testing.T) {
 	tests := []struct {
-		desc          string
-		srvCfg        demoHTTPServerConfig
-		caCertFile    string
-		insecure      bool
-		expectSrvHost string
-		expectSrvPort string
-		expectError   bool
-		expectMsg     string
+		desc        string
+		srvCfg      demoHTTPServerConfig
+		caCertFile  string
+		insecure    bool
+		expectError bool
+		expectMsg   string
+		wantCurveID string
 	}{
 		{
 			desc: "RSA Cert Success",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46301",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertBundleFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			caCertFile:    RSACaCertFile,
-			expectSrvHost: "localhost",
-			expectSrvPort: "46301",
+			caCertFile: RSACaCertFile,
 		},
 		{
 			desc: "Error Secure and No CA Cert",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46302",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
@@ -53,75 +50,60 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 		{
 			desc: "Malformed Server Certificate",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46303",
 				serverName:     "example.com",
 				serverCertFile: RSASamplePKCS8Certificate,
 				serverKeyFile:  RSASamplePKCS8PlaintextPrivateKey,
 			},
-			caCertFile:    RSACaCertFile,
-			expectSrvHost: "localhost",
+			caCertFile: RSACaCertFile,
 			//nolint:revive
-			expectSrvPort: "46303",
-			expectError:   true,
-			expectMsg:     "TLS handshake failed: tls: failed to verify certificate: x509: certificate relies on legacy Common Name field, use SANs instead",
+			expectError: true,
+			expectMsg:   "TLS handshake failed: tls: failed to verify certificate: x509: certificate relies on legacy Common Name field, use SANs instead",
 		},
 		{
 			desc: "No CA Cert and Insecure",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46304",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			insecure:      true,
-			expectSrvHost: "localhost",
-			expectSrvPort: "46304",
-			caCertFile:    emptyString,
+			insecure:   true,
+			caCertFile: emptyString,
 		},
 		{
 			desc: "Wrong CA Cert and Secure",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46305",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
 			caCertFile: RSASamplePKCS8Certificate,
 			//nolint:revive
-			expectSrvHost: "localhost",
-			expectSrvPort: "46305",
-			expectError:   true,
-			expectMsg:     "TLS handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority",
+			expectError: true,
+			expectMsg:   "TLS handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority",
 		},
 		{
 			desc: "Wrong CA Cert and Insecure",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46306",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			caCertFile:    RSASamplePKCS8Certificate,
-			insecure:      true,
-			expectSrvHost: "localhost",
-			expectSrvPort: "46306",
+			caCertFile: RSASamplePKCS8Certificate,
+			insecure:   true,
 		},
 		{
 			desc: "IPV6 Endpoint RSA Cert Success",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "[::1]:46307",
+				listenHost:     "::1",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
-			caCertFile:    RSACaCertFile,
-			expectSrvHost: "::1",
-			expectSrvPort: "46307",
+			caCertFile: RSACaCertFile,
 		},
 		{
 			desc: "Error wrong ServerName",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46308",
 				serverName:     "example.co.uk",
 				serverCertFile: RSASampleCertFile,
 				//nolint:revive
@@ -131,31 +113,73 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 			expectError: true,
 			expectMsg:   "TLS handshake failed: tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not example.co.uk",
 		},
+		{
+			desc: "X25519MLKEM768 key exchange",
+			srvCfg: demoHTTPServerConfig{
+				serverName:          "example.com",
+				serverCertFile:      RSASampleCertBundleFile,
+				serverKeyFile:       RSASampleCertKeyFile,
+				tlsCurvePreferences: []tls.CurveID{tls.X25519MLKEM768},
+			},
+			caCertFile:  RSACaCertFile,
+			wantCurveID: "X25519MLKEM768",
+		},
+		{
+			desc: "SecP256r1MLKEM768 key exchange",
+			srvCfg: demoHTTPServerConfig{
+				serverName:          "example.com",
+				serverCertFile:      RSASampleCertBundleFile,
+				serverKeyFile:       RSASampleCertKeyFile,
+				tlsCurvePreferences: []tls.CurveID{tls.SecP256r1MLKEM768},
+			},
+			caCertFile:  RSACaCertFile,
+			wantCurveID: "SecP256r1MLKEM768",
+		},
+		{
+			desc: "SecP384r1MLKEM1024 key exchange",
+			srvCfg: demoHTTPServerConfig{
+				serverName:          "example.com",
+				serverCertFile:      RSASampleCertBundleFile,
+				serverKeyFile:       RSASampleCertKeyFile,
+				tlsCurvePreferences: []tls.CurveID{tls.SecP384r1MLKEM1024},
+			},
+			caCertFile:  RSACaCertFile,
+			wantCurveID: "SecP384r1MLKEM1024",
+		},
 	}
 
 	for _, tc := range tests {
 		tt := tc
 		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
 			ts, err := NewHTTPSTestServer(tt.srvCfg)
 			require.NoError(t, err)
+			t.Cleanup(ts.Close)
 
-			defer ts.Close()
+			endpoint := testServerHostPort(ts)
+			host, port, err := net.SplitHostPort(endpoint)
+			require.NoError(t, err)
 
 			cc, err := New()
 			require.NoError(t, err)
 
 			cc.SetTLSServerName(tt.srvCfg.serverName)
 			cc.SetCaPoolFromFile(tt.caCertFile, inputReader)
-			cc.SetTLSEndpoint(context.Background(), tt.srvCfg.serverAddr)
+			cc.SetTLSEndpoint(t.Context(), endpoint)
 			cc.SetTLSInsecure(tt.insecure)
 
-			err = cc.GetRemoteCerts(context.Background())
+			err = cc.GetRemoteCerts(t.Context())
 			if !tt.expectError {
 				require.NoError(t, err, "check error not expected")
 				require.Equal(t, tt.srvCfg.serverName, cc.TLSServerName, "check TLSServerName")
-				require.Equal(t, tt.expectSrvHost, cc.TLSEndpointHost, "check TLSEndpointHost")
-				require.Equal(t, tt.expectSrvPort, cc.TLSEndpointPort, "check TLSEndpointPort")
+				require.Equal(t, host, cc.TLSEndpointHost, "check TLSEndpointHost")
+				require.Equal(t, port, cc.TLSEndpointPort, "check TLSEndpointPort")
 				require.Equal(t, tt.insecure, cc.TLSInsecure, "check TLSInsecure")
+
+				if tt.wantCurveID != emptyString {
+					require.Equal(t, tt.wantCurveID, cc.NegotiatedCurveID, "check NegotiatedCurveID")
+				}
 
 				return
 			}
@@ -396,10 +420,8 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyFile:       RSASampleCertKeyFile,
 			caCertFile:    RSACaCertFile,
 			keyCertMatch:  true,
-			tlsEndpoint:   "localhost:46401",
 			tlsServerName: "example.com",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46401",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
@@ -409,11 +431,9 @@ func TestCertinfo_PrintData(t *testing.T) {
 			desc:          "local key and remote TLS Endpoint, certs NOT validated",
 			keyFile:       RSASampleCertKeyFile,
 			caCertFile:    emptyString,
-			tlsEndpoint:   "localhost:46402",
 			tlsServerName: "example.com",
 			//nolint:revive
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46402",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
@@ -429,25 +449,21 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyFile:       RSASampleCertKeyFile,
 			caCertFile:    emptyString,
 			keyCertMatch:  true,
-			tlsEndpoint:   "localhost:46403",
 			tlsInsecure:   true,
 			tlsServerName: "example.com",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46403",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
 			},
 		},
 		{
-			desc:        "local key and remote TLS Endpoint, missing TLS ServerName",
-			keyFile:     RSASampleCertKeyFile,
-			caCertFile:  RSACaCertFile,
-			tlsEndpoint: "localhost:46404",
+			desc:       "local key and remote TLS Endpoint, missing TLS ServerName",
+			keyFile:    RSASampleCertKeyFile,
+			caCertFile: RSACaCertFile,
 			//nolint:revive
 			tlsServerName: emptyString,
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46404",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				//nolint:revive
@@ -462,10 +478,8 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyFile:       ED25519SamplePlaintextPrivateKey,
 			caCertFile:    RSACaCertFile,
 			keyCertMatch:  false,
-			tlsEndpoint:   "localhost:46405",
 			tlsServerName: "example.com",
 			srvCfg: demoHTTPServerConfig{
-				serverAddr:     "localhost:46405",
 				serverName:     "example.com",
 				serverCertFile: RSASampleCertFile,
 				serverKeyFile:  RSASampleCertKeyFile,
@@ -476,6 +490,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 	for _, tc := range tests {
 		tt := tc
 		t.Run("No errors test - "+tt.desc, func(t *testing.T) {
+			t.Parallel()
 			runPrintDataSubtest(t, tt)
 		})
 	}
@@ -551,16 +566,24 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 	require.NoError(t, cc.SetCertsFromFile(tt.certFile, inputReader))
 	require.NoError(t, cc.SetCaPoolFromFile(tt.caCertFile, inputReader))
 
-	if tt.tlsEndpoint != emptyString {
+	if tt.srvCfg.serverCertFile != emptyString {
 		ts, errSrv := NewHTTPSTestServer(tt.srvCfg)
 		require.NoError(t, errSrv)
+		t.Cleanup(ts.Close)
 
-		defer ts.Close()
+		tt.tlsEndpoint = testServerHostPort(ts)
+		if tt.tlsServerName == emptyString {
+			// Cert SANs include 127.0.0.1; dial by hostname so empty SNI still mismatches.
+			_, port, splitErr := net.SplitHostPort(tt.tlsEndpoint)
+			require.NoError(t, splitErr)
+
+			tt.tlsEndpoint = net.JoinHostPort("localhost", port)
+		}
 
 		cc.SetTLSServerName(tt.tlsServerName)
 		cc.SetTLSInsecure(tt.tlsInsecure)
 
-		err = cc.SetTLSEndpoint(context.Background(), tt.tlsEndpoint)
+		err = cc.SetTLSEndpoint(t.Context(), tt.tlsEndpoint)
 		if tt.expectCertsFetchErr {
 			require.EqualError(t, err, tt.expectCertsFetcMsg)
 		} else {
