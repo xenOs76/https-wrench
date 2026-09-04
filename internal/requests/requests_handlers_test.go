@@ -318,12 +318,13 @@ func TestTransportAddressFromURLString(t *testing.T) {
 //nolint:revive
 func TestRenderTLSData(t *testing.T) {
 	tests := []struct {
-		srvAddr           string
-		srvTLSCipherSuite uint16
-		srvTLSMaxVersion  uint16
-		reqConf           RequestConfig
-		pool              *x509.CertPool
-		injectTLSError    bool
+		srvTLSCipherSuite   uint16
+		srvTLSMaxVersion    uint16
+		tlsCurvePreferences []tls.CurveID
+		reqConf             RequestConfig
+		pool                *x509.CertPool
+		injectTLSError      bool
+		wantCurveID         string
 	}{
 		// WARN: not all cipher suites listed as 'TLS 1.0 - 1.2 cipher suites'
 		// are supported.
@@ -331,12 +332,10 @@ func TestRenderTLSData(t *testing.T) {
 		// https://pkg.go.dev/crypto/tls#pkg-constants
 		// https://github.com/golang/go/issues/53750
 		{
-			srvAddr:           "localhost:46101",
 			srvTLSCipherSuite: tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 			srvTLSMaxVersion:  tls.VersionTLS12,
 			reqConf: RequestConfig{
-				Name:                 "example.com",
-				TransportOverrideURL: "https://localhost:46101",
+				Name: "example.com",
 				Hosts: []Host{
 					{Name: "example.com"},
 				},
@@ -349,13 +348,11 @@ func TestRenderTLSData(t *testing.T) {
 		// This test seems to prove the default list is returned instead (..SHA256 vs ...SHA384)
 		// Is this related to the certificate?
 		{
-			srvAddr: "localhost:46102",
 			// srvTLSCipherSuite: tls.TLS_AES_256_GCM_SHA384,
 			srvTLSCipherSuite: tls.TLS_AES_128_GCM_SHA256,
 			srvTLSMaxVersion:  tls.VersionTLS13,
 			reqConf: RequestConfig{
-				Name:                 "example.net",
-				TransportOverrideURL: "https://localhost:46102",
+				Name: "example.net",
 				Hosts: []Host{
 					{Name: "example.net"},
 				},
@@ -363,18 +360,55 @@ func TestRenderTLSData(t *testing.T) {
 			pool: caCertPool,
 		},
 		{
-			srvAddr:           "localhost:46103",
 			srvTLSCipherSuite: tls.TLS_AES_128_GCM_SHA256,
 			srvTLSMaxVersion:  tls.VersionTLS13,
 			reqConf: RequestConfig{
-				Name:                 "example.de",
-				TransportOverrideURL: "https://localhost:46103",
+				Name: "example.de",
 				Hosts: []Host{
 					{Name: "example.de"},
 				},
 			},
 			pool:           caCertPool,
 			injectTLSError: true,
+		},
+		{
+			srvTLSCipherSuite:   tls.TLS_AES_128_GCM_SHA256,
+			srvTLSMaxVersion:    tls.VersionTLS13,
+			tlsCurvePreferences: []tls.CurveID{tls.X25519MLKEM768},
+			reqConf: RequestConfig{
+				Name: "X25519MLKEM768",
+				Hosts: []Host{
+					{Name: "example.com"},
+				},
+			},
+			pool:        caCertPool,
+			wantCurveID: "X25519MLKEM768",
+		},
+		{
+			srvTLSCipherSuite:   tls.TLS_AES_128_GCM_SHA256,
+			srvTLSMaxVersion:    tls.VersionTLS13,
+			tlsCurvePreferences: []tls.CurveID{tls.SecP256r1MLKEM768},
+			reqConf: RequestConfig{
+				Name: "SecP256r1MLKEM768",
+				Hosts: []Host{
+					{Name: "example.net"},
+				},
+			},
+			pool:        caCertPool,
+			wantCurveID: "SecP256r1MLKEM768",
+		},
+		{
+			srvTLSCipherSuite:   tls.TLS_AES_128_GCM_SHA256,
+			srvTLSMaxVersion:    tls.VersionTLS13,
+			tlsCurvePreferences: []tls.CurveID{tls.SecP384r1MLKEM1024},
+			reqConf: RequestConfig{
+				Name: "SecP384r1MLKEM1024",
+				Hosts: []Host{
+					{Name: "example.de"},
+				},
+			},
+			pool:        caCertPool,
+			wantCurveID: "SecP384r1MLKEM1024",
 		},
 	}
 
@@ -384,17 +418,19 @@ func TestRenderTLSData(t *testing.T) {
 			t.Parallel()
 
 			httpSrvData := demoHttpServerData{
-				serverAddr:        tt.srvAddr,
-				tlsCipherSuites:   []uint16{tt.srvTLSCipherSuite},
-				tlsMaxVersion:     tt.srvTLSMaxVersion,
-				proxyprotoEnabled: false,
-				serverName:        "localhost",
+				tlsCipherSuites:     []uint16{tt.srvTLSCipherSuite},
+				tlsCurvePreferences: tt.tlsCurvePreferences,
+				tlsMaxVersion:       tt.srvTLSMaxVersion,
+				proxyprotoEnabled:   false,
+				serverName:          "localhost",
 			}
 
 			ts, err := NewHTTPSTestServer(httpSrvData)
 			require.NoError(t, err)
 
-			defer ts.Close()
+			t.Cleanup(ts.Close)
+
+			tt.reqConf.TransportOverrideURL = "https://" + testServerHostPort(ts)
 
 			respList, err := processHTTPRequestsByHost(
 				context.Background(),
@@ -431,6 +467,9 @@ func TestRenderTLSData(t *testing.T) {
 				expectedCipherSuiteName := tls.CipherSuiteName(tt.srvTLSCipherSuite)
 				assert.Contains(t, got, expectedCipherSuiteName)
 
+				assert.Contains(t, got, "Key Exchange")
+				assert.Contains(t, got, tt.wantCurveID)
+
 				assert.Contains(t, got, "Certificate 0")
 				assert.Contains(t, got, "Subject")
 				assert.Contains(t, got, "DNSNames")
@@ -448,9 +487,8 @@ func TestHandleRequests(t *testing.T) {
 		RequestVerbose: true,
 		Requests: []RequestConfig{
 			{
-				Name:                 "Meta10",
-				TransportOverrideURL: "localhost:46201",
-				UserAgent:            "Meta10",
+				Name:      "Meta10",
+				UserAgent: "Meta10",
 				Hosts: []Host{
 					{Name: "example.com"},
 				},
@@ -463,9 +501,8 @@ func TestHandleRequests(t *testing.T) {
 		RequestVerbose: true,
 		Requests: []RequestConfig{
 			{
-				Name:                 "Meta11",
-				TransportOverrideURL: "localhost:46202",
-				UserAgent:            "Meta11",
+				Name:      "Meta11",
+				UserAgent: "Meta11",
 				Hosts: []Host{
 					{Name: emptyString},
 				},
@@ -475,18 +512,15 @@ func TestHandleRequests(t *testing.T) {
 
 	tests := []struct {
 		desc      string
-		srvAddr   string
 		reqMeta   RequestsMetaConfig
 		expectErr bool
 	}{
 		{
 			desc:    "Meta10",
-			srvAddr: "localhost:46201",
 			reqMeta: reqMeta1,
 		},
 		{
 			desc:      "Meta11",
-			srvAddr:   "localhost:46202",
 			reqMeta:   reqMeta2,
 			expectErr: true,
 		},
@@ -502,7 +536,6 @@ func TestHandleRequests(t *testing.T) {
 
 type handleRequestsTestCase struct {
 	desc      string
-	srvAddr   string
 	reqMeta   RequestsMetaConfig
 	expectErr bool
 }
@@ -511,14 +544,15 @@ func runHandleRequestsSubtest(t *testing.T, tt handleRequestsTestCase) {
 	t.Parallel()
 
 	httpSrvData := demoHttpServerData{
-		serverAddr: tt.srvAddr,
 		serverName: "localhost",
 	}
 
 	ts, err := NewHTTPSTestServer(httpSrvData)
 	require.NoError(t, err)
 
-	defer ts.Close()
+	t.Cleanup(ts.Close)
+
+	tt.reqMeta.Requests[0].TransportOverrideURL = testServerHostPort(ts)
 
 	buffer := bytes.Buffer{}
 	respMap, err := HandleRequests(context.Background(), &buffer, &tt.reqMeta)
