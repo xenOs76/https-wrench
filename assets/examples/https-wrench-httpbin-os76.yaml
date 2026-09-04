@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/xenOs76/https-wrench/refs/heads/main/https-wrench.schema.json
+---
+verbose: true
+
+baseRequest: &httpbin
+  insecure: false
+  requestMethod: GET
+
+requests:
+  - <<: *httpbin
+    name: httpbin-443
+    responseBodyMatchRegexp: go-httpbin
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - <<: *httpbin
+    name: httpbin-transportOverride
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    responseBodyMatchRegexp: https-wrench-to-alt-addr
+    userAgent: https-wrench-to-alt-addr
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /user-agent
+
+  - <<: *httpbin
+    name: httpbin-proxyProtocolV2
+    enableProxyProtocolV2: true
+    transportOverrideUrl: https://httpbin.os76.xyz:445
+    responseBodyMatchRegexp: go-httpbin
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - <<: *httpbin
+    name: httpbin-verbose
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    userAgent: httpbin-verbose
+    printResponseCertificates: true
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Server
+    printResponseBody: true
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /headers
