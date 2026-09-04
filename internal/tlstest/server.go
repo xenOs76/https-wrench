@@ -85,6 +85,7 @@ func NewServer(cfg ServerConfig) (*httptest.Server, error) {
 
 	cert, err := tls.LoadX509KeyPair(cfg.ServerCertFile, cfg.ServerKeyFile)
 	if err != nil {
+		_ = ts.Listener.Close()
 		return nil, err
 	}
 

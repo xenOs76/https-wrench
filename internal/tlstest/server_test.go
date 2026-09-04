@@ -77,3 +77,14 @@ func TestNewServer(t *testing.T) {
 	t.Cleanup(func() { _ = res.Body.Close() })
 	require.Equal(t, http.StatusOK, res.StatusCode)
 }
+
+func TestNewServerMissingCertClosesListener(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewServer(ServerConfig{
+		ListenHost:     "127.0.0.1",
+		ServerCertFile: filepath.Join(t.TempDir(), "missing.pem"),
+		ServerKeyFile:  filepath.Join(t.TempDir(), "missing.key"),
+	})
+	require.Error(t, err)
+}

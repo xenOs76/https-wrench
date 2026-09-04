@@ -16,6 +16,8 @@
 
     Certinfo and requests: share CA/leaf certificate generation and custom TLS httptest servers via internal/tlstest.
 
+    Tlstest: close the httptest listener when certificate loading fails.
+
     Certinfo: GetRemoteCerts tests apply SetTLSInsecure before SetTLSEndpoint so endpoint certificate retrieval uses the intended TLS verification mode.
 
     Requests: httptest TLS servers bind an ephemeral port so parallel cases do not collide on fixed listeners.
