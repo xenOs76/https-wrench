@@ -12,13 +12,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/tlstest"
 )
 
 //nolint:revive
 func TestCertinfo_GetRemoteCerts(t *testing.T) {
 	tests := []struct {
 		desc        string
-		srvCfg      demoHTTPServerConfig
+		srvCfg      tlstest.ServerConfig
+		serverName  string
 		caCertFile  string
 		insecure    bool
 		expectError bool
@@ -27,20 +29,20 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 	}{
 		{
 			desc: "RSA Cert Success",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertBundleFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertBundleFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			caCertFile: RSACaCertFile,
 		},
 		{
 			desc: "Error Secure and No CA Cert",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			caCertFile: emptyString,
 			//nolint:revive
 			expectError: true,
@@ -49,11 +51,11 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 
 		{
 			desc: "Malformed Server Certificate",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASamplePKCS8Certificate,
-				serverKeyFile:  RSASamplePKCS8PlaintextPrivateKey,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASamplePKCS8Certificate,
+				ServerKeyFile:  RSASamplePKCS8PlaintextPrivateKey,
 			},
+			serverName: "example.com",
 			caCertFile: RSACaCertFile,
 			//nolint:revive
 			expectError: true,
@@ -61,21 +63,21 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 		},
 		{
 			desc: "No CA Cert and Insecure",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			insecure:   true,
 			caCertFile: emptyString,
 		},
 		{
 			desc: "Wrong CA Cert and Secure",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			caCertFile: RSASamplePKCS8Certificate,
 			//nolint:revive
 			expectError: true,
@@ -83,66 +85,66 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 		},
 		{
 			desc: "Wrong CA Cert and Insecure",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			caCertFile: RSASamplePKCS8Certificate,
 			insecure:   true,
 		},
 		{
 			desc: "IPV6 Endpoint RSA Cert Success",
-			srvCfg: demoHTTPServerConfig{
-				listenHost:     "::1",
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ListenHost:     "::1",
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
+			serverName: "example.com",
 			caCertFile: RSACaCertFile,
 		},
 		{
 			desc: "Error wrong ServerName",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.co.uk",
-				serverCertFile: RSASampleCertFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
 				//nolint:revive
-				serverKeyFile: RSASampleCertKeyFile,
+				ServerKeyFile: RSASampleCertKeyFile,
 			},
+			serverName:  "example.co.uk",
 			caCertFile:  RSACaCertFile,
 			expectError: true,
 			expectMsg:   "TLS handshake failed: tls: failed to verify certificate: x509: certificate is valid for example.com, example.net, example.de, not example.co.uk",
 		},
 		{
 			desc: "X25519MLKEM768 key exchange",
-			srvCfg: demoHTTPServerConfig{
-				serverName:          "example.com",
-				serverCertFile:      RSASampleCertBundleFile,
-				serverKeyFile:       RSASampleCertKeyFile,
-				tlsCurvePreferences: []tls.CurveID{tls.X25519MLKEM768},
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile:      RSASampleCertBundleFile,
+				ServerKeyFile:       RSASampleCertKeyFile,
+				TLSCurvePreferences: []tls.CurveID{tls.X25519MLKEM768},
 			},
+			serverName:  "example.com",
 			caCertFile:  RSACaCertFile,
 			wantCurveID: "X25519MLKEM768",
 		},
 		{
 			desc: "SecP256r1MLKEM768 key exchange",
-			srvCfg: demoHTTPServerConfig{
-				serverName:          "example.com",
-				serverCertFile:      RSASampleCertBundleFile,
-				serverKeyFile:       RSASampleCertKeyFile,
-				tlsCurvePreferences: []tls.CurveID{tls.SecP256r1MLKEM768},
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile:      RSASampleCertBundleFile,
+				ServerKeyFile:       RSASampleCertKeyFile,
+				TLSCurvePreferences: []tls.CurveID{tls.SecP256r1MLKEM768},
 			},
+			serverName:  "example.com",
 			caCertFile:  RSACaCertFile,
 			wantCurveID: "SecP256r1MLKEM768",
 		},
 		{
 			desc: "SecP384r1MLKEM1024 key exchange",
-			srvCfg: demoHTTPServerConfig{
-				serverName:          "example.com",
-				serverCertFile:      RSASampleCertBundleFile,
-				serverKeyFile:       RSASampleCertKeyFile,
-				tlsCurvePreferences: []tls.CurveID{tls.SecP384r1MLKEM1024},
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile:      RSASampleCertBundleFile,
+				ServerKeyFile:       RSASampleCertKeyFile,
+				TLSCurvePreferences: []tls.CurveID{tls.SecP384r1MLKEM1024},
 			},
+			serverName:  "example.com",
 			caCertFile:  RSACaCertFile,
 			wantCurveID: "SecP384r1MLKEM1024",
 		},
@@ -153,18 +155,18 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			ts, err := NewHTTPSTestServer(tt.srvCfg)
+			ts, err := tlstest.NewServer(tt.srvCfg)
 			require.NoError(t, err)
 			t.Cleanup(ts.Close)
 
-			endpoint := testServerHostPort(ts)
+			endpoint := ts.Listener.Addr().String()
 			host, port, err := net.SplitHostPort(endpoint)
 			require.NoError(t, err)
 
 			cc, err := New()
 			require.NoError(t, err)
 
-			cc.SetTLSServerName(tt.srvCfg.serverName)
+			cc.SetTLSServerName(tt.serverName)
 			cc.SetCaPoolFromFile(tt.caCertFile, inputReader)
 			cc.SetTLSInsecure(tt.insecure)
 			cc.SetTLSEndpoint(t.Context(), endpoint)
@@ -172,7 +174,7 @@ func TestCertinfo_GetRemoteCerts(t *testing.T) {
 			err = cc.GetRemoteCerts(t.Context())
 			if !tt.expectError {
 				require.NoError(t, err, "check error not expected")
-				require.Equal(t, tt.srvCfg.serverName, cc.TLSServerName, "check TLSServerName")
+				require.Equal(t, tt.serverName, cc.TLSServerName, "check TLSServerName")
 				require.Equal(t, host, cc.TLSEndpointHost, "check TLSEndpointHost")
 				require.Equal(t, port, cc.TLSEndpointPort, "check TLSEndpointPort")
 				require.Equal(t, tt.insecure, cc.TLSInsecure, "check TLSInsecure")
@@ -398,7 +400,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 		tlsEndpoint         string
 		tlsInsecure         bool
 		tlsServerName       string
-		srvCfg              demoHTTPServerConfig
+		srvCfg              tlstest.ServerConfig
 		expectCertsFetchErr bool
 		expectCertsFetcMsg  string
 	}{
@@ -421,10 +423,9 @@ func TestCertinfo_PrintData(t *testing.T) {
 			caCertFile:    RSACaCertFile,
 			keyCertMatch:  true,
 			tlsServerName: "example.com",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
 		},
 		{
@@ -433,10 +434,9 @@ func TestCertinfo_PrintData(t *testing.T) {
 			caCertFile:    emptyString,
 			tlsServerName: "example.com",
 			//nolint:revive
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 				//nolint:revive
 			},
 			//nolint:revive
@@ -451,10 +451,9 @@ func TestCertinfo_PrintData(t *testing.T) {
 			keyCertMatch:  true,
 			tlsInsecure:   true,
 			tlsServerName: "example.com",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
 		},
 		{
@@ -463,11 +462,10 @@ func TestCertinfo_PrintData(t *testing.T) {
 			caCertFile: RSACaCertFile,
 			//nolint:revive
 			tlsServerName: emptyString,
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
 				//nolint:revive
-				serverKeyFile: RSASampleCertKeyFile,
+				ServerKeyFile: RSASampleCertKeyFile,
 				//nolint:revive
 			},
 			expectCertsFetchErr: true,
@@ -479,10 +477,9 @@ func TestCertinfo_PrintData(t *testing.T) {
 			caCertFile:    RSACaCertFile,
 			keyCertMatch:  false,
 			tlsServerName: "example.com",
-			srvCfg: demoHTTPServerConfig{
-				serverName:     "example.com",
-				serverCertFile: RSASampleCertFile,
-				serverKeyFile:  RSASampleCertKeyFile,
+			srvCfg: tlstest.ServerConfig{
+				ServerCertFile: RSASampleCertFile,
+				ServerKeyFile:  RSASampleCertKeyFile,
 			},
 		},
 	}
@@ -551,7 +548,7 @@ type printDataTestCase struct {
 	tlsEndpoint         string
 	tlsInsecure         bool
 	tlsServerName       string
-	srvCfg              demoHTTPServerConfig
+	srvCfg              tlstest.ServerConfig
 	expectCertsFetchErr bool
 	expectCertsFetcMsg  string
 }
@@ -566,12 +563,12 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 	require.NoError(t, cc.SetCertsFromFile(tt.certFile, inputReader))
 	require.NoError(t, cc.SetCaPoolFromFile(tt.caCertFile, inputReader))
 
-	if tt.srvCfg.serverCertFile != emptyString {
-		ts, errSrv := NewHTTPSTestServer(tt.srvCfg)
+	if tt.srvCfg.ServerCertFile != emptyString {
+		ts, errSrv := tlstest.NewServer(tt.srvCfg)
 		require.NoError(t, errSrv)
 		t.Cleanup(ts.Close)
 
-		tt.tlsEndpoint = testServerHostPort(ts)
+		tt.tlsEndpoint = ts.Listener.Addr().String()
 		if tt.tlsServerName == emptyString {
 			// Cert SANs include 127.0.0.1; dial by hostname so empty SNI still mismatches.
 			_, port, splitErr := net.SplitHostPort(tt.tlsEndpoint)

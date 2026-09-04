@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/tlstest"
 )
 
 func TestResponseHeader_Print(t *testing.T) {
@@ -432,20 +433,22 @@ func TestRenderTLSData(t *testing.T) {
 		t.Run(tt.reqConf.Name, func(t *testing.T) {
 			t.Parallel()
 
-			httpSrvData := demoHttpServerData{
-				tlsCipherSuites:     []uint16{tt.srvTLSCipherSuite},
-				tlsCurvePreferences: tt.tlsCurvePreferences,
-				tlsMaxVersion:       tt.srvTLSMaxVersion,
-				proxyprotoEnabled:   false,
-				serverName:          "localhost",
+			cfg := tlstest.ServerConfig{
+				TLSCurvePreferences: tt.tlsCurvePreferences,
+				TLSMaxVersion:       tt.srvTLSMaxVersion,
+				ServerCertFile:      exampleCertFile,
+				ServerKeyFile:       exampleCertKeyFile,
+			}
+			if tt.srvTLSMaxVersion <= tls.VersionTLS12 {
+				cfg.TLSCipherSuites = []uint16{tt.srvTLSCipherSuite}
 			}
 
-			ts, err := NewHTTPSTestServer(httpSrvData)
+			ts, err := tlstest.NewServer(cfg)
 			require.NoError(t, err)
 
 			t.Cleanup(ts.Close)
 
-			tt.reqConf.TransportOverrideURL = "https://" + testServerHostPort(ts)
+			tt.reqConf.TransportOverrideURL = "https://" + ts.Listener.Addr().String()
 
 			respList, err := processHTTPRequestsByHost(
 				context.Background(),
@@ -559,16 +562,15 @@ type handleRequestsTestCase struct {
 func runHandleRequestsSubtest(t *testing.T, tt handleRequestsTestCase) {
 	t.Parallel()
 
-	httpSrvData := demoHttpServerData{
-		serverName: "localhost",
-	}
-
-	ts, err := NewHTTPSTestServer(httpSrvData)
+	ts, err := tlstest.NewServer(tlstest.ServerConfig{
+		ServerCertFile: exampleCertFile,
+		ServerKeyFile:  exampleCertKeyFile,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(ts.Close)
 
-	tt.reqMeta.Requests[0].TransportOverrideURL = testServerHostPort(ts)
+	tt.reqMeta.Requests[0].TransportOverrideURL = ts.Listener.Addr().String()
 
 	buffer := bytes.Buffer{}
 	respMap, err := HandleRequests(context.Background(), &buffer, &tt.reqMeta)

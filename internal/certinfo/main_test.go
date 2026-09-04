@@ -3,45 +3,18 @@ package certinfo
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"math/big"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/pires/go-proxyproto"
+	"github.com/xenos76/https-wrench/internal/tlstest"
 )
 
 type (
-	certificateTemplate struct {
-		cn          string
-		isCA        bool
-		dnsNames    []string
-		ipAddresses []net.IP
-		key         *rsa.PrivateKey
-		caKey       *rsa.PrivateKey
-		parent      *x509.Certificate
-	}
-
-	demoHTTPServerConfig struct {
-		listenHost          string
-		proxyprotoEnabled   bool
-		serverName          string
-		tlsCipherSuites     []uint16
-		tlsCurvePreferences []tls.CurveID
-		tlsMaxVersion       uint16
-		serverCertFile      string
-		serverKeyFile       string
-	}
-
 	MockErrReader   struct{}
 	MockInputReader struct{}
 	mockReader      struct{}
@@ -180,17 +153,16 @@ func generateRSACertificateData() {
 		fmt.Println(err)
 	}
 
-	rsaSampleCertTpl := certificateTemplate{
-		cn:          "RSA Testing Sample Certificate",
-		isCA:        false,
-		key:         RSASampleCertKey,
-		caKey:       RSACaCertKey,
-		parent:      RSACaCertParent,
-		dnsNames:    []string{"example.com", "example.net", "example.de"},
-		ipAddresses: []net.IP{net.ParseIP("::1"), net.ParseIP("127.0.0.1")},
+	rsaSampleCertTpl := tlstest.Template{
+		CN:          "RSA Testing Sample Certificate",
+		Key:         RSASampleCertKey,
+		CAKey:       RSACaCertKey,
+		Parent:      RSACaCertParent,
+		DNSNames:    []string{"example.com", "example.net", "example.de"},
+		IPAddresses: []net.IP{net.ParseIP("::1"), net.ParseIP("127.0.0.1")},
 	}
 
-	RSASampleCertPEM, RSASampleCertParent, _ = GenerateCertificate(
+	RSASampleCertPEM, RSASampleCertParent, _ = tlstest.GenerateCert(
 		rsaSampleCertTpl,
 	)
 	RSASampleCertPEMString = string(RSASampleCertPEM)
@@ -230,12 +202,12 @@ func generateRSACaData() {
 		fmt.Println(err)
 	}
 
-	rsaCaCertTpl := certificateTemplate{
-		cn:   "RSA Testing CA",
-		isCA: true,
-		key:  RSACaCertKey,
+	rsaCaCertTpl := tlstest.Template{
+		CN:   "RSA Testing CA",
+		IsCA: true,
+		Key:  RSACaCertKey,
 	}
-	RSACaCertPEM, RSACaCertParent, _ = GenerateCertificate(
+	RSACaCertPEM, RSACaCertParent, _ = tlstest.GenerateCert(
 		rsaCaCertTpl,
 	)
 	RSACaCertPEMString = string(RSACaCertPEM)
@@ -251,84 +223,6 @@ func generateRSACaData() {
 	if err != nil {
 		fmt.Print(err)
 	}
-}
-
-// GenerateDemoCert takes as input a demoCertTemplate struct, creates a x509 Certificate
-// and returns a PEM encoded version of the certificate, a pointer to the certificate and
-// an error.
-// The pointer can be used as parent in the creation of a new certificate linked to a self signed
-// CA.
-//
-// Reference: https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-func GenerateCertificate(tpl certificateTemplate) ([]byte, *x509.Certificate, error) {
-	// Create a random serial number
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate serial number: %w", err)
-	}
-
-	// Define template for non CA certificate
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: tpl.cn,
-		},
-		NotBefore:   time.Now(),
-		NotAfter:    time.Now().Add(1 * 24 * time.Hour),
-		IsCA:        false,
-		DNSNames:    tpl.dnsNames,
-		IPAddresses: tpl.ipAddresses,
-		ExtKeyUsage: []x509.ExtKeyUsage{
-			x509.ExtKeyUsageClientAuth,
-			x509.ExtKeyUsageServerAuth,
-		},
-		KeyUsage: x509.KeyUsageDigitalSignature,
-	}
-
-	certParent := tpl.parent
-	signingKey := tpl.caKey
-
-	// in case of CA cert we update the template with the proper fields
-	// 	use the CA cert key for signing
-	// and do not reference any previous parent Certificate
-	if tpl.isCA {
-		signingKey = tpl.key
-		template = x509.Certificate{
-			SerialNumber: serialNumber,
-			Subject: pkix.Name{
-				CommonName: tpl.cn,
-			},
-			NotBefore: time.Now(),
-			NotAfter:  time.Now().Add(1 * 24 * time.Hour),
-			IsCA:      true,
-			ExtKeyUsage: []x509.ExtKeyUsage{
-				x509.ExtKeyUsageClientAuth,
-				x509.ExtKeyUsageServerAuth,
-			},
-			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-			BasicConstraintsValid: true,
-		}
-		certParent = &template
-	}
-
-	derBytes, err := x509.CreateCertificate(rand.Reader,
-		&template, certParent, &tpl.key.PublicKey, signingKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
-	}
-
-	// Encode the certificate to PEM
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-
-	// parse the DER encoded x509.Certificate
-	certificate, err := x509.ParseCertificate(derBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return certPEM, certificate, nil
 }
 
 func createTmpFileWithContent(
@@ -373,87 +267,4 @@ func RSAPrivateKeyToPEM(key *rsa.PrivateKey) []byte {
 	keyPEM := pem.EncodeToMemory(&keyBlock)
 
 	return keyPEM
-}
-
-func testServerHostPort(ts *httptest.Server) string {
-	return ts.Listener.Addr().String()
-}
-
-// NewHTTPSTestServer starts an httptest TLS server configured by cfg.
-// Cipher suites default to the TLS 1.3 AEADs, CurvePreferences to the Go 1.27
-// PQ hybrids plus classical fallbacks, and MaxVersion to TLS 1.3. Non-empty
-// cfg.tlsCipherSuites, cfg.tlsCurvePreferences, or a non-zero cfg.tlsMaxVersion
-// override those defaults. Optional cfg.listenHost and cfg.proxyprotoEnabled
-// replace the listener. The caller must Close the returned server.
-func NewHTTPSTestServer(cfg demoHTTPServerConfig) (*httptest.Server, error) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "DemoHTTPSServer Handler - client output\n")
-		fmt.Fprint(w, "Host requested: ", r.Host, "\n")
-
-		fmt.Println("DemoHTTPSServer Handler - shell output")
-	})
-
-	ts := httptest.NewUnstartedServer(handler)
-	ts.EnableHTTP2 = true
-
-	if cfg.listenHost != emptyString {
-		ln, err := net.Listen("tcp", net.JoinHostPort(cfg.listenHost, "0"))
-		if err != nil {
-			return nil, fmt.Errorf("error creating listener: %w", err)
-		}
-
-		_ = ts.Listener.Close()
-		ts.Listener = ln
-	}
-
-	if cfg.proxyprotoEnabled {
-		ts.Listener = &proxyproto.Listener{
-			Listener:          ts.Listener,
-			ReadHeaderTimeout: 10 * time.Second,
-		}
-	}
-
-	cert, err := tls.LoadX509KeyPair(
-		cfg.serverCertFile,
-		cfg.serverKeyFile,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set default TLS CipherSuites to TLS 1.3 cipher suites
-	// https://pkg.go.dev/crypto/tls#pkg-constants
-	tlsCipherSuites := []uint16{
-		tls.TLS_AES_128_GCM_SHA256,
-		tls.TLS_AES_256_GCM_SHA384,
-		tls.TLS_CHACHA20_POLY1305_SHA256,
-	}
-
-	if len(cfg.tlsCipherSuites) > 0 {
-		tlsCipherSuites = cfg.tlsCipherSuites
-	}
-
-	tlsCurvePreferences := defaultCurvePreferences
-
-	if len(cfg.tlsCurvePreferences) > 0 {
-		tlsCurvePreferences = cfg.tlsCurvePreferences
-	}
-
-	// Set default TLS MaxVersion to 1.3
-	var tlsMaxVersion uint16 = tls.VersionTLS13
-
-	if cfg.tlsMaxVersion > 0 {
-		tlsMaxVersion = cfg.tlsMaxVersion
-	}
-
-	ts.TLS = &tls.Config{
-		Certificates:     []tls.Certificate{cert},
-		CipherSuites:     tlsCipherSuites,
-		CurvePreferences: tlsCurvePreferences,
-		MaxVersion:       tlsMaxVersion,
-	}
-
-	ts.StartTLS()
-
-	return ts, nil
 }
