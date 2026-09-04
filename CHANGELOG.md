@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD024 -->
+
 # https-wrench - changelog
 
 ## 0.15.1 (2026-09-03)
