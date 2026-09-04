@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/tlstest"
 )
 
 func TestNewRequestsMetaConfig(t *testing.T) {
@@ -1387,12 +1388,15 @@ func runSetTransportOverrideSubtest(t *testing.T, tt setTransportOverrideTestCas
 
 	c := NewRequestHTTPClient()
 
-	ts, err := NewHTTPSTestServer(demoHttpServerData{})
+	ts, err := tlstest.NewServer(tlstest.ServerConfig{
+		ServerCertFile: exampleCertFile,
+		ServerKeyFile:  exampleCertKeyFile,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(ts.Close)
 
-	hostPort := testServerHostPort(ts)
+	hostPort := ts.Listener.Addr().String()
 	transportURL := "https://" + hostPort
 
 	_, err = c.SetTransportOverride(transportURL)
@@ -1444,17 +1448,17 @@ type setProxyProtocolV2TestCase struct {
 func runSetProxyProtocolV2Subtest(t *testing.T, tt setProxyProtocolV2TestCase) {
 	t.Parallel()
 
-	httpSrvData := demoHttpServerData{
-		listenHost:        tt.listenHost,
-		proxyprotoEnabled: true,
-	}
-
-	ts, err := NewHTTPSTestServer(httpSrvData)
+	ts, err := tlstest.NewServer(tlstest.ServerConfig{
+		ListenHost:        tt.listenHost,
+		ProxyprotoEnabled: true,
+		ServerCertFile:    exampleCertFile,
+		ServerKeyFile:     exampleCertKeyFile,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(ts.Close)
 
-	hostPort := testServerHostPort(ts)
+	hostPort := ts.Listener.Addr().String()
 	transportURL := "https://" + hostPort
 	reqURL := "https://" + tt.serverName
 
@@ -1510,12 +1514,10 @@ type printResponseDebugTestCase struct {
 func runPrintResponseDebugSubtest(t *testing.T, tt printResponseDebugTestCase) {
 	t.Parallel()
 
-	httpSrvData := demoHttpServerData{
-		proxyprotoEnabled: false,
-		serverName:        "localhost",
-	}
-
-	ts, err := NewHTTPSTestServer(httpSrvData)
+	ts, err := tlstest.NewServer(tlstest.ServerConfig{
+		ServerCertFile: exampleCertFile,
+		ServerKeyFile:  exampleCertKeyFile,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(ts.Close)
@@ -1559,17 +1561,15 @@ type processHTTPRequestsByHostTestCase struct {
 func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByHostTestCase) {
 	t.Parallel()
 
-	httpSrvData := demoHttpServerData{
-		proxyprotoEnabled: false,
-		serverName:        "localhost",
-	}
-
-	ts, err := NewHTTPSTestServer(httpSrvData)
+	ts, err := tlstest.NewServer(tlstest.ServerConfig{
+		ServerCertFile: exampleCertFile,
+		ServerKeyFile:  exampleCertKeyFile,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(ts.Close)
 
-	hostPort := testServerHostPort(ts)
+	hostPort := ts.Listener.Addr().String()
 	tt.reqConf.TransportOverrideURL = "https://" + hostPort
 
 	respList, err := processHTTPRequestsByHost(
