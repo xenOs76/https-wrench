@@ -89,10 +89,10 @@ jobs:
         run: go mod tidy
 
       - name: Test with the Go CLI
-        run: go test ./... -race
+        run: CGO_ENABLED=1 go test ./... -race
 
       - name: Build
-        run: go build -v ./...
+        run: CGO_ENABLED=0 go build -v ./...
 
   go_test_coverage_check:
     needs: go_tests
