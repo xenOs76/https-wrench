@@ -412,6 +412,19 @@ func TestRenderTLSData(t *testing.T) {
 			pool:        caCertPool,
 			wantCurveID: "SecP384r1MLKEM1024",
 		},
+		{
+			srvTLSCipherSuite:   tls.TLS_AES_128_GCM_SHA256,
+			srvTLSMaxVersion:    tls.VersionTLS13,
+			tlsCurvePreferences: []tls.CurveID{tls.CurveP521},
+			reqConf: RequestConfig{
+				Name: "CurveP521",
+				Hosts: []Host{
+					{Name: "example.com"},
+				},
+			},
+			pool:        caCertPool,
+			wantCurveID: "CurveP521",
+		},
 	}
 
 	for _, tc := range tests {

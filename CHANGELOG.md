@@ -10,7 +10,7 @@
 
 ### Feat
 
-    Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences and print the negotiated key exchange.
+    Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
 
 ### Tests
 

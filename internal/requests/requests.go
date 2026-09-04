@@ -51,6 +51,7 @@ var defaultCurvePreferences = []tls.CurveID{
 	tls.X25519,
 	tls.CurveP256,
 	tls.CurveP384,
+	tls.CurveP521,
 }
 
 // ErrMethodNotFound is returned when an unsupported HTTP method is specified.
