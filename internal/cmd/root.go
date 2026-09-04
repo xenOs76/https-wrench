@@ -105,11 +105,6 @@ func init() {
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.https-wrench.yaml)")
 	rootCmd.PersistentFlags().Bool("version", false, "Display the version")
 
-	err := viper.BindPFlag("version", rootCmd.PersistentFlags().Lookup("version"))
-	if err != nil {
-		fmt.Printf("Error binding version flag: %v\n", err)
-	}
-
 	addCaBundleFlag(requestsCmd)
 	// addCertBundleFlag(requestsCmd)
 	// addKeyFileFlag(requestsCmd)
@@ -117,6 +112,30 @@ func init() {
 	addCaBundleFlag(certinfoCmd)
 	addCertBundleFlag(certinfoCmd)
 	addKeyFileFlag(certinfoCmd)
+
+	bindViperFlags()
+}
+
+func bindViperFlags() {
+	if err := viper.BindPFlag("version", rootCmd.PersistentFlags().Lookup("version")); err != nil {
+		fmt.Printf("Error binding version flag: %v\n", err)
+	}
+
+	if err := viper.BindPFlag("ca-bundle", requestsCmd.Flags().Lookup("ca-bundle")); err != nil {
+		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
+	}
+
+	if err := viper.BindPFlag("ca-bundle", certinfoCmd.Flags().Lookup("ca-bundle")); err != nil {
+		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
+	}
+
+	if err := viper.BindPFlag("cert-bundle", certinfoCmd.Flags().Lookup("cert-bundle")); err != nil {
+		fmt.Printf("Error binding cert-bundle flag: %v\n", err)
+	}
+
+	if err := viper.BindPFlag("key-file", certinfoCmd.Flags().Lookup("key-file")); err != nil {
+		fmt.Printf("Error binding key-file flag: %v\n", err)
+	}
 }
 
 func initConfig() {
@@ -168,27 +187,12 @@ func isMCPCommand() bool {
 func addCaBundleFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", `Path to bundle file with CA certificates 
 to use for validation`)
-
-	err := viper.BindPFlag("ca-bundle", cmd.Flags().Lookup("ca-bundle"))
-	if err != nil {
-		fmt.Printf("Error binding ca-bundle flag: %v\n", err)
-	}
 }
 
 func addCertBundleFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&certBundlePath, "cert-bundle", "", "Path to PEM Certificate bundle file")
-
-	err := viper.BindPFlag("cert-bundle", cmd.Flags().Lookup("cert-bundle"))
-	if err != nil {
-		fmt.Printf("Error binding cert-bundle flag: %v\n", err)
-	}
 }
 
 func addKeyFileFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&keyFilePath, "key-file", "", "Path to PEM Key file")
-
-	err := viper.BindPFlag("key-file", cmd.Flags().Lookup("key-file"))
-	if err != nil {
-		fmt.Printf("Error binding key-file flag: %v\n", err)
-	}
 }

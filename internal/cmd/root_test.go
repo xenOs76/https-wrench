@@ -13,15 +13,28 @@ import (
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
+func resetPersistentFlag(name string) {
+	f := rootCmd.PersistentFlags().Lookup(name)
+	_ = f.Value.Set(f.DefValue)
+	f.Changed = false
+}
+
+func resetViper() {
+	resetPersistentFlag("version")
+	resetPersistentFlag("config")
+	viper.Reset()
+	bindViperFlags()
+}
+
 //nolint:revive
 func TestRootCmd_LoadConfig(t *testing.T) {
 	t.Run("LoadConfig no config file", func(t *testing.T) {
 		oldCfg := cfgFile
 
 		t.Cleanup(func() {
-			cfgFile = oldCfg
+			resetViper()
 
-			viper.Reset()
+			cfgFile = oldCfg
 		})
 
 		var mc requests.RequestsMetaConfig
@@ -44,9 +57,9 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		oldCfg := cfgFile
 
 		t.Cleanup(func() {
-			cfgFile = oldCfg
+			resetViper()
 
-			viper.Reset()
+			cfgFile = oldCfg
 		})
 
 		var expectedCaCertsPool *x509.CertPool
@@ -79,9 +92,9 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		oldCfg := cfgFile
 
 		t.Cleanup(func() {
-			cfgFile = oldCfg
+			resetViper()
 
-			viper.Reset()
+			cfgFile = oldCfg
 		})
 
 		cfgFile = "../../assets/examples/https-wrench-k3s-anchor-and-aliases.yaml"
@@ -117,9 +130,9 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		oldCfg := cfgFile
 
 		t.Cleanup(func() {
-			cfgFile = oldCfg
+			resetViper()
 
-			viper.Reset()
+			cfgFile = oldCfg
 		})
 
 		// Make Unmarshal fail by setting a type mismatch
@@ -159,10 +172,10 @@ func TestRootCmd_Execute(t *testing.T) {
 		oldCfg := cfgFile
 
 		t.Cleanup(func() {
-			cfgFile = oldCfg
-
 			rootCmd.SetArgs(nil)
-			viper.Reset()
+			resetViper()
+
+			cfgFile = oldCfg
 		})
 
 		rootCmd.SetArgs([]string{"--config", "./embedded/config-example.yaml"})
@@ -228,9 +241,9 @@ func TestRootCmd(t *testing.T) {
 			oldCfg := cfgFile
 
 			t.Cleanup(func() {
-				cfgFile = oldCfg
+				resetViper()
 
-				viper.Reset()
+				cfgFile = oldCfg
 			})
 
 			buf := new(bytes.Buffer)

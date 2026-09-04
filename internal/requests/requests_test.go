@@ -262,6 +262,10 @@ func TestNewRequestHTTPClient(t *testing.T) {
 			transportExpectContinueTimeout,
 			transport.ExpectContinueTimeout,
 			"unexpected value for ExpectContinueTimeout")
+		assert.Equal(t,
+			defaultCurvePreferences,
+			transport.TLSClientConfig.CurvePreferences,
+			"unexpected CurvePreferences")
 	})
 }
 
@@ -859,21 +863,16 @@ func TestRequestHTTPClient_SetTransportOverride_Error(t *testing.T) {
 //nolint:revive // test function
 func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testing.T) {
 	tests := []struct {
-		trasportURL   string
-		transportAddr string
-		requestHost   string
+		requestHost string
 	}{
 		{
-			"https://127.0.0.1:6455",
-			"127.0.0.1:6455",
 			"example.com",
 		},
 	}
 
 	for _, tc := range tests {
 		tt := tc // safer when using t.Parallel()
-		testname := fmt.Sprintf("%v", tt.trasportURL)
-		t.Run(testname, func(t *testing.T) {
+		t.Run(tt.requestHost, func(t *testing.T) {
 			runSetTransportOverrideSubtest(t, tt)
 		})
 	}
@@ -883,17 +882,17 @@ func TestRequestHTTPClient_SetTransportOverride_transportAddress_server(t *testi
 func TestRequestHTTPClient_SetProxyProtocolV2_server(t *testing.T) {
 	tests := []struct {
 		testname   string
-		addr       string
+		listenHost string
 		serverName string
 	}{
 		{
 			"localhost IPv4",
-			"127.0.0.1:45678",
+			"",
 			"example.net",
 		},
 		{
 			"localhost IPv6",
-			"[::1]:45679",
+			"::1",
 			"example.de",
 		},
 	}
@@ -990,13 +989,11 @@ func TestPrintCmd(t *testing.T) {
 func TestPrintResponseDebug(t *testing.T) {
 	tests := []struct {
 		desc    string
-		srvAddr string
 		verbose bool
 		outputs []string
 	}{
 		{
 			desc:    "verboseTrue",
-			srvAddr: "localhost:46010",
 			verbose: true,
 			outputs: []string{
 				"Requested url:",
@@ -1004,11 +1001,11 @@ func TestPrintResponseDebug(t *testing.T) {
 				"DemoHTTPSServer Handler - client output",
 				"TLS:",
 				"CipherSuite:",
+				"Key Exchange:",
 			},
 		},
 		{
 			desc:    "verboseFalse",
-			srvAddr: "localhost:46011",
 			verbose: false,
 			outputs: []string{emptyString},
 		},
@@ -1141,7 +1138,6 @@ func TestPrintRequestDebug(t *testing.T) {
 //nolint:revive
 func TestProcessHTTPRequestsByHost(t *testing.T) {
 	tests := []struct {
-		srvAddr        string
 		reqConf        RequestConfig
 		pool           *x509.CertPool
 		verbose        bool
@@ -1149,11 +1145,9 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 		errMsg         string
 	}{
 		{
-			srvAddr: "localhost:46001",
 			reqConf: RequestConfig{
-				Name:                 "StatusOK",
-				TransportOverrideURL: "https://localhost:46001",
-				UserAgent:            "test-ua",
+				Name:      "StatusOK",
+				UserAgent: "test-ua",
 				RequestHeaders: []RequestHeader{
 					{Key: "testKey", Value: "testValue"},
 					{Key: "testKey2", Value: "testValue2"},
@@ -1168,10 +1162,8 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 		},
 
 		{
-			srvAddr: "localhost:46002",
 			reqConf: RequestConfig{
-				Name:                 "invalidServerName",
-				TransportOverrideURL: "https://localhost:46002",
+				Name: "invalidServerName",
 				Hosts: []Host{
 					{Name: "localhost"},
 				},
@@ -1184,12 +1176,10 @@ func TestProcessHTTPRequestsByHost(t *testing.T) {
 		},
 
 		{
-			srvAddr: "localhost:46003",
 			reqConf: RequestConfig{
 				Name:                    "bodyRex",
 				ResponseBodyMatchRegexp: "DemoHTTPSServer Handler - client output",
 				PrintResponseBody:       true,
-				TransportOverrideURL:    "https://localhost:46003",
 				Hosts: []Host{
 					{Name: "example.com"},
 				},
@@ -1389,9 +1379,7 @@ func runNewHTTPClientFromRequestConfigSubtest(t *testing.T, tt newHTTPClientFrom
 }
 
 type setTransportOverrideTestCase struct {
-	trasportURL   string
-	transportAddr string
-	requestHost   string
+	requestHost string
 }
 
 func runSetTransportOverrideSubtest(t *testing.T, tt setTransportOverrideTestCase) {
@@ -1399,19 +1387,20 @@ func runSetTransportOverrideSubtest(t *testing.T, tt setTransportOverrideTestCas
 
 	c := NewRequestHTTPClient()
 
-	_, err := c.SetTransportOverride(tt.trasportURL)
+	ts, err := NewHTTPSTestServer(demoHttpServerData{})
 	require.NoError(t, err)
 
-	assert.Equal(t, tt.transportAddr, c.transportAddress)
+	t.Cleanup(ts.Close)
+
+	hostPort := testServerHostPort(ts)
+	transportURL := "https://" + hostPort
+
+	_, err = c.SetTransportOverride(transportURL)
+	require.NoError(t, err)
+
+	assert.Equal(t, hostPort, c.transportAddress)
 
 	fmt.Printf("c.transportAddress is %s\n", c.transportAddress)
-
-	httpSrvData := demoHttpServerData{serverAddr: tt.transportAddr}
-
-	ts, err := NewHTTPSTestServer(httpSrvData)
-	require.NoError(t, err)
-
-	defer ts.Close()
 
 	// Extract the transport via type assertion
 	tr, ok := c.client.Transport.(*http.Transport)
@@ -1448,7 +1437,7 @@ func runSetTransportOverrideSubtest(t *testing.T, tt setTransportOverrideTestCas
 
 type setProxyProtocolV2TestCase struct {
 	testname   string
-	addr       string
+	listenHost string
 	serverName string
 }
 
@@ -1456,16 +1445,17 @@ func runSetProxyProtocolV2Subtest(t *testing.T, tt setProxyProtocolV2TestCase) {
 	t.Parallel()
 
 	httpSrvData := demoHttpServerData{
-		serverAddr:        tt.addr,
+		listenHost:        tt.listenHost,
 		proxyprotoEnabled: true,
 	}
 
 	ts, err := NewHTTPSTestServer(httpSrvData)
 	require.NoError(t, err)
 
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
-	transportURL := "https://" + tt.addr
+	hostPort := testServerHostPort(ts)
+	transportURL := "https://" + hostPort
 	reqURL := "https://" + tt.serverName
 
 	reqConf := RequestConfig{
@@ -1513,7 +1503,6 @@ func runSetProxyProtocolV2Subtest(t *testing.T, tt setProxyProtocolV2TestCase) {
 
 type printResponseDebugTestCase struct {
 	desc    string
-	srvAddr string
 	verbose bool
 	outputs []string
 }
@@ -1522,7 +1511,6 @@ func runPrintResponseDebugSubtest(t *testing.T, tt printResponseDebugTestCase) {
 	t.Parallel()
 
 	httpSrvData := demoHttpServerData{
-		serverAddr:        tt.srvAddr,
 		proxyprotoEnabled: false,
 		serverName:        "localhost",
 	}
@@ -1530,7 +1518,7 @@ func runPrintResponseDebugSubtest(t *testing.T, tt printResponseDebugTestCase) {
 	ts, err := NewHTTPSTestServer(httpSrvData)
 	require.NoError(t, err)
 
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
 	tr := &http.Transport{TLSClientConfig: &tls.Config{
 		RootCAs: caCertPool,
@@ -1561,7 +1549,6 @@ func runPrintResponseDebugSubtest(t *testing.T, tt printResponseDebugTestCase) {
 }
 
 type processHTTPRequestsByHostTestCase struct {
-	srvAddr        string
 	reqConf        RequestConfig
 	pool           *x509.CertPool
 	verbose        bool
@@ -1570,9 +1557,9 @@ type processHTTPRequestsByHostTestCase struct {
 }
 
 func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByHostTestCase) {
-	// t.Parallel()
+	t.Parallel()
+
 	httpSrvData := demoHttpServerData{
-		serverAddr:        tt.srvAddr,
 		proxyprotoEnabled: false,
 		serverName:        "localhost",
 	}
@@ -1580,7 +1567,10 @@ func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByH
 	ts, err := NewHTTPSTestServer(httpSrvData)
 	require.NoError(t, err)
 
-	defer ts.Close()
+	t.Cleanup(ts.Close)
+
+	hostPort := testServerHostPort(ts)
+	tt.reqConf.TransportOverrideURL = "https://" + hostPort
 
 	respList, err := processHTTPRequestsByHost(
 		context.Background(),
@@ -1593,17 +1583,22 @@ func runProcessHTTPRequestsByHostSubtest(t *testing.T, tt processHTTPRequestsByH
 		t.Error(err)
 	}
 
-	verifyProcessHTTPRequestsResults(t, tt, respList)
+	verifyProcessHTTPRequestsResults(t, tt, respList, hostPort)
 }
 
-func verifyProcessHTTPRequestsResults(t *testing.T, tt processHTTPRequestsByHostTestCase, respList []ResponseData) {
+func verifyProcessHTTPRequestsResults(
+	t *testing.T,
+	tt processHTTPRequestsByHostTestCase,
+	respList []ResponseData,
+	hostPort string,
+) {
 	t.Helper()
 
 	for _, r := range respList {
 		fmt.Printf("resp type: %T\n", r)
 
 		assert.Equal(t,
-			tt.srvAddr,
+			hostPort,
 			r.TransportAddress,
 			"check TransportAddress",
 		)

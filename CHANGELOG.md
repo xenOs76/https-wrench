@@ -8,9 +8,17 @@
 
     switch to Go 1.27.1
 
+### Feat
+
+    Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
+
 ### Tests
 
     Certinfo: GetRemoteCerts tests apply SetTLSInsecure before SetTLSEndpoint so endpoint certificate retrieval uses the intended TLS verification mode.
+
+    Requests: httptest TLS servers bind an ephemeral port so parallel cases do not collide on fixed listeners.
+
+    Cmd: re-bind viper flags after Reset so repeated test counts keep CLI flag bindings.
 
 ## 0.15.1 (2026-09-03)
 

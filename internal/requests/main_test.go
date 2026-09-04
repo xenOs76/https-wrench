@@ -34,11 +34,12 @@ type demoCertTemplate struct {
 
 //nolint:revive
 type demoHttpServerData struct {
-	serverAddr        string
-	proxyprotoEnabled bool
-	serverName        string
-	tlsCipherSuites   []uint16
-	tlsMaxVersion     uint16
+	listenHost          string
+	proxyprotoEnabled   bool
+	serverName          string
+	tlsCipherSuites     []uint16
+	tlsCurvePreferences []tls.CurveID
+	tlsMaxVersion       uint16
 }
 
 var (
@@ -170,6 +171,16 @@ func printResponseBody(res *http.Response) {
 	fmt.Println(string(body))
 }
 
+func testServerHostPort(ts *httptest.Server) string {
+	return ts.Listener.Addr().String()
+}
+
+// NewHTTPSTestServer starts an httptest TLS server configured by data.
+// Cipher suites default to the TLS 1.3 AEADs, CurvePreferences to the Go 1.27
+// PQ hybrids plus classical fallbacks, and MaxVersion to TLS 1.3. Non-empty
+// data.tlsCipherSuites, data.tlsCurvePreferences, or a non-zero data.tlsMaxVersion
+// override those defaults. Optional data.listenHost and data.proxyprotoEnabled
+// replace the listener. The caller must Close the returned server.
 func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "DemoHTTPSServer Handler - client output\n")
@@ -181,29 +192,21 @@ func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 	ts := httptest.NewUnstartedServer(handler)
 	ts.EnableHTTP2 = true
 
-	// fmt.Println("Inside NewDemoHTTPSServer()")
-
-	if data.serverAddr != emptyString && !data.proxyprotoEnabled {
-		listener, err := net.Listen("tcp", data.serverAddr)
+	if data.listenHost != emptyString {
+		ln, err := net.Listen("tcp", net.JoinHostPort(data.listenHost, "0"))
 		if err != nil {
-			fmt.Println("Error creating listener:", err)
+			return nil, fmt.Errorf("error creating listener: %w", err)
 		}
 
-		ts.Listener = listener
+		_ = ts.Listener.Close()
+		ts.Listener = ln
 	}
 
-	if data.serverAddr != emptyString && data.proxyprotoEnabled {
-		ln, err := net.Listen("tcp", data.serverAddr)
-		if err != nil {
-			panic(err)
-		}
-
-		proxyListener := &proxyproto.Listener{
-			Listener:          ln,
+	if data.proxyprotoEnabled {
+		ts.Listener = &proxyproto.Listener{
+			Listener:          ts.Listener,
 			ReadHeaderTimeout: 10 * time.Second,
 		}
-
-		ts.Listener = proxyListener
 	}
 
 	cert, err := tls.LoadX509KeyPair(
@@ -226,6 +229,12 @@ func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 		tlsCipherSuites = data.tlsCipherSuites
 	}
 
+	tlsCurvePreferences := defaultCurvePreferences
+
+	if len(data.tlsCurvePreferences) > 0 {
+		tlsCurvePreferences = data.tlsCurvePreferences
+	}
+
 	// Set default TLS MaxVersion to 1.3
 	var tlsMaxVersion uint16 = tls.VersionTLS13
 
@@ -234,9 +243,10 @@ func NewHTTPSTestServer(data demoHttpServerData) (*httptest.Server, error) {
 	}
 
 	ts.TLS = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		CipherSuites: tlsCipherSuites,
-		MaxVersion:   tlsMaxVersion,
+		Certificates:     []tls.Certificate{cert},
+		CipherSuites:     tlsCipherSuites,
+		CurvePreferences: tlsCurvePreferences,
+		MaxVersion:       tlsMaxVersion,
 	}
 
 	ts.StartTLS()
@@ -374,9 +384,9 @@ func TestMain(m *testing.M) {
 func TestHTTPSTestServer(t *testing.T) {
 	tests := []struct {
 		testname   string
-		serverAddr string
+		listenHost string
 	}{
-		{"localhostIPv4", "127.0.0.1:55667"},
+		{"localhostIPv4", "127.0.0.1"},
 	}
 
 	for _, tt := range tests {
@@ -384,15 +394,14 @@ func TestHTTPSTestServer(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			t.Parallel()
 
-			httpSrvData := demoHttpServerData{serverAddr: tt.serverAddr}
-			// httpSrvData := demoHttpServerData{}
+			httpSrvData := demoHttpServerData{listenHost: tt.listenHost}
 
 			ts, err := NewHTTPSTestServer(httpSrvData)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			defer ts.Close()
+			t.Cleanup(ts.Close)
 
 			// fmt.Println("TestDemoHTTPSServer")
 			// fmt.Print("Client URL: ")

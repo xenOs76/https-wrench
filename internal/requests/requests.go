@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,6 +41,18 @@ const (
 
 	emptyString = ""
 )
+
+// defaultCurvePreferences lists Go 1.27 TLS hybrids plus classical fallbacks.
+// Explicit CurvePreferences keeps PQ on when GODEBUG=tlsmlkem=0 / tlssecpmlkem=0.
+var defaultCurvePreferences = []tls.CurveID{
+	tls.X25519MLKEM768,
+	tls.SecP256r1MLKEM768,
+	tls.SecP384r1MLKEM1024,
+	tls.X25519,
+	tls.CurveP256,
+	tls.CurveP384,
+	tls.CurveP521,
+}
 
 // ErrMethodNotFound is returned when an unsupported HTTP method is specified.
 var ErrMethodNotFound = errors.New("HTTP method not found")
@@ -312,6 +325,7 @@ func (r *RequestConfig) printTLSInfo(w io.Writer, tlsState *tls.ConnectionState)
 	fmt.Fprintln(w, "TLS:")
 	fmt.Fprintf(w, "Version: %v\n", TLSVersionName(tlsState.Version))
 	fmt.Fprintf(w, "CipherSuite: %v\n", cipherSuiteName(tlsState.CipherSuite))
+	fmt.Fprintf(w, "Key Exchange: %v\n", tlsState.CurveID)
 
 	for i, cert := range tlsState.PeerCertificates {
 		fmt.Fprintf(w, "Certificate %d:\n", i)
@@ -330,7 +344,9 @@ func (r *RequestConfig) printTLSInfo(w io.Writer, tlsState *tls.ConnectionState)
 
 // NewRequestHTTPClient creates a new RequestHTTPClient with default transport settings.
 func NewRequestHTTPClient() *RequestHTTPClient {
-	tlsConfig := &tls.Config{}
+	tlsConfig := &tls.Config{
+		CurvePreferences: slices.Clone(defaultCurvePreferences),
+	}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:     true,

@@ -381,6 +381,10 @@ func RenderTLSData(w io.Writer, r *http.Response, filter ...[]map[int][]string) 
 		sl("CipherSuite"),
 		sv(cipherSuiteName(respTLS.CipherSuite)),
 	)
+	t.Row(
+		sl("Key Exchange"),
+		sv(respTLS.CurveID.String()),
+	)
 	fmt.Fprintln(w, t.Render())
 	t.ClearRows()
 
