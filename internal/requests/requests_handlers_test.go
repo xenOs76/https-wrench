@@ -340,7 +340,8 @@ func TestRenderTLSData(t *testing.T) {
 					{Name: "example.com"},
 				},
 			},
-			pool: caCertPool,
+			pool:        caCertPool,
+			wantCurveID: "X25519",
 		},
 
 		// WARN: I was expecting a cipherSuite list of one element as input to the server conf
@@ -357,7 +358,8 @@ func TestRenderTLSData(t *testing.T) {
 					{Name: "example.net"},
 				},
 			},
-			pool: caCertPool,
+			pool:        caCertPool,
+			wantCurveID: "X25519MLKEM768",
 		},
 		{
 			srvTLSCipherSuite: tls.TLS_AES_128_GCM_SHA256,
@@ -467,6 +469,7 @@ func TestRenderTLSData(t *testing.T) {
 				expectedCipherSuiteName := tls.CipherSuiteName(tt.srvTLSCipherSuite)
 				assert.Contains(t, got, expectedCipherSuiteName)
 
+				require.NotEmpty(t, tt.wantCurveID)
 				assert.Contains(t, got, "Key Exchange")
 				assert.Contains(t, got, tt.wantCurveID)
 
