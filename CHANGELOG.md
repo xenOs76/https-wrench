@@ -2,6 +2,16 @@
 
 # https-wrench - changelog
 
+## Unreleased
+
+### CI
+
+    switch to Go 1.27.1
+
+### Tests
+
+    Certinfo: GetRemoteCerts tests apply SetTLSInsecure before SetTLSEndpoint so endpoint certificate retrieval uses the intended TLS verification mode.
+
 ## 0.15.1 (2026-09-03)
 
 ### Feat
