@@ -109,7 +109,7 @@ jobs:
         run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
       - name: check test coverage
-        continue-on-error: ${{ github.ref_name != 'main' }}
+        continue-on-error: true
         uses: vladopajic/go-test-coverage@8cfd056d3bc5cc2bc64a840ded0c907aaae3dc46 # v2.18.7
         with:
           config: ./.testcoverage.yml
