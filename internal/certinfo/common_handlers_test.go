@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -25,30 +26,23 @@ func TestCertinfo_GetRootCertsFromFile(t *testing.T) {
 			inputReader,
 		)
 		require.Error(t, errEmptyString)
-		assert.Equal(t,
-			"empty string provided as caBundlePath",
-			errEmptyString.Error(),
-		)
+		require.ErrorIs(t, errEmptyString, ErrEmptyArg)
+		gotEmpty, ok := errors.AsType[*EmptyArgError](errEmptyString)
+		require.True(t, ok)
+		require.Equal(t, "caBundlePath", gotEmpty.Name)
 
 		_, errNoRead := GetRootCertsFromFile(
 			unreadableFile,
 			mockErrReader,
 		)
 		require.Error(t, errNoRead)
-		assert.Equal(t,
-			"failed to read CA bundle file: unable to read file testdata/unreadable-file.txt",
-			errNoRead.Error(),
-		)
+		require.ErrorContains(t, errNoRead, "failed to read CA bundle file:")
 
 		_, errWrongFile := GetRootCertsFromFile(
 			RSACaCertKeyFile,
 			inputReader,
 		)
-		require.Error(t, errWrongFile)
-		assert.Equal(t,
-			"unable to create CertPool from file",
-			errWrongFile.Error(),
-		)
+		require.ErrorIs(t, errWrongFile, ErrCertPoolFromFile)
 	})
 
 	t.Run("CertImportValidation", func(t *testing.T) {
@@ -71,8 +65,7 @@ func TestCertinfo_GetRootCertsFromFile(t *testing.T) {
 			RSACaCertFile,
 			nil,
 		)
-		require.Error(t, err)
-		require.EqualError(t, err, "nil Reader provided")
+		require.ErrorIs(t, err, ErrNilReader)
 	})
 }
 
@@ -81,17 +74,13 @@ func TestCertinfo_GetRootCertsFromString(t *testing.T) {
 		t.Parallel()
 
 		_, errEmptyString := GetRootCertsFromString(emptyString)
-		require.Error(t, errEmptyString)
-		assert.Equal(t,
-			"empty string provided as caBundleString",
-			errEmptyString.Error(),
-		)
+		require.ErrorIs(t, errEmptyString, ErrEmptyArg)
+		gotEmpty, ok := errors.AsType[*EmptyArgError](errEmptyString)
+		require.True(t, ok)
+		require.Equal(t, "caBundleString", gotEmpty.Name)
 
 		_, errWrongString := GetRootCertsFromString("wrong string")
-		require.Error(t, errWrongString)
-		assert.Equal(t,
-			"no valid certs in caBundle config string",
-			errWrongString.Error())
+		require.ErrorIs(t, errWrongString, ErrNoCertsInConfig)
 	})
 
 	t.Run("CertImportValidation", func(t *testing.T) {
@@ -107,77 +96,102 @@ func TestCertinfo_GetRootCertsFromString(t *testing.T) {
 	})
 }
 
-func TestCertinfo_GetCertsFromBundle(t *testing.T) {
+func TestCertinfo_GetCertsFromBundle_readErrors(t *testing.T) {
 	readErrorTests := []struct {
-		desc        string
-		certPath    string
-		reader      Reader
-		expectedMsg string
+		desc       string
+		certPath   string
+		reader     Reader
+		expectIs   error
+		expectMsg  string
+		expectPath string
+		expectName string
 	}{
 		{
-			desc:        "emptyString",
-			certPath:    emptyString,
-			reader:      inputReader,
-			expectedMsg: "empty string provided as certBundlePath",
+			desc:       "emptyString",
+			certPath:   emptyString,
+			reader:     inputReader,
+			expectIs:   ErrEmptyArg,
+			expectName: "certBundlePath",
+			expectMsg:  "empty string provided as certBundlePath",
 		},
 		{
-			desc:        "unreadableFile",
-			certPath:    unreadableFile,
-			reader:      mockErrReader,
-			expectedMsg: "error reading certificate file: unable to read file testdata/unreadable-file.txt",
+			desc:      "unreadableFile",
+			certPath:  unreadableFile,
+			reader:    mockErrReader,
+			expectMsg: "error reading certificate file: unable to read file testdata/unreadable-file.txt",
 		},
 		{
-			desc:        "wrong file",
-			certPath:    RSACaCertKeyFile,
-			reader:      inputReader,
-			expectedMsg: "no valid certificates found in file " + RSACaCertKeyFile,
+			desc:       "wrong file",
+			certPath:   RSACaCertKeyFile,
+			reader:     inputReader,
+			expectIs:   ErrNoCertsInFile,
+			expectPath: RSACaCertKeyFile,
+			expectMsg:  "no valid certificates found in file " + RSACaCertKeyFile,
 		},
 		{
-			desc:        "nil Reader",
-			certPath:    RSACaCertFile,
-			reader:      nil,
-			expectedMsg: "nil Reader provided",
+			desc:     "nil Reader",
+			certPath: RSACaCertFile,
+			reader:   nil,
+			expectIs: ErrNilReader,
 		},
 		{
-			desc:        "broken cert file",
-			certPath:    RSASamplePKCS8BrokenCertificate,
-			reader:      inputReader,
-			expectedMsg: "error parsing certificate: x509: inner and outer signature algorithm identifiers don't match",
+			desc:      "broken cert file",
+			certPath:  RSASamplePKCS8BrokenCertificate,
+			reader:    inputReader,
+			expectMsg: "error parsing certificate: x509: inner and outer signature algorithm identifiers don't match",
 		},
 	}
 
 	for _, tt := range readErrorTests {
-		t.Run("Read error "+tt.desc, func(t *testing.T) {
+		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := GetCertsFromBundle(
-				tt.certPath,
-				tt.reader,
-			)
-			require.Error(t, err)
-			assert.Equal(t,
-				tt.expectedMsg,
-				err.Error(),
-			)
+			_, err := GetCertsFromBundle(tt.certPath, tt.reader)
+			requireCertinfoError(t, err, tt.expectIs, tt.expectMsg, tt.expectName, tt.expectPath)
 		})
 	}
+}
 
-	t.Run("CertImportValidation", func(t *testing.T) {
-		gotCerts, errCaString := GetCertsFromBundle(
-			RSACaCertFile,
-			inputReader,
-		)
-		require.NoError(t, errCaString)
+func TestCertinfo_GetCertsFromBundle_import(t *testing.T) {
+	t.Parallel()
 
-		wantCerts := []*x509.Certificate{RSACaCertParent}
+	gotCerts, err := GetCertsFromBundle(RSACaCertFile, inputReader)
+	require.NoError(t, err)
 
-		if diff := cmp.Diff(wantCerts, gotCerts); diff != "" {
-			t.Errorf(
-				"GetCertsFromBundle certs mismatch (-want +got):\n%s",
-				diff,
-			)
-		}
-	})
+	wantCerts := []*x509.Certificate{RSACaCertParent}
+	if diff := cmp.Diff(wantCerts, gotCerts); diff != "" {
+		t.Errorf("GetCertsFromBundle certs mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func requireCertinfoError(
+	t *testing.T,
+	err error,
+	expectIs error,
+	expectMsg, expectName, expectPath string,
+) {
+	t.Helper()
+	require.Error(t, err)
+
+	if expectIs != nil {
+		require.ErrorIs(t, err, expectIs)
+	}
+
+	if expectName != "" {
+		got, ok := errors.AsType[*EmptyArgError](err)
+		require.True(t, ok)
+		require.Equal(t, expectName, got.Name)
+	}
+
+	if expectPath != "" {
+		got, ok := errors.AsType[*NoCertsInFileError](err)
+		require.True(t, ok)
+		require.Equal(t, expectPath, got.Path)
+	}
+
+	if expectMsg != "" {
+		require.EqualError(t, err, expectMsg)
+	}
 }
 
 //nolint:revive
@@ -187,6 +201,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 		expectError bool
 		keyFile     string
 		expectMsg   string
+		expectIs    error
 		needEnv     bool
 		keyPw       string
 	}{
@@ -194,18 +209,21 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			desc:        "wrong file",
 			expectError: true,
 			keyFile:     RSACaCertFile,
+			expectIs:    ErrUnsupportedKey,
 			expectMsg:   "unsupported key format or invalid password",
 		},
 		{
 			desc:        "emptyString",
 			expectError: true,
 			keyFile:     emptyString,
+			expectIs:    ErrEmptyArg,
 			expectMsg:   "empty string provided as keyFilePath",
 		},
 		{
 			desc:        "No PEM encoded file",
 			expectError: true,
 			keyFile:     sampleTextFile,
+			expectIs:    ErrPEMDecode,
 			expectMsg:   "failed to decode PEM",
 		},
 		{
@@ -231,6 +249,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 		{
 			desc:        "Encrypted broken RSA PKCS1 key import",
 			expectError: true,
+			expectIs:    ErrUnsupportedKey,
 			expectMsg:   "unsupported key format or invalid password",
 			keyFile:     RSASamplePKCS1EncBrokenPrivateKey,
 			needEnv:     true,
@@ -272,6 +291,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			desc:        "Encrypted broken ECDSA key import",
 			expectError: true,
 			keyFile:     ECDSASampleEncBrokenPrivateKey,
+			expectIs:    ErrUnsupportedKey,
 			expectMsg:   "unsupported key format or invalid password",
 			needEnv:     true,
 			keyPw:       samplePrivateKeyPassword,
@@ -311,14 +331,8 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			)
 
 			if tt.expectError {
-				require.Error(t, err)
-				assert.Equal(t,
-					tt.expectMsg,
-					err.Error(),
-				)
-			}
-
-			if !tt.expectError {
+				requireCertinfoError(t, err, tt.expectIs, tt.expectMsg, "", "")
+			} else {
 				require.NoError(t, err)
 			}
 		})
@@ -333,9 +347,9 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			mockErrReader,
 		)
 		require.Error(t, errNoRead)
-		assert.Equal(t,
-			"unable to read file testdata/unreadable-file.txt",
-			errNoRead.Error(),
+		require.EqualError(t,
+			errNoRead,
+			"error reading private key file: unable to read file testdata/unreadable-file.txt",
 		)
 	})
 
@@ -347,11 +361,7 @@ func TestCertinfo_GetKeyFromFile_inputReaderErrors(t *testing.T) {
 			privateKeyPwEnvVar,
 			nil,
 		)
-		require.Error(t, errNoRead)
-		assert.Equal(t,
-			"nil Reader provided",
-			errNoRead.Error(),
-		)
+		require.ErrorIs(t, errNoRead, ErrNilReader)
 	})
 }
 
@@ -407,6 +417,7 @@ func TestCertinfo_IsPrivateKeyEncrypted(t *testing.T) {
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to decode PEM")
+		require.ErrorIs(t, err, ErrPEMDecode)
 	})
 }
 
@@ -443,11 +454,7 @@ func TestCertinfo_getPassphraseIfNeeded(t *testing.T) {
 			privateKeyPwEnvVar,
 			nil,
 		)
-		require.Error(t, err)
-		assert.EqualError(t,
-			err,
-			"nil Reader provided",
-		)
+		require.ErrorIs(t, err, ErrNilReader)
 	})
 
 	t.Run("pw read success", func(t *testing.T) {
@@ -474,14 +481,14 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 		cert      *x509.Certificate
 		key       crypto.PrivateKey
 		expectErr bool
-		expectMsg string
+		expectIs  error
 	}{
 		{
 			desc:      "uncomplete cert",
 			cert:      &incompleteCert,
 			key:       RSASampleCertKey,
 			expectErr: true,
-			expectMsg: "unsupported public key type in certificate",
+			expectIs:  ErrUnsupportedPublicKey,
 		},
 
 		{
@@ -518,8 +525,7 @@ func TestCertinfo_certMatchPrivateKey_matchFalse(t *testing.T) {
 			}
 
 			if tt.expectErr {
-				require.Error(t, err)
-				require.EqualError(t, err, tt.expectMsg)
+				require.ErrorIs(t, err, tt.expectIs)
 			}
 		})
 	}

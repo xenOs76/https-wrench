@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -42,7 +41,7 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 
 	pub, ok := cert.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
 	if !ok {
-		return false, errors.New("unsupported public key type in certificate")
+		return false, ErrUnsupportedPublicKey
 	}
 
 	signer, ok := key.(crypto.Signer)
@@ -56,11 +55,11 @@ func certMatchPrivateKey(cert *x509.Certificate, key crypto.PrivateKey) (bool, e
 // GetRootCertsFromFile reads a PEM bundle from a file and returns an x509 CertPool.
 func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPool, error) {
 	if caBundlePath == emptyString {
-		return nil, errors.New("empty string provided as caBundlePath")
+		return nil, &EmptyArgError{Name: "caBundlePath"}
 	}
 
 	if fileReader == nil {
-		return nil, errors.New("nil Reader provided")
+		return nil, ErrNilReader
 	}
 
 	certsFromFile, err := fileReader.ReadFile(caBundlePath)
@@ -70,7 +69,7 @@ func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPoo
 
 	rootCAPool := x509.NewCertPool()
 	if ok := rootCAPool.AppendCertsFromPEM(certsFromFile); !ok {
-		return nil, errors.New("unable to create CertPool from file")
+		return nil, ErrCertPoolFromFile
 	}
 
 	return rootCAPool, nil
@@ -79,12 +78,12 @@ func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPoo
 // GetRootCertsFromString parses a PEM bundle from a string and returns an x509 CertPool.
 func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 	if caBundleString == emptyString {
-		return nil, errors.New("empty string provided as caBundleString")
+		return nil, &EmptyArgError{Name: "caBundleString"}
 	}
 
 	rootCAPool := x509.NewCertPool()
 	if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
-		return nil, errors.New("no valid certs in caBundle config string")
+		return nil, ErrNoCertsInConfig
 	}
 
 	return rootCAPool, nil
@@ -93,11 +92,11 @@ func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 // GetCertsFromBundle reads a PEM bundle from a file and returns a slice of x509 Certificates.
 func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certificate, error) {
 	if certBundlePath == emptyString {
-		return nil, errors.New("empty string provided as certBundlePath")
+		return nil, &EmptyArgError{Name: "certBundlePath"}
 	}
 
 	if fileReader == nil {
-		return nil, errors.New("nil Reader provided")
+		return nil, ErrNilReader
 	}
 
 	certPEM, err := fileReader.ReadFile(certBundlePath)
@@ -131,7 +130,7 @@ func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certi
 	}
 
 	if len(certs) == 0 {
-		return nil, fmt.Errorf("no valid certificates found in file %s", certBundlePath)
+		return nil, &NoCertsInFileError{Path: certBundlePath}
 	}
 
 	return certs, nil
@@ -142,7 +141,7 @@ func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certi
 func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 	keyBlock, _ := pem.Decode(key)
 	if keyBlock == nil {
-		return false, errors.New("failed to decode PEM")
+		return false, ErrPEMDecode
 	}
 
 	switch keyBlock.Type {
@@ -152,7 +151,7 @@ func IsPrivateKeyEncrypted(key []byte) (bool, error) {
 		_, hasDEK := keyBlock.Headers["DEK-Info"] // if encrypted, DEK-Info header exists
 		return hasDEK, nil
 	default:
-		return false, fmt.Errorf("unrecognized private key type: %s", keyBlock.Type)
+		return false, &UnrecognizedKeyTypeError{Type: keyBlock.Type}
 	}
 }
 
@@ -165,7 +164,7 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) (
 	}
 
 	if pwReader == nil {
-		return nil, errors.New("nil Reader provided")
+		return nil, ErrNilReader
 	}
 
 	pkeyEnvPw := os.Getenv(pwEnvKey)
@@ -213,7 +212,7 @@ func getPassphraseIfNeeded(isEncrypted bool, pwEnvKey string, pwReader Reader) (
 func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.PrivateKey, error) {
 	keyBlock, _ := pem.Decode(keyPEM)
 	if keyBlock == nil {
-		return nil, errors.New("failed to decode PEM")
+		return nil, ErrPEMDecode
 	}
 
 	isEncrypted, _ := IsPrivateKeyEncrypted(keyPEM)
@@ -255,7 +254,7 @@ func ParsePrivateKey(keyPEM []byte, pwEnvKey string, pwReader Reader) (crypto.Pr
 		return ecKey, nil
 	}
 
-	return nil, errors.New("unsupported key format or invalid password")
+	return nil, ErrUnsupportedKey
 }
 
 // GetKeyFromFile reads a private key from a file and parses it using ParsePrivateKey.
@@ -265,16 +264,16 @@ func GetKeyFromFile(
 	inputReader Reader,
 ) (crypto.PrivateKey, error) {
 	if keyFilePath == emptyString {
-		return nil, errors.New("empty string provided as keyFilePath")
+		return nil, &EmptyArgError{Name: "keyFilePath"}
 	}
 
 	if inputReader == nil {
-		return nil, errors.New("nil Reader provided")
+		return nil, ErrNilReader
 	}
 
 	keyPEM, err := inputReader.ReadFile(keyFilePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading private key file: %w", err)
 	}
 
 	key, err := ParsePrivateKey(
