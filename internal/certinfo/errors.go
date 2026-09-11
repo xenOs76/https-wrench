@@ -25,10 +25,12 @@ type EmptyArgError struct {
 	Name string
 }
 
+// Error returns a message naming the empty argument.
 func (e *EmptyArgError) Error() string {
 	return fmt.Sprintf("empty string provided as %s", e.Name)
 }
 
+// Is reports whether target is ErrEmptyArg.
 func (*EmptyArgError) Is(target error) bool {
 	return target == ErrEmptyArg
 }
@@ -39,10 +41,12 @@ type NoCertsInFileError struct {
 	Path string
 }
 
+// Error returns a message including the PEM file path.
 func (e *NoCertsInFileError) Error() string {
 	return fmt.Sprintf("no valid certificates found in file %s", e.Path)
 }
 
+// Is reports whether target is ErrNoCertsInFile.
 func (*NoCertsInFileError) Is(target error) bool {
 	return target == ErrNoCertsInFile
 }
@@ -53,10 +57,12 @@ type UnrecognizedKeyTypeError struct {
 	Type string
 }
 
+// Error returns a message including the unrecognized PEM type.
 func (e *UnrecognizedKeyTypeError) Error() string {
 	return fmt.Sprintf("unrecognized private key type: %s", e.Type)
 }
 
+// Is reports whether target is ErrUnrecognizedKeyType.
 func (*UnrecognizedKeyTypeError) Is(target error) bool {
 	return target == ErrUnrecognizedKeyType
 }

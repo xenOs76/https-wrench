@@ -69,6 +69,7 @@ func Format(err error) string {
 	return label + ": " + cause.Error()
 }
 
+// domainLeaf returns a certinfo leaf message when err matches a known domain failure.
 func domainLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*certinfo.EmptyArgError](err); ok {
 		return empty.Error(), true

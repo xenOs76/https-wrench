@@ -103,6 +103,7 @@ func registerExecTools(server *sdkmcp.Server) {
 	}, generateJWKSHandler)
 }
 
+// runRequestsHandler executes the run_requests MCP tool.
 func runRequestsHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -119,6 +120,7 @@ func runRequestsHandler(
 	return nil, out, nil
 }
 
+// certinfoHandler executes the certinfo MCP tool.
 func certinfoHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -135,6 +137,7 @@ func certinfoHandler(
 	return nil, out, nil
 }
 
+// jwtinfoHandler executes the jwtinfo MCP tool.
 func jwtinfoHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -151,6 +154,7 @@ func jwtinfoHandler(
 	return nil, out, nil
 }
 
+// generateJWKSHandler executes the generate_jwks MCP tool.
 func generateJWKSHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
