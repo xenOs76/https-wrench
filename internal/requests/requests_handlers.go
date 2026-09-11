@@ -279,7 +279,7 @@ func (rd *ResponseData) ImportResponseBody() {
 
 			err := json.Indent(&prettyJSON, body, "", "  ")
 			if err != nil {
-				prettyJSON.Write(body)
+				_, _ = prettyJSON.Write(body)
 			}
 
 			code = prettyJSON.String()

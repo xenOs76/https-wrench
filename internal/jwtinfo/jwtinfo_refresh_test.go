@@ -140,7 +140,7 @@ func TestJwtTokenData_WriteTokenToFile(t *testing.T) {
 
 	tempFile, err := os.CreateTemp("", "token-test-*")
 	require.NoError(t, err)
-	tempFile.Close()
+	require.NoError(t, tempFile.Close())
 
 	defer os.Remove(tempFile.Name())
 

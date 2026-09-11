@@ -174,11 +174,7 @@ func (c *Config) printCACerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
 			inputReader,
 		)
 		if err != nil {
-			return fmt.Errorf(
-				"unable for read Root certificates from %s: %w",
-				c.CACertsFilePath,
-				err,
-			)
+			return fmt.Errorf("unable to read Root certificates: %w", err)
 		}
 
 		CertsToTables(w, rootCerts)

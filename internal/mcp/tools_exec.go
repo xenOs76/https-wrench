@@ -15,6 +15,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/jwks"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
 	"github.com/xenos76/https-wrench/internal/requests"
@@ -112,7 +113,7 @@ func runRequestsHandler(
 
 	out, err := executeRunRequests(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
@@ -128,7 +129,7 @@ func certinfoHandler(
 
 	out, err := executeCertinfo(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
@@ -144,7 +145,7 @@ func jwtinfoHandler(
 
 	out, err := executeJwtinfo(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
@@ -160,7 +161,7 @@ func generateJWKSHandler(
 
 	out, err := executeGenerateJWKS(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
