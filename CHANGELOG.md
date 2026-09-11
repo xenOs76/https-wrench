@@ -12,6 +12,8 @@
 
     Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
 
+    Jwtinfo: add sentinel and typed errors for errors.Is/As, and route CLI/MCP display through errdisp domain leaves.
+
 ### Fix
 
     Devenv: prefer httpbin on 127.0.0.1:8081 and proxy nginx upstreams through the allocated httpbin port so `devenv test` keeps working when the preferred port is already taken; fail fast in request integration tests with `set -e`, enable `pipefail` on success-case request leaf pipelines, and assert request exit status separately from expected error text.

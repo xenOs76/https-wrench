@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/jwtinfo"
 )
 
 func TestCause(t *testing.T) {
@@ -25,6 +26,7 @@ func TestCause(t *testing.T) {
 	require.Equal(t, leaf, Cause(wrapped))
 }
 
+// TestFormatCause checks FormatCause prefers domain leaves over wrap text.
 func TestFormatCause(t *testing.T) {
 	t.Parallel()
 
@@ -57,8 +59,30 @@ func TestFormatCause(t *testing.T) {
 		err := fmt.Errorf("wrap: %w", &certinfo.EmptyArgError{Name: "caBundlePath"})
 		require.Equal(t, "empty string provided as caBundlePath", FormatCause(err))
 	})
+
+	t.Run("jwtinfo empty arg", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("wrap: %w", &jwtinfo.EmptyArgError{Name: "request URL"})
+		require.Equal(t, "empty string provided as request URL", FormatCause(err))
+	})
+
+	t.Run("jwtinfo token status", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("request: %w", &jwtinfo.TokenStatusError{Code: 401})
+		require.Equal(t, "token request returned the following status code: 401", FormatCause(err))
+	})
+
+	t.Run("jwtinfo claim missing", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("claims: %w", &jwtinfo.ClaimError{Claim: "exp", Kind: jwtinfo.ClaimMissing})
+		require.Equal(t, "exp claim missing", FormatCause(err))
+	})
 }
 
+// TestFormat checks Format surfaces domain leaves or top label plus cause.
 func TestFormat(t *testing.T) {
 	t.Parallel()
 
@@ -86,5 +110,12 @@ func TestFormat(t *testing.T) {
 		t.Parallel()
 
 		require.Equal(t, "boom", Format(errors.New("boom")))
+	})
+
+	t.Run("jwtinfo sentinel leaf only", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("failed to request refreshed token: %w", jwtinfo.ErrEmptyRequestValues)
+		require.Equal(t, jwtinfo.ErrEmptyRequestValues.Error(), Format(err))
 	})
 }

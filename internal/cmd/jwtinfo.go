@@ -15,6 +15,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/spf13/cobra"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
 	"github.com/xenos76/https-wrench/internal/style"
 )
@@ -123,7 +124,7 @@ Examples:
 			if err != nil {
 				cmd.Printf(
 					"error while reading token value from file: %s",
-					err,
+					errdisp.FormatCause(err),
 				)
 
 				return
@@ -153,7 +154,7 @@ Examples:
 				}
 
 				if err != nil {
-					cmd.Printf("error processing %s: %s\n", step.kind, err)
+					cmd.Printf("error processing %s: %s\n", step.kind, errdisp.FormatCause(err))
 					return
 				}
 			}
@@ -166,7 +167,7 @@ Examples:
 				io.ReadAll,
 			)
 			if err != nil {
-				cmd.Printf("error while requesting token data: %s\n", err)
+				cmd.Printf("error while requesting token data: %s\n", errdisp.FormatCause(err))
 				return
 			}
 		}
@@ -174,21 +175,21 @@ Examples:
 		if tokenData != nil && tokenData.AccessTokenRaw != "" {
 			err = tokenData.DecodeBase64()
 			if err != nil {
-				cmd.Printf("DecodeBase64 error: %s\n", err)
+				cmd.Printf("DecodeBase64 error: %s\n", errdisp.FormatCause(err))
 				return
 			}
 
 			if jwksURL != "" {
 				err = tokenData.ParseWithJWKS(cmd.Context(), jwksURL, keyfuncDefOverride)
 				if err != nil {
-					cmd.Printf("error while parsing token data: %s\n", err)
+					cmd.Printf("error while parsing token data: %s\n", errdisp.FormatCause(err))
 					return
 				}
 			}
 
 			err = jwtinfo.PrintTokenInfo(tokenData, cmd.OutOrStdout())
 			if err != nil {
-				cmd.Printf("error while printing token data: %s\n", err)
+				cmd.Printf("error while printing token data: %s\n", errdisp.FormatCause(err))
 				return
 			}
 
@@ -222,7 +223,7 @@ Examples:
 					cmd.OutOrStdout(),
 				)
 				if err != nil {
-					cmd.Printf("Refresh loop exited with error: %s\n", err)
+					cmd.Printf("Refresh loop exited with error: %s\n", errdisp.FormatCause(err))
 				} else {
 					cmd.Printf("Refresh loop stopped gracefully.\n")
 				}

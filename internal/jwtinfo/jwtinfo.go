@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -60,15 +59,15 @@ type AllReader func(io.Reader) ([]byte, error)
 //nolint:revive
 func RequestToken(ctx context.Context, reqURL string, reqValues map[string]string, client *http.Client, readAll AllReader) (*JwtTokenData, error) {
 	if readAll == nil {
-		return nil, errors.New("nil body reader function")
+		return nil, ErrNilBodyReader
 	}
 
 	if reqURL == emptyString {
-		return nil, errors.New("empty string provided as request URL")
+		return nil, &EmptyArgError{Name: "request URL"}
 	}
 
 	if len(reqValues) == 0 {
-		return nil, errors.New("empty map provided as request values")
+		return nil, ErrEmptyRequestValues
 	}
 
 	t := &JwtTokenData{}
@@ -103,10 +102,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"token request returned the following status code: %d",
-			resp.StatusCode,
-		)
+		return nil, &TokenStatusError{Code: resp.StatusCode}
 	}
 
 	bodyBytes, errBodyRead := readAll(resp.Body)
@@ -181,7 +177,7 @@ func ParseRequestJSONValues(
 	error,
 ) {
 	if reqValues == "" {
-		return nil, errors.New("empty string provided as JSON encoded request values")
+		return nil, &EmptyArgError{Name: "JSON encoded request values"}
 	}
 
 	var objmap map[string]string
@@ -272,7 +268,7 @@ func (jtd *JwtTokenData) DecodeBase64() error {
 func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
 	tokenB64Elements := strings.Split(raw, ".")
 	if len(tokenB64Elements) != 3 {
-		return nil, nil, fmt.Errorf("invalid three dotted JWT format in %s", name)
+		return nil, nil, &InvalidJWTFormatError{Name: name}
 	}
 
 	header, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
@@ -281,7 +277,7 @@ func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
 	}
 
 	if !isValidJSON(header) {
-		return nil, nil, fmt.Errorf("invalid JSON found in header from %s", name)
+		return nil, nil, &InvalidJSONPartError{Name: name, Part: "header"}
 	}
 
 	claims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
@@ -290,7 +286,7 @@ func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
 	}
 
 	if !isValidJSON(claims) {
-		return nil, nil, fmt.Errorf("invalid JSON found in claims from %s", name)
+		return nil, nil, &InvalidJSONPartError{Name: name, Part: "claims"}
 	}
 
 	return header, claims, nil
@@ -318,7 +314,7 @@ func (jtd *JwtTokenData) ParseUnverified() error {
 // provided at the given URL.
 func (jtd *JwtTokenData) ParseWithJWKS(ctx context.Context, jwksURL string, keyfuncOverride keyfunc.Override) error {
 	if jwksURL == emptyString {
-		return errors.New("emptyString string provided as JWKS url")
+		return &EmptyArgError{Name: "JWKS url"}
 	}
 
 	jwks, err := keyfunc.NewDefaultOverrideCtx(
@@ -454,19 +450,19 @@ func unmarshalTokenTimeClaims(claims []byte) (map[string]string, error) {
 	}
 
 	if _, ok := genericClaims["iat"]; !ok {
-		return nil, errors.New("unable to find Issued At (iat) in token Claims")
+		return nil, &ClaimError{Claim: "iat", Kind: ClaimMissing}
 	}
 
 	if _, ok := genericClaims["iat"].(float64); !ok {
-		return nil, errors.New("Issued At (iat) claim is not a numeric timestamp")
+		return nil, &ClaimError{Claim: "iat", Kind: ClaimNotNumeric}
 	}
 
 	if _, ok := genericClaims["exp"]; !ok {
-		return nil, errors.New("unable to find Expiration Time (exp) in token Claims")
+		return nil, &ClaimError{Claim: "exp", Kind: ClaimMissing}
 	}
 
 	if _, ok := genericClaims["exp"].(float64); !ok {
-		return nil, errors.New("Expiration Time (exp) claim is not a numeric timestamp")
+		return nil, &ClaimError{Claim: "exp", Kind: ClaimNotNumeric}
 	}
 
 	for k, v := range genericClaims {
@@ -486,7 +482,7 @@ func unmarshalTokenTimeClaims(claims []byte) (map[string]string, error) {
 // GetExpiration extracts the expiration time (exp) from the token claims.
 func (jtd *JwtTokenData) GetExpiration() (time.Time, error) {
 	if jtd.AccessTokenClaims == nil {
-		return time.Time{}, errors.New("access token claims are empty")
+		return time.Time{}, ErrEmptyClaims
 	}
 
 	var genericClaims map[string]any
@@ -499,16 +495,16 @@ func (jtd *JwtTokenData) GetExpiration() (time.Time, error) {
 			return time.Unix(int64(vf), 0), nil
 		}
 
-		return time.Time{}, errors.New("exp claim is not a numeric timestamp")
+		return time.Time{}, &ClaimError{Claim: "exp", Kind: ClaimNotNumeric}
 	}
 
-	return time.Time{}, errors.New("exp claim missing")
+	return time.Time{}, &ClaimError{Claim: "exp", Kind: ClaimMissing}
 }
 
 // GetIssuedAt extracts the issued at time (iat) from the token claims.
 func (jtd *JwtTokenData) GetIssuedAt() (time.Time, error) {
 	if jtd.AccessTokenClaims == nil {
-		return time.Time{}, errors.New("access token claims are empty")
+		return time.Time{}, ErrEmptyClaims
 	}
 
 	var genericClaims map[string]any
@@ -521,10 +517,10 @@ func (jtd *JwtTokenData) GetIssuedAt() (time.Time, error) {
 			return time.Unix(int64(vf), 0), nil
 		}
 
-		return time.Time{}, errors.New("iat claim is not a numeric timestamp")
+		return time.Time{}, &ClaimError{Claim: "iat", Kind: ClaimNotNumeric}
 	}
 
-	return time.Time{}, errors.New("iat claim missing")
+	return time.Time{}, &ClaimError{Claim: "iat", Kind: ClaimMissing}
 }
 
 // Refresh attempts to acquire a new token either by using the refresh token or the original request values.
@@ -613,7 +609,7 @@ func (jtd *JwtTokenData) RefreshLoop(
 // based on the expiration time and the renewal threshold.
 func (jtd *JwtTokenData) calculateWaitDuration(renewThreshold float64) (time.Duration, error) {
 	if renewThreshold < 0 || renewThreshold > 100 {
-		return 0, fmt.Errorf("renewThreshold must be between 0 and 100, got %.2f", renewThreshold)
+		return 0, &InvalidRenewThresholdError{Value: renewThreshold}
 	}
 
 	exp, err := jtd.GetExpiration()
@@ -639,7 +635,7 @@ func (jtd *JwtTokenData) calculateWaitDuration(renewThreshold float64) (time.Dur
 	}
 
 	if lifetime <= 0 {
-		return 0, errors.New("token lifetime is zero or negative")
+		return 0, ErrTokenLifetimeInvalid
 	}
 
 	sleepFor := time.Until(wakeTime)
@@ -719,17 +715,17 @@ func ParseKVValue(
 	error,
 ) {
 	if kv == "" {
-		return nil, errors.New("empty string provided as key-value pair")
+		return nil, &EmptyArgError{Name: "key-value pair"}
 	}
 
 	parts := strings.SplitN(kv, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid key-value pair: %s (expected key=value)", kv)
+		return nil, &InvalidKVError{Value: kv}
 	}
 
 	key := strings.TrimSpace(parts[0])
 	if key == "" {
-		return nil, fmt.Errorf("empty request parameter name in: %s", kv)
+		return nil, &EmptyParamNameError{KV: kv}
 	}
 
 	newMap := maps.Clone(reqValuesMap)

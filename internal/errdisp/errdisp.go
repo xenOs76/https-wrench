@@ -3,7 +3,8 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 */
 
 // Package errdisp formats errors for CLI and MCP user boundaries.
-// It holds no sentinels; domain identity stays in packages such as certinfo.
+// It holds no sentinels; domain identity stays in packages such as certinfo
+// and jwtinfo.
 package errdisp
 
 import (
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/jwtinfo"
 )
 
 // Cause returns the deepest single-cause unwrap of err.
@@ -29,8 +31,8 @@ func Cause(err error) error {
 }
 
 // FormatCause returns a short message for callers that already print an
-// operation prefix. Prefer certinfo domain leaves via Is/As; otherwise the
-// deepest cause.
+// operation prefix. Prefer domain leaves via Is/As; otherwise the deepest
+// cause.
 func FormatCause(err error) string {
 	if err == nil {
 		return ""
@@ -44,8 +46,8 @@ func FormatCause(err error) string {
 }
 
 // Format returns a user-facing message when the caller has no operation prefix.
-// Prefer certinfo domain leaves via Is/As; otherwise top wrap label + deepest
-// cause, skipping intermediate layers.
+// Prefer domain leaves via Is/As; otherwise top wrap label + deepest cause,
+// skipping intermediate layers.
 func Format(err error) string {
 	if err == nil {
 		return ""
@@ -69,7 +71,7 @@ func Format(err error) string {
 	return label + ": " + cause.Error()
 }
 
-// domainLeaf returns a certinfo leaf message when err matches a known domain failure.
+// domainLeaf returns a domain leaf message when err matches a known failure.
 func domainLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*certinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
@@ -83,6 +85,38 @@ func domainLeaf(err error) (string, bool) {
 		return keyType.Error(), true
 	}
 
+	if empty, ok := errors.AsType[*jwtinfo.EmptyArgError](err); ok {
+		return empty.Error(), true
+	}
+
+	if jwtFmt, ok := errors.AsType[*jwtinfo.InvalidJWTFormatError](err); ok {
+		return jwtFmt.Error(), true
+	}
+
+	if jsonPart, ok := errors.AsType[*jwtinfo.InvalidJSONPartError](err); ok {
+		return jsonPart.Error(), true
+	}
+
+	if claim, ok := errors.AsType[*jwtinfo.ClaimError](err); ok {
+		return claim.Error(), true
+	}
+
+	if status, ok := errors.AsType[*jwtinfo.TokenStatusError](err); ok {
+		return status.Error(), true
+	}
+
+	if kv, ok := errors.AsType[*jwtinfo.InvalidKVError](err); ok {
+		return kv.Error(), true
+	}
+
+	if param, ok := errors.AsType[*jwtinfo.EmptyParamNameError](err); ok {
+		return param.Error(), true
+	}
+
+	if thr, ok := errors.AsType[*jwtinfo.InvalidRenewThresholdError](err); ok {
+		return thr.Error(), true
+	}
+
 	for _, s := range []error{
 		certinfo.ErrNilReader,
 		certinfo.ErrPEMDecode,
@@ -93,6 +127,20 @@ func domainLeaf(err error) (string, bool) {
 		certinfo.ErrEmptyArg,
 		certinfo.ErrNoCertsInFile,
 		certinfo.ErrUnrecognizedKeyType,
+		jwtinfo.ErrNilBodyReader,
+		jwtinfo.ErrEmptyRequestValues,
+		jwtinfo.ErrEmptyArg,
+		jwtinfo.ErrInvalidJWTFormat,
+		jwtinfo.ErrInvalidHeaderJSON,
+		jwtinfo.ErrInvalidClaimsJSON,
+		jwtinfo.ErrEmptyClaims,
+		jwtinfo.ErrClaimMissing,
+		jwtinfo.ErrClaimNotNumeric,
+		jwtinfo.ErrInvalidKV,
+		jwtinfo.ErrEmptyParamName,
+		jwtinfo.ErrInvalidRenewThreshold,
+		jwtinfo.ErrTokenLifetimeInvalid,
+		jwtinfo.ErrTokenRequestStatus,
 	} {
 		if errors.Is(err, s) {
 			return s.Error(), true
