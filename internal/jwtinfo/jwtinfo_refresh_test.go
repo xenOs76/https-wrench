@@ -157,27 +157,28 @@ func TestJwtTokenData_TimingMethods_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
 		jtd     *JwtTokenData
-		wantErr string
+		wantErr error
+		wantMsg string
 	}{
 		{
 			name:    "nil_claims",
 			jtd:     &JwtTokenData{AccessTokenClaims: nil},
-			wantErr: "access token claims are empty",
+			wantErr: ErrEmptyClaims,
 		},
 		{
 			name:    "invalid_json",
 			jtd:     &JwtTokenData{AccessTokenClaims: []byte(`{invalid}`)},
-			wantErr: "unable to unmarshal claims",
+			wantMsg: "unable to unmarshal claims",
 		},
 		{
 			name:    "missing_exp",
 			jtd:     &JwtTokenData{AccessTokenClaims: []byte(`{"iat":123}`)},
-			wantErr: "exp claim missing",
+			wantErr: ErrClaimMissing,
 		},
 		{
 			name:    "non_numeric_exp",
 			jtd:     &JwtTokenData{AccessTokenClaims: []byte(`{"exp":"not-a-number"}`)},
-			wantErr: "exp claim is not a numeric timestamp",
+			wantErr: ErrClaimNotNumeric,
 		},
 	}
 
@@ -185,12 +186,22 @@ func TestJwtTokenData_TimingMethods_Errors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := tt.jtd.GetExpiration()
 			require.Error(t, err)
-			require.Contains(t, err.Error(), tt.wantErr)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.Contains(t, err.Error(), tt.wantMsg)
+			}
 
 			_, err = tt.jtd.GetIssuedAt()
 			if tt.name == "nil_claims" || tt.name == "invalid_json" {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tt.wantErr)
+
+				if tt.wantErr != nil {
+					require.ErrorIs(t, err, tt.wantErr)
+				} else {
+					require.Contains(t, err.Error(), tt.wantMsg)
+				}
 			}
 		})
 	}
@@ -239,10 +250,8 @@ func TestJwtTokenData_CalculateWaitDuration_Validation(t *testing.T) {
 	jtd := &JwtTokenData{}
 
 	_, err := jtd.calculateWaitDuration(-1.0)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "renewThreshold must be between 0 and 100")
+	require.ErrorIs(t, err, ErrInvalidRenewThreshold)
 
 	_, err = jtd.calculateWaitDuration(101.0)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "renewThreshold must be between 0 and 100")
+	require.ErrorIs(t, err, ErrInvalidRenewThreshold)
 }

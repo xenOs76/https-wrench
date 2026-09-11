@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -105,6 +106,7 @@ func TestParseRequestJSONValues(t *testing.T) {
 		jsonStr      string
 		jsonRefMap   map[string]string
 		requireError bool
+		errorIs      error
 		errorMsg     string
 	}{
 		{
@@ -125,7 +127,7 @@ func TestParseRequestJSONValues(t *testing.T) {
 			jsonStr:      "",
 			jsonRefMap:   mapToValidJSON,
 			requireError: true,
-			errorMsg:     "empty string provided as JSON encoded request values",
+			errorIs:      ErrEmptyArg,
 		},
 	}
 	for _, tc := range tests {
@@ -140,7 +142,12 @@ func TestParseRequestJSONValues(t *testing.T) {
 
 			if tt.requireError {
 				require.Error(t, err)
-				require.ErrorContains(t, err, tt.errorMsg)
+
+				if tt.errorIs != nil {
+					require.ErrorIs(t, err, tt.errorIs)
+				} else {
+					require.ErrorContains(t, err, tt.errorMsg)
+				}
 
 				return
 			}
@@ -268,7 +275,7 @@ func TestRequestToken_nilReadAll(t *testing.T) {
 		nil,
 	)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "nil body reader")
+	require.ErrorIs(t, err, ErrNilBodyReader)
 }
 
 type requestTokenTestCase struct {
@@ -301,6 +308,16 @@ func runRequestTokenSubtest(t *testing.T, tt requestTokenTestCase) {
 
 	if tt.expError {
 		require.Error(t, err, "RequestToken - expected error: %s", err)
+
+		switch tt.scope {
+		case "emptyValuesMap":
+			require.ErrorIs(t, err, ErrEmptyRequestValues)
+		case "emptyReqUrl":
+			require.ErrorIs(t, err, ErrEmptyArg)
+		default:
+			// Other failure modes assert only that an error occurred.
+		}
+
 		return
 	}
 
@@ -565,11 +582,10 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 			"",
 			keyfunc.Override{},
 		)
-		require.ErrorContains(
-			t,
-			err,
-			"emptyString string provided as JWKS url",
-		)
+		require.ErrorIs(t, err, ErrEmptyArg)
+		got, ok := errors.AsType[*EmptyArgError](err)
+		require.True(t, ok)
+		require.Equal(t, "JWKS url", got.Name)
 	})
 
 	t.Run("WrongJwksURL", func(t *testing.T) {
@@ -649,34 +665,35 @@ func TestDecodeBase64(t *testing.T) {
 	tests := []struct {
 		name        string
 		tokenString string
-		errMsg      string
+		errorIs     error
+		errorMsg    string
 	}{
 		{
 			name:        "not three dotted string",
 			tokenString: b64notThreeDotted,
-			errMsg:      "invalid three dotted JWT format in",
+			errorIs:     ErrInvalidJWTFormat,
 		},
 		{
 			name:        "invalid base64 header",
 			tokenString: invalidB64HeaderTokenString,
-			errMsg:      "unable to decode base64 header from",
+			errorMsg:    "unable to decode base64 header from",
 		},
 
 		{
 			name:        "invalid base64 claims",
 			tokenString: invalidB64ClaimsTokenString,
-			errMsg:      "unable to decode base64 claims from",
+			errorMsg:    "unable to decode base64 claims from",
 		},
 
 		{
 			name:        "invalid JSON header",
 			tokenString: invalidJSONHeaderTokenString,
-			errMsg:      "invalid JSON found in header from",
+			errorIs:     ErrInvalidHeaderJSON,
 		},
 		{
 			name:        "invalid JSON claims",
 			tokenString: invalidJSONClaimsTokenString,
-			errMsg:      "invalid JSON found in claims from",
+			errorIs:     ErrInvalidClaimsJSON,
 		},
 	}
 
@@ -698,8 +715,14 @@ func TestDecodeBase64(t *testing.T) {
 
 			tdAccessTokenTest := td
 			tdAccessTokenTest.AccessTokenRaw = tt.tokenString
+
 			err = tdAccessTokenTest.DecodeBase64()
-			require.ErrorContains(t, err, tt.errMsg)
+
+			if tt.errorIs != nil {
+				require.ErrorIs(t, err, tt.errorIs)
+			} else {
+				require.ErrorContains(t, err, tt.errorMsg)
+			}
 
 			refreshTokenRaw, err := createToken("demo")
 			require.NoError(t, err)
@@ -716,8 +739,10 @@ func TestDecodeBase64(t *testing.T) {
 			// It only fails if it *looks* like a JWT (3 parts) but is invalid.
 			if strings.Count(tt.tokenString, ".") != 2 {
 				require.NoError(t, err)
+			} else if tt.errorIs != nil {
+				require.ErrorIs(t, err, tt.errorIs)
 			} else {
-				require.ErrorContains(t, err, tt.errMsg)
+				require.ErrorContains(t, err, tt.errorMsg)
 			}
 		})
 	}
@@ -785,9 +810,10 @@ func TestUnmarshalTokenTimeClaims_MapErrors(t *testing.T) {
 	expStringClaims := "{\"exp\":\"now\", \"iat\":1}"
 
 	tests := []struct {
-		name   string
-		claims []byte
-		errMsg string
+		name    string
+		claims  []byte
+		errorIs error
+		errMsg  string
 	}{
 		{
 			name:   "invalid JSON",
@@ -795,25 +821,25 @@ func TestUnmarshalTokenTimeClaims_MapErrors(t *testing.T) {
 			errMsg: "unable to unmarshal claims",
 		},
 		{
-			name:   "missing Issued At",
-			claims: []byte(noIatClaims),
-			errMsg: "unable to find Issued At (iat) in token Claims",
+			name:    "missing Issued At",
+			claims:  []byte(noIatClaims),
+			errorIs: ErrClaimMissing,
 		},
 		{
-			name:   "not numeric Issued At",
-			claims: []byte(iatStringClaims),
-			errMsg: "Issued At (iat) claim is not a numeric timestamp",
+			name:    "not numeric Issued At",
+			claims:  []byte(iatStringClaims),
+			errorIs: ErrClaimNotNumeric,
 		},
 
 		{
-			name:   "claims no Expiration Time",
-			claims: []byte(noExpClaims),
-			errMsg: "unable to find Expiration Time (exp) in token Claims",
+			name:    "claims no Expiration Time",
+			claims:  []byte(noExpClaims),
+			errorIs: ErrClaimMissing,
 		},
 		{
-			name:   "not numeric Expiration Time",
-			claims: []byte(expStringClaims),
-			errMsg: "Expiration Time (exp) claim is not a numeric timestamp",
+			name:    "not numeric Expiration Time",
+			claims:  []byte(expStringClaims),
+			errorIs: ErrClaimNotNumeric,
 		},
 	}
 
@@ -823,7 +849,13 @@ func TestUnmarshalTokenTimeClaims_MapErrors(t *testing.T) {
 			t.Parallel()
 
 			_, err := unmarshalTokenTimeClaims(tt.claims)
-			require.ErrorContains(t, err, tt.errMsg)
+			require.Error(t, err)
+
+			if tt.errorIs != nil {
+				require.ErrorIs(t, err, tt.errorIs)
+			} else {
+				require.ErrorContains(t, err, tt.errMsg)
+			}
 			//nolint:revive
 		})
 		//nolint:revive
@@ -1050,23 +1082,20 @@ func TestParseKVValue(t *testing.T) {
 		t.Parallel()
 
 		_, err := ParseKVValue("invalid", nil)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "expected key=value")
+		require.ErrorIs(t, err, ErrInvalidKV)
 	})
 
 	t.Run("Error_Empty", func(t *testing.T) {
 		t.Parallel()
 
 		_, err := ParseKVValue("", nil)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "empty string provided")
+		require.ErrorIs(t, err, ErrEmptyArg)
 	})
 
 	t.Run("Error_EmptyKey", func(t *testing.T) {
 		t.Parallel()
 
 		_, err := ParseKVValue("=value", nil)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "empty request parameter name")
+		require.ErrorIs(t, err, ErrEmptyParamName)
 	})
 }
