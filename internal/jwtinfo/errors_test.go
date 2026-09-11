@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestJwtinfo_errorSentinels_Is checks errors.Is against jwtinfo sentinels.
+//
 //nolint:revive // function-length: table-driven sentinel coverage
 func TestJwtinfo_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
@@ -102,6 +104,7 @@ func TestJwtinfo_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+// TestJwtinfo_errorTypes_AsType checks errors.AsType for typed jwtinfo errors.
 func TestJwtinfo_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
 

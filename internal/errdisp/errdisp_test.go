@@ -26,6 +26,7 @@ func TestCause(t *testing.T) {
 	require.Equal(t, leaf, Cause(wrapped))
 }
 
+// TestFormatCause checks FormatCause prefers domain leaves over wrap text.
 func TestFormatCause(t *testing.T) {
 	t.Parallel()
 
@@ -81,6 +82,7 @@ func TestFormatCause(t *testing.T) {
 	})
 }
 
+// TestFormat checks Format surfaces domain leaves or top label plus cause.
 func TestFormat(t *testing.T) {
 	t.Parallel()
 

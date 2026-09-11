@@ -153,6 +153,7 @@ func TestJwtTokenData_WriteTokenToFile(t *testing.T) {
 	require.Contains(t, buf.String(), "Token persisted to")
 }
 
+// TestJwtTokenData_TimingMethods_Errors checks GetExpiration/GetIssuedAt claim failures.
 func TestJwtTokenData_TimingMethods_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -246,6 +247,7 @@ func TestJwtTokenData_RefreshLoop_ErrorRetry(t *testing.T) {
 	require.Contains(t, buf.String(), "network error")
 }
 
+// TestJwtTokenData_CalculateWaitDuration_Validation checks renewThreshold bounds.
 func TestJwtTokenData_CalculateWaitDuration_Validation(t *testing.T) {
 	jtd := &JwtTokenData{}
 

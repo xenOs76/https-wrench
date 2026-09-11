@@ -90,6 +90,8 @@ func TestReadRequestValuesFile(t *testing.T) {
 	})
 }
 
+// TestParseRequestJSONValues checks JSON request-value parsing and merge errors.
+//
 //nolint:revive
 func TestParseRequestJSONValues(t *testing.T) {
 	inputMap := map[string]string{
@@ -264,6 +266,7 @@ func TestRequestToken(t *testing.T) {
 	//nolint:revive
 }
 
+// TestRequestToken_nilReadAll checks RequestToken rejects a nil body reader.
 func TestRequestToken_nilReadAll(t *testing.T) {
 	t.Parallel()
 
@@ -286,6 +289,7 @@ type requestTokenTestCase struct {
 	expError bool
 }
 
+// runRequestTokenSubtest runs one RequestToken table case against the test server.
 func runRequestTokenSubtest(t *testing.T, tt requestTokenTestCase) {
 	t.Parallel()
 
@@ -568,6 +572,7 @@ func TestParseUnverified(t *testing.T) {
 	})
 }
 
+// TestParseWithJWKS_Errors checks ParseWithJWKS argument and JWKS failure paths.
 func TestParseWithJWKS_Errors(t *testing.T) {
 	t.Run("EmpryJwksURL", func(t *testing.T) {
 		t.Parallel()
@@ -631,8 +636,8 @@ func TestParseWithJWKS_Errors(t *testing.T) {
 	//nolint:revive
 }
 
-//nolint:revive
-
+// TestDecodeBase64 checks DecodeBase64 format and JSON part failures.
+//
 //nolint:revive
 func TestDecodeBase64(t *testing.T) {
 	notThreeDotted := "notThreeDottedBase64CompliantString"
@@ -800,6 +805,7 @@ func TestUnmarshalTokenTimeClaims(t *testing.T) {
 	})
 }
 
+// TestUnmarshalTokenTimeClaims_MapErrors checks claim map validation failures.
 func TestUnmarshalTokenTimeClaims_MapErrors(t *testing.T) {
 	invalidJSONClaims := "can not unmarshal"
 
@@ -1058,6 +1064,7 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 	})
 }
 
+// TestParseKVValue checks key=value parsing and empty-name errors.
 func TestParseKVValue(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
