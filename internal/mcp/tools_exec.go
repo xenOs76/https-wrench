@@ -15,6 +15,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/jwks"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
 	"github.com/xenos76/https-wrench/internal/requests"
@@ -102,6 +103,7 @@ func registerExecTools(server *sdkmcp.Server) {
 	}, generateJWKSHandler)
 }
 
+// runRequestsHandler executes the run_requests MCP tool.
 func runRequestsHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -112,12 +114,13 @@ func runRequestsHandler(
 
 	out, err := executeRunRequests(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
 }
 
+// certinfoHandler executes the certinfo MCP tool.
 func certinfoHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -128,12 +131,13 @@ func certinfoHandler(
 
 	out, err := executeCertinfo(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
 }
 
+// jwtinfoHandler executes the jwtinfo MCP tool.
 func jwtinfoHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -144,12 +148,13 @@ func jwtinfoHandler(
 
 	out, err := executeJwtinfo(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil
 }
 
+// generateJWKSHandler executes the generate_jwks MCP tool.
 func generateJWKSHandler(
 	ctx context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -160,7 +165,7 @@ func generateJWKSHandler(
 
 	out, err := executeGenerateJWKS(ctx, input)
 	if err != nil {
-		return nil, execToolOutput{Error: err.Error()}, nil
+		return nil, execToolOutput{Error: errdisp.Format(err)}, nil
 	}
 
 	return nil, out, nil

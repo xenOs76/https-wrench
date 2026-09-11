@@ -53,7 +53,7 @@ var certinfoConfigFileReadErrorTests = []struct {
 		expectMsg: map[string]string{
 			"caPool": "failed to read CA bundle file: unable to read file testdata/unreadable-file.txt",
 			"certs":  "error reading certificate file: unable to read file testdata/unreadable-file.txt",
-			"key":    "unable to read file testdata/unreadable-file.txt",
+			"key":    "error reading private key file: unable to read file testdata/unreadable-file.txt",
 		},
 	},
 	{
@@ -66,7 +66,7 @@ var certinfoConfigFileReadErrorTests = []struct {
 		expectMsg: map[string]string{
 			"caPool": "failed to read CA bundle file: open testdata/not-exist: no such file or directory",
 			"certs":  "error reading certificate file: open testdata/not-exist: no such file or directory",
-			"key":    "open testdata/not-exist: no such file or directory",
+			"key":    "error reading private key file: open testdata/not-exist: no such file or directory",
 		},
 	},
 	{

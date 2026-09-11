@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 )
 
 var (
@@ -84,16 +85,16 @@ Examples:
 
 		certinfoCfg, err := certinfo.New()
 		if err != nil {
-			cmd.Printf("Error creating new Certinfo config: %s", err)
+			cmd.Printf("Error creating new Certinfo config: %s", errdisp.FormatCause(err))
 			return
 		}
 
 		if err = certinfoCfg.SetCaPoolFromFile(caBundleValue, fileReader); err != nil {
-			cmd.Printf("Error importing CA Certificate bundle from file: %s", err)
+			cmd.Printf("Error importing CA Certificate bundle from file: %s", errdisp.FormatCause(err))
 		}
 
 		if err = certinfoCfg.SetCertsFromFile(certBundleValue, fileReader); err != nil {
-			cmd.Printf("Error importing Certificate bundle from file: %s", err)
+			cmd.Printf("Error importing Certificate bundle from file: %s", errdisp.FormatCause(err))
 		}
 
 		certinfoCfg.SetTLSInsecure(tlsInsecure).SetTLSServerName(tlsServerName).SetTLSInfoRequested(tlsInfo)
@@ -102,7 +103,7 @@ Examples:
 		// before being able to ask details about the certificate we want to a
 		// webserver using self-signed and valid certificates
 		if err = certinfoCfg.SetTLSEndpoint(context.Background(), tlsEndpoint); err != nil {
-			cmd.Printf("Error setting TLS endpoint: %s", err)
+			cmd.Printf("Error setting TLS endpoint: %s", errdisp.FormatCause(err))
 			return
 		}
 
@@ -111,12 +112,12 @@ Examples:
 			keyPwEnvVar,
 			fileReader,
 		); err != nil {
-			cmd.Printf("Error importing key from file: %s", err)
+			cmd.Printf("Error importing key from file: %s", errdisp.FormatCause(err))
 		}
 
 		// dump.Print(certinfoCfg)
 		if err = certinfoCfg.PrintData(context.Background(), cmd.OutOrStdout()); err != nil {
-			cmd.Printf("error printing Certinfo data: %s", err)
+			cmd.Printf("error printing Certinfo data: %s", errdisp.FormatCause(err))
 		}
 	},
 }

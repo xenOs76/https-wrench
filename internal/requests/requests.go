@@ -214,7 +214,7 @@ func (r *RequestsMetaConfig) SetCaPoolFromYAML(s string) error {
 	if s != "" {
 		certsPool, err := certinfo.GetRootCertsFromString(s)
 		if err != nil {
-			return errors.New("unable to create CA Certs Pool from YAML")
+			return fmt.Errorf("unable to create CA Certs Pool from YAML: %w", err)
 		}
 
 		r.CACertsPool = certsPool

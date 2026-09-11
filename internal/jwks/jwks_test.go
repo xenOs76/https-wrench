@@ -32,7 +32,7 @@ func TestGenerateJWKS_Success(t *testing.T) {
 		require.NoError(t, err)
 		err = pem.Encode(file, block)
 		require.NoError(t, err)
-		file.Close()
+		require.NoError(t, file.Close())
 
 		return path
 	}

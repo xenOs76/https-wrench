@@ -535,7 +535,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 
 		errPrint := cc.PrintData(context.Background(), &buffer)
 		require.Error(t, errPrint)
-		require.ErrorContains(t, errPrint, "unable for read Root certificates")
+		require.ErrorContains(t, errPrint, "unable to read Root certificates")
 	})
 }
 

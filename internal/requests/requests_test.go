@@ -182,6 +182,7 @@ func TestRequestsMetaConfig_SetCaPoolFromYAML_Error(t *testing.T) {
 		err := rmc.SetCaPoolFromYAML("invalid cert data")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "unable to create CA Certs Pool from YAML")
+		require.ErrorIs(t, err, certinfo.ErrNoCertsInConfig)
 	})
 }
 

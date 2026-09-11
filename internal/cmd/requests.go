@@ -13,6 +13,7 @@ import (
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
@@ -89,16 +90,16 @@ Examples:
 			SetRequests(cfg.Requests)
 
 		if err := requestsCfg.SetCaPoolFromYAML(cfg.CaBundle); err != nil {
-			cmd.Print(err)
+			cmd.Print(errdisp.Format(err))
 		}
 
 		if err := requestsCfg.SetCaPoolFromFile(caBundlePath, fileReader); err != nil {
-			cmd.Print(err)
+			cmd.Print(errdisp.Format(err))
 		}
 
 		responseMap, err := requests.HandleRequests(context.Background(), cmd.OutOrStdout(), requestsCfg)
 		if err != nil {
-			cmd.Print(err)
+			cmd.Print(errdisp.Format(err))
 		}
 
 		if cfg.Debug {

@@ -100,7 +100,7 @@ in
             listen [::]:9443 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -116,7 +116,7 @@ in
             listen [::]:9444 ssl proxy_protocol;
             http2 on;
             location / {
-                proxy_pass                  http://localhost:8080;
+                proxy_pass                  http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_pass_request_headers  on;
                 proxy_set_header            Host $host;
                 proxy_set_header            X-Proxy-Protocol        enabled;
@@ -135,7 +135,7 @@ in
             listen [::]:9445 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -150,7 +150,7 @@ in
             listen [::]:9446 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -165,7 +165,7 @@ in
             listen [::]:9447 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -175,6 +175,7 @@ in
 
   services.httpbin = {
     enable = true;
+    bind = [ "127.0.0.1:8081" ];
   };
 
   tasks."web:refreshCertsBeforeNginxStart" = {
@@ -325,6 +326,7 @@ in
 
   scripts.test-requests-show-sample-config.exec = ''
     gum format "## test request show sample config"
+    set -o pipefail
     ./dist/https-wrench requests --show-sample-config| grep 'requests:'
   '';
 
@@ -345,18 +347,29 @@ in
 
   scripts.test-requests-timeout.exec = ''
     gum format "## test request timeout"
-    time ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/https-wrench-request-timeout.yaml | grep "Client.Timeout exceeded while awaiting headers"
+    set +e
+    out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/https-wrench-request-timeout.yaml 2>&1)
+    status=$?
+    set -e
+    printf '%s\n' "$out" | grep "Client.Timeout exceeded while awaiting headers"
+    # requests prints per-request errors but exits 0
+    test "$status" -eq 0
   '';
 
   scripts.test-requests-unknown-ca.exec = ''
     gum format "## test request with unknown CA"
-
-    set +o pipefail
-    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/unknown-ca.yaml | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
+    set +e
+    out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/unknown-ca.yaml 2>&1)
+    status=$?
+    set -e
+    printf '%s\n' "$out" | grep 'failed to verify certificate: x509: certificate signed by unknown authority'
+    # requests prints per-request errors but exits 0
+    test "$status" -eq 0
   '';
 
   scripts.test-requests-insecure.exec = ''
     gum format "## test request insecure skip verify"
+    set -o pipefail
     ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/insecure.yaml | grep 'StatusCode: 200'
   '';
 
@@ -367,31 +380,47 @@ in
 
   scripts.test-requests-body-regexp-match.exec = ''
     gum format "## test request body regexp match"
+    set -o pipefail
     ./dist/https-wrench requests --config  ./${config.env.EXAMPLES}/tests-configs/body-regexp-match.yaml  --ca-bundle $CAROOT/rootCA.pem | grep 'BodyRegexpMatch: true'
   '';
 
   scripts.test-requests-ca-bundle-file-success.exec = ''
     gum format "## test request with CA bundle file"
+    set -o pipefail
     ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem | grep "StatusCode: 200"
   '';
 
   scripts.test-requests-valid-cert-wrong-ca-bundle.exec = ''
     gum format "## test request with valid cert and wrong CA bundle file"
-    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/repo-os76.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1 | grep 'certificate signed by unknown authority'
+    set +e
+    out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/repo-os76.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1)
+    status=$?
+    set -e
+    printf '%s\n' "$out" | grep 'certificate signed by unknown authority'
+    # requests prints per-request errors but exits 0
+    test "$status" -eq 0
   '';
 
   scripts.test-requests-ca-bundle-file-wrong-servername.exec = ''
     gum format "## test request with CA bundle file and wrong host name / servername"
-    ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem | grep 'tls: failed to verify certificate: x509'
+    set +e
+    out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-wrong-servername.yaml --ca-bundle $CAROOT/rootCA.pem 2>&1)
+    status=$?
+    set -e
+    printf '%s\n' "$out" | grep 'tls: failed to verify certificate: x509'
+    # requests prints per-request errors but exits 0
+    test "$status" -eq 0
   '';
 
   scripts.test-requests-proxy-protocol-ipv4.exec = ''
     gum format "## test request proxy protocol IPv4"
+    set -o pipefail
     ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/proxy-protocol-ipv4.yaml --ca-bundle $CAROOT/rootCA.pem | grep '192.0.2.1'
   '';
 
   scripts.test-requests-proxy-protocol-ipv6.exec = ''
     gum format "## test request proxy protocol IPv6"
+    set -o pipefail
     ./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/proxy-protocol-ipv6.yaml --ca-bundle $CAROOT/rootCA.pem | grep '2001:db8::1'
   '';
 
@@ -405,6 +434,7 @@ in
     echo "caBundle: |" >> $CA_BUNDLE_YAML_TEST_FILE
     while IFS= read -r line; do echo  "  $line" >> $CA_BUNDLE_YAML_TEST_FILE ; done < $CAROOT/rootCA.pem
 
+    set -o pipefail
     ./dist/https-wrench requests --config $CA_BUNDLE_YAML_TEST_FILE | grep 'StatusCode: 200'
   '';
 
@@ -623,6 +653,7 @@ in
   '';
 
   scripts.run-requests-tests.exec = ''
+    set -e
     gum format "## Requests tests"
 
     # test-requests-sample-config
