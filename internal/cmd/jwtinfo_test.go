@@ -64,7 +64,7 @@ func TestJwtinfoCmd_Success(t *testing.T) {
 		token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
 			"eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2M" +
 			"jM5MDIyLCJleHAiOjE1MTYyNDkwMjJ9.c2lnbmF0dXJl"
-		w.Write([]byte(`{"access_token": "` + token + `"}`))
+		_, _ = w.Write([]byte(`{"access_token": "` + token + `"}`))
 	}))
 	defer ts.Close()
 
