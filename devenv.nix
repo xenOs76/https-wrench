@@ -100,7 +100,7 @@ in
             listen [::]:9443 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -116,7 +116,7 @@ in
             listen [::]:9444 ssl proxy_protocol;
             http2 on;
             location / {
-                proxy_pass                  http://localhost:8080;
+                proxy_pass                  http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_pass_request_headers  on;
                 proxy_set_header            Host $host;
                 proxy_set_header            X-Proxy-Protocol        enabled;
@@ -135,7 +135,7 @@ in
             listen [::]:9445 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -150,7 +150,7 @@ in
             listen [::]:9446 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -165,7 +165,7 @@ in
             listen [::]:9447 ssl;
             http2 on;
             location / {
-                proxy_pass       http://localhost:8080;
+                proxy_pass       http://127.0.0.1:${toString config.processes.httpbin.ports.main.value};
                 proxy_set_header Host                   $host;
                 proxy_set_header X-Forwarded-For        $remote_addr;
             }
@@ -175,6 +175,7 @@ in
 
   services.httpbin = {
     enable = true;
+    bind = [ "127.0.0.1:8081" ];
   };
 
   tasks."web:refreshCertsBeforeNginxStart" = {
@@ -623,6 +624,7 @@ in
   '';
 
   scripts.run-requests-tests.exec = ''
+    set -e
     gum format "## Requests tests"
 
     # test-requests-sample-config
