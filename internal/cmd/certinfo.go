@@ -5,7 +5,6 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
-	"context"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -102,7 +101,7 @@ Examples:
 			return
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 
 		certinfoCfg, err := certinfo.New()
 		if err != nil {
