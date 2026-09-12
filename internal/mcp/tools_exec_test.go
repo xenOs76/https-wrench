@@ -38,7 +38,8 @@ func TestCertinfoTool_localBundle(t *testing.T) {
 		"certBundle": filepath.Join("..", "certinfo", "testdata", "rsa-pkcs8-crt.pem"),
 	})
 	require.Empty(t, out["error"])
-	require.Contains(t, out["output"], "Certinfo")
+	require.Contains(t, out["output"], `"schemaVersion"`)
+	require.Contains(t, out["output"], `"command": "certinfo"`)
 }
 
 func TestCertinfoTool_encryptedKeyNoPassword(t *testing.T) {

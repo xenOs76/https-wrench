@@ -6,11 +6,14 @@ package cmd
 
 import (
 	"context"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xenos76/https-wrench/internal/certinfo"
 	"github.com/xenos76/https-wrench/internal/errdisp"
+	"github.com/xenos76/https-wrench/internal/view"
+	"golang.org/x/term"
 )
 
 var (
@@ -18,6 +21,7 @@ var (
 	tlsServerName string
 	tlsInsecure   bool
 	tlsInfo       bool
+	certinfoFmt   string
 	keyPwEnvVar   = "CERTINFO_PKEY_PW"
 )
 
@@ -35,6 +39,10 @@ The validation can be skipped.
 
 If the private key is password protected, the password can be provided via the CERTINFO_PKEY_PW 
 environment variable or will be prompted on stdin.
+
+Output formats:
+  text (default) — human-readable lipgloss tables on a TTY; plain when piped
+  json           — machine-readable report (schemaVersion, no ANSI)
 
 Examples:
 
@@ -60,6 +68,10 @@ Examples:
   # with optional display of negotiated and supported TLS protocols and ciphers
 
   https-wrench certinfo --tls-endpoint example.com:443 --tls-info
+
+  # Machine-readable JSON for agents / CI
+
+  https-wrench certinfo --cert-bundle ./bundle.pem --format json
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		caBundleValue := viper.GetString("ca-bundle")
@@ -77,11 +89,20 @@ Examples:
 			return
 		}
 
+		switch certinfoFmt {
+		case "", "text", "json":
+		default:
+			cmd.Printf("Error: unsupported --format %q (use text or json)\n", certinfoFmt)
+			return
+		}
+
 		// display the help if none of the main flags is set
 		if len(caBundleValue+certBundleValue+keyFileValue+tlsEndpoint) == 0 {
 			_ = cmd.Help()
 			return
 		}
+
+		ctx := context.Background()
 
 		certinfoCfg, err := certinfo.New()
 		if err != nil {
@@ -102,7 +123,7 @@ Examples:
 		// SetTLSEndpoint may need the SNI/ServerName and insecure options to be set
 		// before being able to ask details about the certificate we want to a
 		// webserver using self-signed and valid certificates
-		if err = certinfoCfg.SetTLSEndpoint(context.Background(), tlsEndpoint); err != nil {
+		if err = certinfoCfg.SetTLSEndpoint(ctx, tlsEndpoint); err != nil {
 			cmd.Printf("Error setting TLS endpoint: %s", errdisp.FormatCause(err))
 			return
 		}
@@ -115,8 +136,39 @@ Examples:
 			cmd.Printf("Error importing key from file: %s", errdisp.FormatCause(err))
 		}
 
-		// dump.Print(certinfoCfg)
-		if err = certinfoCfg.PrintData(context.Background(), cmd.OutOrStdout()); err != nil {
+		if tlsInfo {
+			if err = certinfoCfg.ProbeTLSInfo(ctx); err != nil {
+				cmd.Printf("Error probing TLS info: %s", errdisp.FormatCause(err))
+				return
+			}
+		}
+
+		result, err := certinfoCfg.BuildResult()
+		if err != nil {
+			cmd.Printf("error building Certinfo result: %s", errdisp.FormatCause(err))
+			return
+		}
+
+		out := cmd.OutOrStdout()
+
+		if certinfoFmt == "json" {
+			payload, encErr := certinfo.EncodeJSON(result)
+			if encErr != nil {
+				cmd.Printf("error encoding Certinfo JSON: %s", errdisp.FormatCause(encErr))
+				return
+			}
+
+			cmd.Println(string(payload))
+
+			return
+		}
+
+		opts := view.Options{}
+		if f, ok := out.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+			opts.ForceColor = true
+		}
+
+		if err = view.Render(out, certinfo.BuildDoc(result), opts); err != nil {
 			cmd.Printf("error printing Certinfo data: %s", errdisp.FormatCause(err))
 		}
 	},
@@ -141,5 +193,9 @@ IPv6 addresses must be enclosed in square brackets, as in '[::1]:80'`)
 		"tls-info",
 		false,
 		"Show negotiated TLS info and probe supported protocols/ciphers")
+	certinfoCmd.Flags().StringVar(&certinfoFmt,
+		"format",
+		"text",
+		"Output format: text (default) or json")
 	rootCmd.AddCommand(certinfoCmd)
 }

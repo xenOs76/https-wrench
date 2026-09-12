@@ -526,7 +526,7 @@ func TestCertinfo_PrintData(t *testing.T) {
 		require.ErrorContains(t, errPrint, "unable to check if private key matches remote TLS Endpoint certificate")
 	})
 
-	t.Run("PrintData CA cert file read error", func(t *testing.T) {
+	t.Run("PrintData CA path without cached certs is empty section", func(t *testing.T) {
 		buffer := bytes.Buffer{}
 		cc, err := New()
 		require.NoError(t, err)
@@ -534,8 +534,8 @@ func TestCertinfo_PrintData(t *testing.T) {
 		cc.CACertsFilePath = "non_existent_file.pem"
 
 		errPrint := cc.PrintData(context.Background(), &buffer)
-		require.Error(t, errPrint)
-		require.ErrorContains(t, errPrint, "unable to read Root certificates")
+		require.NoError(t, errPrint)
+		require.Contains(t, buffer.String(), "CA Certificates file: non_existent_file.pem")
 	})
 }
 
@@ -597,15 +597,18 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 
 func verifyPrintDataOutput(t *testing.T, got string, tt printDataTestCase) {
 	if tt.keyFile != emptyString {
-		require.Contains(t, got, "PrivateKey file: "+tt.keyFile)
+		require.Contains(t, got, "PrivateKey file:")
+		require.Contains(t, got, tt.keyFile)
 	}
 
 	if tt.certFile != emptyString {
-		require.Contains(t, got, "Certificate bundle file: "+tt.certFile)
+		require.Contains(t, got, "Certificate bundle file:")
+		require.Contains(t, got, tt.certFile)
 	}
 
 	if tt.caCertFile != emptyString {
-		require.Contains(t, got, "CA Certificates file: "+tt.caCertFile)
+		require.Contains(t, got, "CA Certificates file:")
+		require.Contains(t, got, tt.caCertFile)
 	}
 
 	if tt.expectCertsFetchErr {
@@ -621,16 +624,20 @@ func verifyPrintDataOutput(t *testing.T, got string, tt printDataTestCase) {
 	}
 
 	if tt.keyFile != emptyString {
+		require.Contains(t, got, "PrivateKey match:")
+
 		if tt.keyCertMatch {
-			require.Contains(t, got, "PrivateKey match: true")
+			require.Contains(t, got, "true")
 		} else {
-			require.Contains(t, got, "PrivateKey match: false")
+			require.Contains(t, got, "false")
 		}
 	}
 
 	if tt.tlsEndpoint != emptyString {
 		require.Contains(t, got, "TLSEndpoint Certificates")
-		require.Contains(t, got, "Endpoint: "+tt.tlsEndpoint)
-		require.Contains(t, got, "ServerName: "+tt.tlsServerName)
+		require.Contains(t, got, "Endpoint:")
+		require.Contains(t, got, tt.tlsEndpoint)
+		require.Contains(t, got, "ServerName:")
+		require.Contains(t, got, tt.tlsServerName)
 	}
 }

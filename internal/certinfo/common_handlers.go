@@ -7,29 +7,28 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
+	"strings"
 
+	"github.com/xenos76/https-wrench/internal/view"
 	"github.com/youmark/pkcs8"
 )
 
-// PrintCertInfo prints basic information about an x509 certificate to the provided writer
-// with a specified indentation depth.
+// PrintCertInfo prints certificate information using the shared cert Doc in plain mode.
 func PrintCertInfo(cert *x509.Certificate, depth int, w io.Writer) {
-	prefix := ""
-	for range depth {
-		prefix += "  "
-	}
+	var buf strings.Builder
 
-	fmt.Fprintf(w, "%sSubject: %s\n", prefix, cert.Subject)
-	fmt.Fprintf(w, "%sIssuer:  %s\n", prefix, cert.Issuer)
-	fmt.Fprintf(w, "%sValid From: %s\n", prefix, cert.NotBefore.Format(time.RFC1123))
-	fmt.Fprintf(w, "%sValid To:   %s\n", prefix, cert.NotAfter.Format(time.RFC1123))
-	fmt.Fprintf(w, "%sDNS Names: %v\n", prefix, cert.DNSNames)
-	fmt.Fprintf(w, "%sIs CA: %v\n", prefix, cert.IsCA)
-	fmt.Fprintf(w, "%sSerial Number: %s\n", prefix, cert.SerialNumber)
-	fmt.Fprintf(w, "%sPublic Key Algorithm: %s\n", prefix, cert.PublicKeyAlgorithm)
-	fmt.Fprintf(w, "%sSignature Algorithm: %s\n", prefix, cert.SignatureAlgorithm)
-	fmt.Fprintln(w)
+	_ = view.Render(&buf, CertsDoc([]*x509.Certificate{cert}), view.Options{Plain: true})
+
+	prefix := strings.Repeat("  ", depth)
+
+	for line := range strings.SplitSeq(buf.String(), "\n") {
+		if line == "" {
+			fmt.Fprintln(w)
+			continue
+		}
+
+		fmt.Fprintln(w, prefix+line)
+	}
 }
 
 // Check if the PublicKey of a Certificate matches the PrivateKey.

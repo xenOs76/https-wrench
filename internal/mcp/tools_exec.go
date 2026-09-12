@@ -279,14 +279,27 @@ func certinfoExec(ctx context.Context, input certinfoInput) (execToolOutput, err
 		return execToolOutput{}, err
 	}
 
-	output, err := captureOutput(func(w io.Writer) error {
-		return cfg.PrintData(ctx, w)
-	})
+	if input.TLSInfo {
+		if err = cfg.ProbeTLSInfo(ctx); err != nil {
+			return execToolOutput{}, err
+		}
+	}
+
+	return certinfoJSONOutput(cfg)
+}
+
+func certinfoJSONOutput(cfg *certinfo.Config) (execToolOutput, error) {
+	result, err := cfg.BuildResult()
 	if err != nil {
 		return execToolOutput{}, err
 	}
 
-	return execToolOutput{Output: output}, nil
+	payload, err := certinfo.EncodeJSON(result)
+	if err != nil {
+		return execToolOutput{}, err
+	}
+
+	return execToolOutput{Output: string(payload)}, nil
 }
 
 func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, error) {

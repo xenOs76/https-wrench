@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 func TestNew(t *testing.T) {
@@ -534,13 +534,8 @@ func TestCertinfo_PrintTLSInfo_NotRequested(t *testing.T) {
 	cc.TLSInfoRequested = false
 
 	var buf bytes.Buffer
-
-	ks := lipgloss.NewStyle()
-	sl := lipgloss.NewStyle()
-	sv := lipgloss.NewStyle()
-
-	cc.printTLSInfo(&buf, ks, sl, sv)
-	require.Empty(t, buf.String())
+	require.NoError(t, cc.PrintDataWithOptions(&buf, view.Options{Plain: true}))
+	require.NotContains(t, buf.String(), "Negotiated TLS Connection")
 }
 
 func TestCertinfo_PrintTLSInfo_HappyPath(t *testing.T) {
@@ -575,12 +570,7 @@ func TestCertinfo_PrintTLSInfo_HappyPath(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-
-	ks := lipgloss.NewStyle()
-	sl := lipgloss.NewStyle()
-	sv := lipgloss.NewStyle()
-
-	cc.printTLSInfo(&buf, ks, sl, sv)
+	require.NoError(t, cc.PrintDataWithOptions(&buf, view.Options{ForceColor: true}))
 
 	got := buf.String()
 	require.Contains(t, got, "Negotiated TLS Connection")
@@ -620,12 +610,7 @@ func TestCertinfo_PrintTLSInfo_NoSupportedCiphers(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-
-	ks := lipgloss.NewStyle()
-	sl := lipgloss.NewStyle()
-	sv := lipgloss.NewStyle()
-
-	cc.printTLSInfo(&buf, ks, sl, sv)
+	require.NoError(t, cc.PrintDataWithOptions(&buf, view.Options{ForceColor: true}))
 
 	got := buf.String()
 	require.Contains(t, got, "Negotiated TLS Connection")
