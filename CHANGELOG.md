@@ -10,6 +10,8 @@
 
 ### Feat
 
+    Certinfo: multi-sink output — typed Result as source of truth, console via internal/view Doc + lipgloss renderer, and `--format json` (schemaVersion, no ANSI). MCP certinfo returns JSON.
+
     Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
 
     Jwtinfo: add sentinel and typed errors for errors.Is/As, and route CLI/MCP display through errdisp domain leaves.
@@ -26,9 +28,21 @@
 
 ### Fix
 
+    Certinfo: read the CA bundle once in SetCaPoolFromFile and derive both CertPool and certificate slice from the same PEM bytes.
+
+    Certinfo: omit protocol/cipher scan sections until ProbeTLSInfo has completed; keep negotiated TLS output when requested.
+
+    Certinfo: propagate cobra cmd.Context() to SetTLSEndpoint and ProbeTLSInfo instead of context.Background().
+
     Devenv: prefer httpbin on 127.0.0.1:8081 and proxy nginx upstreams through the allocated httpbin port so `devenv test` keeps working when the preferred port is already taken; fail fast in request integration tests with `set -e`, enable `pipefail` on success-case request leaf pipelines, and assert request exit status separately from expected error text.
 
+### Refactor
+
+    Certinfo: collapse styled and plain cert printers onto CertsDoc + view.Render; separate collect from present (cache CA certs, probe TLS before sinks).
+
 ### Tests
+
+    Certinfo: assert PrivateKey match label and value together under plain PrintData rendering.
 
     Certinfo and requests: share CA/leaf certificate generation and custom TLS httptest servers via internal/tlstest.
 
