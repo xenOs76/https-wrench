@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestJwks_errorSentinels_Is checks errors.Is against jwks sentinels.
 func TestJwks_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
 

@@ -94,6 +94,7 @@ func TestMCP_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+// TestMCP_errorTypes_AsType checks errors.AsType for typed mcp errors.
 func TestMCP_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
 

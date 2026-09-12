@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCertinfo_errorSentinels_Is checks errors.Is against certinfo sentinels.
 func TestCertinfo_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
 
@@ -86,6 +87,7 @@ func TestCertinfo_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+// TestCertinfo_errorTypes_AsType checks errors.AsType for typed certinfo errors.
 func TestCertinfo_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
 

@@ -16,6 +16,7 @@ import (
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
+// TestCause checks Cause unwraps to the deepest single-cause leaf.
 func TestCause(t *testing.T) {
 	t.Parallel()
 

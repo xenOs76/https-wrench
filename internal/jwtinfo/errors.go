@@ -26,7 +26,7 @@ var (
 	ErrInvalidBase64Header   = errors.New("unable to decode base64 header")
 	ErrInvalidBase64Claims   = errors.New("unable to decode base64 claims")
 	ErrJWTParse              = errors.New("unable to parse JWT")
-	ErrInvalidRequestJSON    = errors.New("unable to parse Json request values")
+	ErrInvalidRequestJSON    = errors.New("unable to parse JSON request values")
 )
 
 // EmptyArgError is returned when a required string argument is empty.
@@ -226,7 +226,7 @@ func (e *JWTParseError) Error() string {
 		return "unable to parse JWT token from HTTP response"
 	case "JWKS":
 		return fmt.Sprintf(
-			"failed to parse the JWT AccessTokenRaw against JWKS Url %s",
+			"failed to parse the JWT AccessTokenRaw against JWKS URL %s",
 			e.URL,
 		)
 	default:

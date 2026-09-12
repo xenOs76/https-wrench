@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRequests_errorSentinels_Is checks errors.Is against requests sentinels.
 func TestRequests_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
 
@@ -86,6 +87,7 @@ func TestRequests_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+// TestRequests_errorTypes_AsType checks errors.AsType for typed requests errors.
 func TestRequests_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
 

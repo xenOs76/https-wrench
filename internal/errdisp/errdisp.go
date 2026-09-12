@@ -92,6 +92,7 @@ func domainLeaf(err error) (string, bool) {
 	return domainSentinelLeaf(err)
 }
 
+// certinfoTypedLeaf returns a certinfo typed-error leaf message when matched.
 func certinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*certinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
@@ -112,6 +113,7 @@ func certinfoTypedLeaf(err error) (string, bool) {
 	return "", false
 }
 
+// jwtinfoTypedLeaf returns a jwtinfo typed-error leaf message when matched.
 func jwtinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*jwtinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
@@ -156,6 +158,7 @@ func jwtinfoTypedLeaf(err error) (string, bool) {
 	return "", false
 }
 
+// requestsTypedLeaf returns a requests typed-error leaf message when matched.
 func requestsTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*requests.EmptyArgError](err); ok {
 		return empty.Error(), true
@@ -184,6 +187,7 @@ func requestsTypedLeaf(err error) (string, bool) {
 	return "", false
 }
 
+// domainSentinelLeaf returns a package-sentinel leaf message when errors.Is matches.
 func domainSentinelLeaf(err error) (string, bool) {
 	for _, s := range domainSentinels {
 		if errors.Is(err, s) {
