@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMCP_errorSentinels_Is checks errors.Is against mcp sentinels.
+//
+//nolint:revive // function-length: table-driven sentinel coverage
 func TestMCP_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
 

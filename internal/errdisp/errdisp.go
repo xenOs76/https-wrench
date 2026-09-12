@@ -77,6 +77,22 @@ func Format(err error) string {
 
 // domainLeaf returns a domain leaf message when err matches a known failure.
 func domainLeaf(err error) (string, bool) {
+	if msg, ok := certinfoTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	if msg, ok := jwtinfoTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	if msg, ok := requestsTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	return domainSentinelLeaf(err)
+}
+
+func certinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*certinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
 	}
@@ -93,6 +109,10 @@ func domainLeaf(err error) (string, bool) {
 		return tlsEp.Error(), true
 	}
 
+	return "", false
+}
+
+func jwtinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*jwtinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
 	}
@@ -133,6 +153,10 @@ func domainLeaf(err error) (string, bool) {
 		return parse.Error(), true
 	}
 
+	return "", false
+}
+
+func requestsTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*requests.EmptyArgError](err); ok {
 		return empty.Error(), true
 	}
@@ -157,56 +181,63 @@ func domainLeaf(err error) (string, bool) {
 		return turl.Error(), true
 	}
 
-	for _, s := range []error{
-		certinfo.ErrNilReader,
-		certinfo.ErrPEMDecode,
-		certinfo.ErrCertPoolFromFile,
-		certinfo.ErrNoCertsInConfig,
-		certinfo.ErrUnsupportedKey,
-		certinfo.ErrUnsupportedPublicKey,
-		certinfo.ErrEmptyArg,
-		certinfo.ErrNoCertsInFile,
-		certinfo.ErrUnrecognizedKeyType,
-		certinfo.ErrInvalidTLSEndpoint,
-		jwtinfo.ErrNilBodyReader,
-		jwtinfo.ErrEmptyRequestValues,
-		jwtinfo.ErrEmptyArg,
-		jwtinfo.ErrInvalidJWTFormat,
-		jwtinfo.ErrInvalidHeaderJSON,
-		jwtinfo.ErrInvalidClaimsJSON,
-		jwtinfo.ErrEmptyClaims,
-		jwtinfo.ErrClaimMissing,
-		jwtinfo.ErrClaimNotNumeric,
-		jwtinfo.ErrInvalidKV,
-		jwtinfo.ErrEmptyParamName,
-		jwtinfo.ErrInvalidRenewThreshold,
-		jwtinfo.ErrTokenLifetimeInvalid,
-		jwtinfo.ErrTokenRequestStatus,
-		jwtinfo.ErrInvalidBase64Header,
-		jwtinfo.ErrInvalidBase64Claims,
-		jwtinfo.ErrJWTParse,
-		jwtinfo.ErrInvalidRequestJSON,
-		jwks.ErrPEMDecode,
-		jwks.ErrUnsupportedPublicKey,
-		jwks.ErrNotPublicKey,
-		requests.ErrMethodNotFound,
-		requests.ErrNilClient,
-		requests.ErrEmptyArg,
-		requests.ErrServerNameIsURL,
-		requests.ErrWrongTransport,
-		requests.ErrInvalidTimeout,
-		requests.ErrProxyProtoNeedsOverride,
-		requests.ErrProxyProtoDisabled,
-		requests.ErrTransportOverrideRequired,
-		requests.ErrInvalidURI,
-		requests.ErrInvalidTransportURL,
-	} {
+	return "", false
+}
+
+func domainSentinelLeaf(err error) (string, bool) {
+	for _, s := range domainSentinels {
 		if errors.Is(err, s) {
 			return s.Error(), true
 		}
 	}
 
 	return "", false
+}
+
+// domainSentinels lists stable package sentinels matched with errors.Is.
+var domainSentinels = []error{
+	certinfo.ErrNilReader,
+	certinfo.ErrPEMDecode,
+	certinfo.ErrCertPoolFromFile,
+	certinfo.ErrNoCertsInConfig,
+	certinfo.ErrUnsupportedKey,
+	certinfo.ErrUnsupportedPublicKey,
+	certinfo.ErrEmptyArg,
+	certinfo.ErrNoCertsInFile,
+	certinfo.ErrUnrecognizedKeyType,
+	certinfo.ErrInvalidTLSEndpoint,
+	jwtinfo.ErrNilBodyReader,
+	jwtinfo.ErrEmptyRequestValues,
+	jwtinfo.ErrEmptyArg,
+	jwtinfo.ErrInvalidJWTFormat,
+	jwtinfo.ErrInvalidHeaderJSON,
+	jwtinfo.ErrInvalidClaimsJSON,
+	jwtinfo.ErrEmptyClaims,
+	jwtinfo.ErrClaimMissing,
+	jwtinfo.ErrClaimNotNumeric,
+	jwtinfo.ErrInvalidKV,
+	jwtinfo.ErrEmptyParamName,
+	jwtinfo.ErrInvalidRenewThreshold,
+	jwtinfo.ErrTokenLifetimeInvalid,
+	jwtinfo.ErrTokenRequestStatus,
+	jwtinfo.ErrInvalidBase64Header,
+	jwtinfo.ErrInvalidBase64Claims,
+	jwtinfo.ErrJWTParse,
+	jwtinfo.ErrInvalidRequestJSON,
+	jwks.ErrPEMDecode,
+	jwks.ErrUnsupportedPublicKey,
+	jwks.ErrNotPublicKey,
+	requests.ErrMethodNotFound,
+	requests.ErrNilClient,
+	requests.ErrEmptyArg,
+	requests.ErrServerNameIsURL,
+	requests.ErrWrongTransport,
+	requests.ErrInvalidTimeout,
+	requests.ErrProxyProtoNeedsOverride,
+	requests.ErrProxyProtoDisabled,
+	requests.ErrTransportOverrideRequired,
+	requests.ErrInvalidURI,
+	requests.ErrInvalidTransportURL,
 }
 
 // topLabel returns the outermost wrap text without the unwrapped suffix.
