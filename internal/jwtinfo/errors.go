@@ -23,6 +23,10 @@ var (
 	ErrInvalidRenewThreshold = errors.New("renewThreshold must be between 0 and 100")
 	ErrTokenLifetimeInvalid  = errors.New("token lifetime is zero or negative")
 	ErrTokenRequestStatus    = errors.New("token request returned non-OK status")
+	ErrInvalidBase64Header   = errors.New("unable to decode base64 header")
+	ErrInvalidBase64Claims   = errors.New("unable to decode base64 claims")
+	ErrJWTParse              = errors.New("unable to parse JWT")
+	ErrInvalidRequestJSON    = errors.New("unable to parse JSON request values")
 )
 
 // EmptyArgError is returned when a required string argument is empty.
@@ -180,4 +184,57 @@ func (e *InvalidRenewThresholdError) Error() string {
 // Is reports whether target is ErrInvalidRenewThreshold.
 func (*InvalidRenewThresholdError) Is(target error) bool {
 	return target == ErrInvalidRenewThreshold
+}
+
+// InvalidBase64PartError is returned when a JWT part fails base64 decoding.
+// errors.Is matches ErrInvalidBase64Header or ErrInvalidBase64Claims from Part.
+type InvalidBase64PartError struct {
+	Name string
+	Part string // "header" or "claims"
+}
+
+// Error returns a message naming the failed base64 part.
+func (e *InvalidBase64PartError) Error() string {
+	return fmt.Sprintf("unable to decode base64 %s from %s", e.Part, e.Name)
+}
+
+// Is reports whether target matches the header or claims sentinel for Part.
+func (e *InvalidBase64PartError) Is(target error) bool {
+	switch e.Part {
+	case "header":
+		return target == ErrInvalidBase64Header
+	case "claims":
+		return target == ErrInvalidBase64Claims
+	default:
+		return false
+	}
+}
+
+// JWTParseError is returned when jwt library parse/verify fails.
+// errors.Is(err, ErrJWTParse) is true.
+type JWTParseError struct {
+	Source string // "AccessTokenRaw", "file", "HTTP response", "JWKS"
+	URL    string // optional JWKS URL when Source is "JWKS"
+}
+
+// Error returns a human-facing parse failure message for Source.
+func (e *JWTParseError) Error() string {
+	switch e.Source {
+	case "file":
+		return "unable to parse JWT token from file"
+	case "HTTP response":
+		return "unable to parse JWT token from HTTP response"
+	case "JWKS":
+		return fmt.Sprintf(
+			"failed to parse the JWT AccessTokenRaw against JWKS URL %s",
+			e.URL,
+		)
+	default:
+		return "unable to parse AccessTokenRaw"
+	}
+}
+
+// Is reports whether target is ErrJWTParse.
+func (*JWTParseError) Is(target error) bool {
+	return target == ErrJWTParse
 }

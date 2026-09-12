@@ -122,7 +122,7 @@ func TestParseRequestJSONValues(t *testing.T) {
 			jsonStr:      "{\"testKey2  :\"testValue2\", \"testKey3\":\"testValue3\"}",
 			jsonRefMap:   mapToValidJSON,
 			requireError: true,
-			errorMsg:     "unable to parse Json request values: invalid character 't' after object key",
+			errorMsg:     "unable to parse JSON request values: invalid character 't' after object key",
 		},
 		{
 			name:         "emptyJsonString",

@@ -3,7 +3,6 @@ package mcp
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -78,7 +77,7 @@ func (mcpFileReader) ReadFile(name string) ([]byte, error) {
 func (mcpFileReader) NoPasswordPrompt() bool { return true }
 
 func (mcpFileReader) ReadPassword(_ int) ([]byte, error) {
-	return nil, errors.New("encrypted private keys require CERTINFO_PKEY_PW under MCP")
+	return nil, ErrEncryptedKeyNeedsEnv
 }
 
 func registerExecTools(server *sdkmcp.Server) {
@@ -193,7 +192,7 @@ func runRequestsExec(ctx context.Context, input runRequestsInput) (execToolOutpu
 
 	valid, errs := validateRequestsConfig(yamlContent)
 	if !valid {
-		return execToolOutput{}, fmt.Errorf("invalid config: %s", strings.Join(errs, "; "))
+		return execToolOutput{}, &ValidationError{Messages: errs, Prefixed: true}
 	}
 
 	loaded, _, err := loadRequestsConfigYAML(yamlContent)
@@ -234,13 +233,11 @@ func certinfoExec(ctx context.Context, input certinfoInput) (execToolOutput, err
 	}
 
 	if !certinfoInputProvided(input) {
-		return execToolOutput{}, errors.New(
-			"one of tlsEndpoint, certBundle, keyFile, or caBundle is required",
-		)
+		return execToolOutput{}, ErrCertinfoInputRequired
 	}
 
 	if input.TLSInfo && input.TLSEndpoint == "" {
-		return execToolOutput{}, errors.New("tlsInfo requires tlsEndpoint")
+		return execToolOutput{}, ErrTLSInfoNeedsEndpoint
 	}
 
 	cfg, err := certinfo.New()
@@ -299,7 +296,7 @@ func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, er
 	}
 
 	if tokenData == nil || tokenData.AccessTokenRaw == "" {
-		return execToolOutput{}, errors.New("no JWT token data available")
+		return execToolOutput{}, ErrNoJWTTokenData
 	}
 
 	if err = tokenData.DecodeBase64(); err != nil {
@@ -324,7 +321,7 @@ func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, er
 
 func executeGenerateJWKS(ctx context.Context, input generateJWKSInput) (execToolOutput, error) {
 	if strings.TrimSpace(input.PublicKeyFile) == "" {
-		return execToolOutput{}, errors.New("publicKeyFile is required")
+		return execToolOutput{}, &RequiredFieldError{Field: "publicKeyFile"}
 	}
 
 	jwksJSON, err := jwks.GenerateJWKS(ctx, input.PublicKeyFile, input.Kid)
@@ -341,9 +338,9 @@ func loadConfigYAML(configYAML, configPath string) (string, error) {
 
 	switch {
 	case hasYAML && hasPath:
-		return "", errors.New("provide exactly one of configYaml or configPath")
+		return "", ErrExactlyOneConfigSource
 	case !hasYAML && !hasPath:
-		return "", errors.New("configYaml or configPath is required")
+		return "", ErrConfigSourceRequired
 	case hasPath:
 		data, err := os.ReadFile(configPath)
 		if err != nil {
@@ -410,14 +407,14 @@ func loadJwtTokenData(ctx context.Context, input jwtinfoInput) (*jwtinfo.JwtToke
 
 	switch {
 	case hasFile && hasURL:
-		return nil, errors.New("provide exactly one of tokenFile or requestUrl")
+		return nil, ErrExactlyOneTokenSource
 	case !hasFile && !hasURL:
-		return nil, errors.New("tokenFile or requestUrl is required")
+		return nil, ErrTokenSourceRequired
 	case hasFile:
 		return jwtinfo.ReadTokenFromFile(input.TokenFile)
 	default:
 		if len(input.RequestValues) == 0 {
-			return nil, errors.New("requestValues is required with requestUrl")
+			return nil, &RequiredFieldError{Field: "requestValues"}
 		}
 
 		client := &http.Client{Timeout: execToolTimeout(input.TimeoutSec)}

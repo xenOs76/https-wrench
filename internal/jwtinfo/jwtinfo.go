@@ -134,10 +134,7 @@ func RequestToken(ctx context.Context, reqURL string, reqValues map[string]strin
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"unable to parse JWT token from HTTP response: %w",
-			err,
-		)
+		return nil, fmt.Errorf("%w: %w", &JWTParseError{Source: "HTTP response"}, err)
 	}
 
 	return t, nil
@@ -158,10 +155,7 @@ func ReadTokenFromFile(fileName string) (*JwtTokenData, error) {
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"unable to parse JWT token from file: %w",
-			err,
-		)
+		return nil, fmt.Errorf("%w: %w", &JWTParseError{Source: "file"}, err)
 	}
 
 	return td, nil
@@ -184,7 +178,7 @@ func ParseRequestJSONValues(
 
 	err := json.Unmarshal([]byte(reqValues), &objmap)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse Json request values: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequestJSON, err)
 	}
 
 	newMap := maps.Clone(reqValuesMap)
@@ -273,7 +267,7 @@ func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
 
 	header, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[0])
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to decode base64 header from %s: %w", name, err)
+		return nil, nil, fmt.Errorf("%w: %w", &InvalidBase64PartError{Name: name, Part: "header"}, err)
 	}
 
 	if !isValidJSON(header) {
@@ -282,7 +276,7 @@ func decodeToken(name, raw string) (header []byte, claims []byte, err error) {
 
 	claims, err = base64.RawURLEncoding.DecodeString(tokenB64Elements[1])
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to decode base64 claims from %s: %w", name, err)
+		return nil, nil, fmt.Errorf("%w: %w", &InvalidBase64PartError{Name: name, Part: "claims"}, err)
 	}
 
 	if !isValidJSON(claims) {
@@ -299,10 +293,7 @@ func (jtd *JwtTokenData) ParseUnverified() error {
 		&jwt.RegisteredClaims{},
 	)
 	if err != nil {
-		return fmt.Errorf(
-			"unable to parse AccessTokenRaw: %w",
-			err,
-		)
+		return fmt.Errorf("%w: %w", &JWTParseError{Source: "AccessTokenRaw"}, err)
 	}
 
 	jtd.AccessTokenJwt = token
@@ -335,11 +326,7 @@ func (jtd *JwtTokenData) ParseWithJWKS(ctx context.Context, jwksURL string, keyf
 		jwks.Keyfunc,
 	)
 	if err != nil {
-		return fmt.Errorf(
-			"failed to parse the JWT AccessTokenRaw against JWKS Url %s: %w",
-			jwksURL,
-			err,
-		)
+		return fmt.Errorf("%w: %w", &JWTParseError{Source: "JWKS", URL: jwksURL}, err)
 	}
 
 	jtd.AccessTokenJwt = token

@@ -91,7 +91,7 @@ func requestsConfigTemplateHandler(
 ) (*sdkmcp.CallToolResult, requestsConfigTemplateOutput, error) {
 	yaml, errs := buildRequestsConfigYAML(input)
 	if len(errs) > 0 {
-		return nil, requestsConfigTemplateOutput{}, fmt.Errorf("%s", strings.Join(errs, "; "))
+		return nil, requestsConfigTemplateOutput{}, &ValidationError{Messages: errs}
 	}
 
 	return nil, requestsConfigTemplateOutput{ConfigYAML: yaml}, nil

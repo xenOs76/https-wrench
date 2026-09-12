@@ -187,7 +187,7 @@ func (c *Config) SetTLSEndpoint(ctx context.Context, hostport string) error {
 	if hostport != emptyString {
 		eHost, ePort, err := net.SplitHostPort(hostport)
 		if err != nil {
-			return fmt.Errorf("invalid TLS endpoint %q: %w", hostport, err)
+			return fmt.Errorf("%w: %w", &InvalidTLSEndpointError{Endpoint: hostport}, err)
 		}
 
 		c.TLSEndpoint = hostport

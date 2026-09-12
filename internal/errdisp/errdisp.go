@@ -3,8 +3,10 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 */
 
 // Package errdisp formats errors for CLI and MCP user boundaries.
-// It holds no sentinels; domain identity stays in packages such as certinfo
-// and jwtinfo.
+// It holds no sentinels; domain identity stays in packages such as certinfo,
+// jwtinfo, jwks, and requests. MCP tool-boundary errors stay in package mcp
+// (errdisp cannot import mcp without a cycle); bare MCP leaves still format
+// via Error() when Format finds no registered domain leaf.
 package errdisp
 
 import (
@@ -12,7 +14,9 @@ import (
 	"strings"
 
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/jwks"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
+	"github.com/xenos76/https-wrench/internal/requests"
 )
 
 // Cause returns the deepest single-cause unwrap of err.
@@ -73,6 +77,23 @@ func Format(err error) string {
 
 // domainLeaf returns a domain leaf message when err matches a known failure.
 func domainLeaf(err error) (string, bool) {
+	if msg, ok := certinfoTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	if msg, ok := jwtinfoTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	if msg, ok := requestsTypedLeaf(err); ok {
+		return msg, true
+	}
+
+	return domainSentinelLeaf(err)
+}
+
+// certinfoTypedLeaf returns a certinfo typed-error leaf message when matched.
+func certinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*certinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
 	}
@@ -85,6 +106,15 @@ func domainLeaf(err error) (string, bool) {
 		return keyType.Error(), true
 	}
 
+	if tlsEp, ok := errors.AsType[*certinfo.InvalidTLSEndpointError](err); ok {
+		return tlsEp.Error(), true
+	}
+
+	return "", false
+}
+
+// jwtinfoTypedLeaf returns a jwtinfo typed-error leaf message when matched.
+func jwtinfoTypedLeaf(err error) (string, bool) {
 	if empty, ok := errors.AsType[*jwtinfo.EmptyArgError](err); ok {
 		return empty.Error(), true
 	}
@@ -117,37 +147,101 @@ func domainLeaf(err error) (string, bool) {
 		return thr.Error(), true
 	}
 
-	for _, s := range []error{
-		certinfo.ErrNilReader,
-		certinfo.ErrPEMDecode,
-		certinfo.ErrCertPoolFromFile,
-		certinfo.ErrNoCertsInConfig,
-		certinfo.ErrUnsupportedKey,
-		certinfo.ErrUnsupportedPublicKey,
-		certinfo.ErrEmptyArg,
-		certinfo.ErrNoCertsInFile,
-		certinfo.ErrUnrecognizedKeyType,
-		jwtinfo.ErrNilBodyReader,
-		jwtinfo.ErrEmptyRequestValues,
-		jwtinfo.ErrEmptyArg,
-		jwtinfo.ErrInvalidJWTFormat,
-		jwtinfo.ErrInvalidHeaderJSON,
-		jwtinfo.ErrInvalidClaimsJSON,
-		jwtinfo.ErrEmptyClaims,
-		jwtinfo.ErrClaimMissing,
-		jwtinfo.ErrClaimNotNumeric,
-		jwtinfo.ErrInvalidKV,
-		jwtinfo.ErrEmptyParamName,
-		jwtinfo.ErrInvalidRenewThreshold,
-		jwtinfo.ErrTokenLifetimeInvalid,
-		jwtinfo.ErrTokenRequestStatus,
-	} {
+	if b64, ok := errors.AsType[*jwtinfo.InvalidBase64PartError](err); ok {
+		return b64.Error(), true
+	}
+
+	if parse, ok := errors.AsType[*jwtinfo.JWTParseError](err); ok {
+		return parse.Error(), true
+	}
+
+	return "", false
+}
+
+// requestsTypedLeaf returns a requests typed-error leaf message when matched.
+func requestsTypedLeaf(err error) (string, bool) {
+	if empty, ok := errors.AsType[*requests.EmptyArgError](err); ok {
+		return empty.Error(), true
+	}
+
+	if snURL, ok := errors.AsType[*requests.ServerNameURLError](err); ok {
+		return snURL.Error(), true
+	}
+
+	if wt, ok := errors.AsType[*requests.WrongTransportError](err); ok {
+		return wt.Error(), true
+	}
+
+	if to, ok := errors.AsType[*requests.InvalidTimeoutError](err); ok {
+		return to.Error(), true
+	}
+
+	if uri, ok := errors.AsType[*requests.InvalidURIError](err); ok {
+		return uri.Error(), true
+	}
+
+	if turl, ok := errors.AsType[*requests.InvalidTransportURLError](err); ok {
+		return turl.Error(), true
+	}
+
+	return "", false
+}
+
+// domainSentinelLeaf returns a package-sentinel leaf message when errors.Is matches.
+func domainSentinelLeaf(err error) (string, bool) {
+	for _, s := range domainSentinels {
 		if errors.Is(err, s) {
 			return s.Error(), true
 		}
 	}
 
 	return "", false
+}
+
+// domainSentinels lists stable package sentinels matched with errors.Is.
+var domainSentinels = []error{
+	certinfo.ErrNilReader,
+	certinfo.ErrPEMDecode,
+	certinfo.ErrCertPoolFromFile,
+	certinfo.ErrNoCertsInConfig,
+	certinfo.ErrUnsupportedKey,
+	certinfo.ErrUnsupportedPublicKey,
+	certinfo.ErrEmptyArg,
+	certinfo.ErrNoCertsInFile,
+	certinfo.ErrUnrecognizedKeyType,
+	certinfo.ErrInvalidTLSEndpoint,
+	jwtinfo.ErrNilBodyReader,
+	jwtinfo.ErrEmptyRequestValues,
+	jwtinfo.ErrEmptyArg,
+	jwtinfo.ErrInvalidJWTFormat,
+	jwtinfo.ErrInvalidHeaderJSON,
+	jwtinfo.ErrInvalidClaimsJSON,
+	jwtinfo.ErrEmptyClaims,
+	jwtinfo.ErrClaimMissing,
+	jwtinfo.ErrClaimNotNumeric,
+	jwtinfo.ErrInvalidKV,
+	jwtinfo.ErrEmptyParamName,
+	jwtinfo.ErrInvalidRenewThreshold,
+	jwtinfo.ErrTokenLifetimeInvalid,
+	jwtinfo.ErrTokenRequestStatus,
+	jwtinfo.ErrInvalidBase64Header,
+	jwtinfo.ErrInvalidBase64Claims,
+	jwtinfo.ErrJWTParse,
+	jwtinfo.ErrInvalidRequestJSON,
+	jwks.ErrPEMDecode,
+	jwks.ErrUnsupportedPublicKey,
+	jwks.ErrNotPublicKey,
+	requests.ErrMethodNotFound,
+	requests.ErrNilClient,
+	requests.ErrEmptyArg,
+	requests.ErrServerNameIsURL,
+	requests.ErrWrongTransport,
+	requests.ErrInvalidTimeout,
+	requests.ErrProxyProtoNeedsOverride,
+	requests.ErrProxyProtoDisabled,
+	requests.ErrTransportOverrideRequired,
+	requests.ErrInvalidURI,
+	requests.ErrInvalidTransportURL,
 }
 
 // topLabel returns the outermost wrap text without the unwrapped suffix.

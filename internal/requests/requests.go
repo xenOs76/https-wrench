@@ -54,9 +54,6 @@ var defaultCurvePreferences = []tls.CurveID{
 	tls.CurveP521,
 }
 
-// ErrMethodNotFound is returned when an unsupported HTTP method is specified.
-var ErrMethodNotFound = errors.New("HTTP method not found")
-
 var allowedHTTPMethods = map[string]string{
 	"GET":     http.MethodGet,
 	"HEAD":    http.MethodHead,
@@ -368,21 +365,20 @@ func NewRequestHTTPClient() *RequestHTTPClient {
 // SetServerName sets the ServerName for SNI in the TLS configuration.
 func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClient, error) {
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	if serverName == emptyString {
-		return nil, errors.New("serverName cannot be empty")
+		return nil, &EmptyArgError{Name: "serverName"}
 	}
 
 	if strings.Contains(serverName, "://") {
-		return nil, fmt.Errorf("serverName should be a hostname, not a URL: %s", serverName)
+		return nil, &ServerNameURLError{Value: serverName}
 	}
 
 	transport, ok := rc.client.Transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("expected *http.Transport, got %T", rc.client.Transport)
+		return nil, &WrongTransportError{Got: rc.client.Transport}
 	}
 
 	tr := transport.Clone()
@@ -399,8 +395,7 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 // SetCACertsPool sets the CA certificate pool for the HTTP transport.
 func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTPClient, error) {
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	if caPool == nil {
@@ -414,7 +409,7 @@ func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTP
 
 	transport, ok := rc.client.Transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("expected *http.Transport, got %T", rc.client.Transport)
+		return nil, &WrongTransportError{Got: rc.client.Transport}
 	}
 
 	tr := transport.Clone()
@@ -431,13 +426,12 @@ func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTP
 // SetInsecureSkipVerify sets whether to skip TLS certificate verification.
 func (rc *RequestHTTPClient) SetInsecureSkipVerify(isInsecure bool) (*RequestHTTPClient, error) {
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	transport, ok := rc.client.Transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("expected *http.Transport, got %T", rc.client.Transport)
+		return nil, &WrongTransportError{Got: rc.client.Transport}
 	}
 
 	tr := transport.Clone()
@@ -475,13 +469,12 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	}
 
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	transportAddress, err := transportAddressFromURLString(transportURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse transport override url: %s", transportURL)
+		return nil, &InvalidTransportURLError{URL: transportURL}
 	}
 
 	rc.transportAddress = transportAddress
@@ -493,7 +486,7 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 
 	transport, ok := rc.client.Transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("expected *http.Transport, got %T", rc.client.Transport)
+		return nil, &WrongTransportError{Got: rc.client.Transport}
 	}
 
 	tr := transport.Clone()
@@ -525,12 +518,11 @@ func (rc *RequestHTTPClient) SetProxyProtocolV2(enable bool) *RequestHTTPClient 
 // SetProxyProtocolHeader sets a custom PROXY protocol header for the client's dialer.
 func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*RequestHTTPClient, error) {
 	if rc.transportAddress == emptyString {
-		return nil, errors.New("SetProxyProtocolHeader failed: transportOverrideURL not set")
+		return nil, ErrTransportOverrideRequired
 	}
 
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	dialer := &net.Dialer{
@@ -540,7 +532,7 @@ func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*
 
 	transport, ok := rc.client.Transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("expected *http.Transport, got %T", rc.client.Transport)
+		return nil, &WrongTransportError{Got: rc.client.Transport}
 	}
 
 	tr := transport.Clone()
@@ -571,12 +563,11 @@ func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*
 // SetClientTimeout sets the timeout for the HTTP client in seconds.
 func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, error) {
 	if rc.client == nil {
-		return nil, errors.New(
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize")
+		return nil, ErrNilClient
 	}
 
 	if timeout < 0 {
-		return nil, fmt.Errorf("timeout value must be positive: %v provided", timeout)
+		return nil, &InvalidTimeoutError{Value: timeout}
 	}
 
 	t := time.Duration(timeout) * time.Second
@@ -626,8 +617,7 @@ func NewHTTPClientFromRequestConfig(
 	reqClient.SetProxyProtocolV2(r.EnableProxyProtocolV2)
 
 	if r.EnableProxyProtocolV2 && r.TransportOverrideURL == emptyString {
-		return nil, errors.New(
-			"if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set")
+		return nil, ErrProxyProtoNeedsOverride
 	}
 
 	if r.EnableProxyProtocolV2 && reqClient.transportAddress != emptyString {

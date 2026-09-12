@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCertinfo_errorSentinels_Is checks errors.Is against certinfo sentinels.
 func TestCertinfo_errorSentinels_Is(t *testing.T) {
 	t.Parallel()
 
@@ -66,6 +67,16 @@ func TestCertinfo_errorSentinels_Is(t *testing.T) {
 			err:    ErrUnsupportedPublicKey,
 			target: ErrUnsupportedPublicKey,
 		},
+		{
+			name:   "InvalidTLSEndpointError",
+			err:    &InvalidTLSEndpointError{Endpoint: "bad"},
+			target: ErrInvalidTLSEndpoint,
+		},
+		{
+			name:   "InvalidTLSEndpointError wrapped",
+			err:    fmt.Errorf("set: %w", &InvalidTLSEndpointError{Endpoint: "x"}),
+			target: ErrInvalidTLSEndpoint,
+		},
 	}
 
 	for _, tt := range tests {
@@ -76,6 +87,7 @@ func TestCertinfo_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+// TestCertinfo_errorTypes_AsType checks errors.AsType for typed certinfo errors.
 func TestCertinfo_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
 
@@ -93,4 +105,9 @@ func TestCertinfo_errorTypes_AsType(t *testing.T) {
 	gotKeyType, ok := errors.AsType[*UnrecognizedKeyTypeError](keyType)
 	require.True(t, ok)
 	require.Equal(t, "CERTIFICATE", gotKeyType.Type)
+
+	tlsEp := fmt.Errorf("wrap: %w", &InvalidTLSEndpointError{Endpoint: "no-port"})
+	gotTLS, ok := errors.AsType[*InvalidTLSEndpointError](tlsEp)
+	require.True(t, ok)
+	require.Equal(t, "no-port", gotTLS.Endpoint)
 }

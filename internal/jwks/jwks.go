@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"os"
 
@@ -29,12 +28,12 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
-		return "", errors.New("failed to decode PEM block from public key file")
+		return "", ErrPEMDecode
 	}
 
 	key, err := jwkset.LoadX509KeyInfer(block)
 	if err != nil {
-		return "", fmt.Errorf("unsupported or invalid public key format: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrUnsupportedPublicKey, err)
 	}
 
 	// Ensure the key is a public key
@@ -42,8 +41,7 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
 		// Valid public key types
 	default:
-		return "", errors.New("the provided file does not contain a supported public key " +
-			"(it might be a private key or an unsupported format)")
+		return "", ErrNotPublicKey
 	}
 
 	if kid == "" {

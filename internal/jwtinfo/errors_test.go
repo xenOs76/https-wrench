@@ -94,6 +94,31 @@ func TestJwtinfo_errorSentinels_Is(t *testing.T) {
 			err:    ErrTokenLifetimeInvalid,
 			target: ErrTokenLifetimeInvalid,
 		},
+		{
+			name:   "InvalidBase64PartError header",
+			err:    &InvalidBase64PartError{Name: "AccessToken", Part: "header"},
+			target: ErrInvalidBase64Header,
+		},
+		{
+			name:   "InvalidBase64PartError claims",
+			err:    &InvalidBase64PartError{Name: "AccessToken", Part: "claims"},
+			target: ErrInvalidBase64Claims,
+		},
+		{
+			name:   "JWTParseError",
+			err:    &JWTParseError{Source: "file"},
+			target: ErrJWTParse,
+		},
+		{
+			name:   "JWTParseError wrapped",
+			err:    fmt.Errorf("%w: %w", &JWTParseError{Source: "HTTP response"}, errors.New("bad")),
+			target: ErrJWTParse,
+		},
+		{
+			name:   "ErrInvalidRequestJSON wrapped",
+			err:    fmt.Errorf("%w: %w", ErrInvalidRequestJSON, errors.New("bad json")),
+			target: ErrInvalidRequestJSON,
+		},
 	}
 
 	for _, tt := range tests {
@@ -148,4 +173,15 @@ func TestJwtinfo_errorTypes_AsType(t *testing.T) {
 	gotThr, ok := errors.AsType[*InvalidRenewThresholdError](thr)
 	require.True(t, ok)
 	require.InDelta(t, -1.0, gotThr.Value, 0.001)
+
+	b64 := fmt.Errorf("wrap: %w", &InvalidBase64PartError{Name: "AccessToken", Part: "header"})
+	gotB64, ok := errors.AsType[*InvalidBase64PartError](b64)
+	require.True(t, ok)
+	require.Equal(t, "header", gotB64.Part)
+
+	parse := fmt.Errorf("wrap: %w", &JWTParseError{Source: "JWKS", URL: "https://example"})
+	gotParse, ok := errors.AsType[*JWTParseError](parse)
+	require.True(t, ok)
+	require.Equal(t, "JWKS", gotParse.Source)
+	require.Equal(t, "https://example", gotParse.URL)
 }
