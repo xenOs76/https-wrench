@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -113,7 +112,7 @@ func getUrlsFromHost(h Host) ([]string, error) {
 
 	for _, uri := range h.URIList {
 		if parsed := uri.Parse(); !parsed {
-			return nil, fmt.Errorf("invalid uri %s for host %s", uri, h.Name)
+			return nil, &InvalidURIError{URI: string(uri), Host: h.Name}
 		}
 
 		s := fmt.Sprintf("%s://%s%s", httpClientDefaultScheme, h.Name, uri)
@@ -128,7 +127,7 @@ func transportAddressFromURLString(transportURL string) (string, error) {
 	var addr string
 
 	if transportURL == emptyString {
-		return emptyString, errors.New("empty string provided as transportURL")
+		return emptyString, &EmptyArgError{Name: "transportURL"}
 	}
 
 	// Add HTTPS scheme if missing from transportURL
@@ -154,7 +153,7 @@ func transportAddressFromURLString(transportURL string) (string, error) {
 // proxyProtoHeaderFromRequest generates a PROXY protocol v2 header for the given request and server name.
 func proxyProtoHeaderFromRequest(r RequestConfig, serverName string) (proxyproto.Header, error) {
 	if !r.EnableProxyProtocolV2 {
-		return proxyproto.Header{}, errors.New("proxy protocol v2 is not enabled for this request")
+		return proxyproto.Header{}, ErrProxyProtoDisabled
 	}
 
 	headerSrcIP := net.ParseIP(proxyProtoDefaultSrcIPv4)

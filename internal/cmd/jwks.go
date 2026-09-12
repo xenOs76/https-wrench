@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/jwks"
 	"github.com/xenos76/https-wrench/internal/style"
 )
@@ -31,7 +32,7 @@ Examples:
 	Run: func(cmd *cobra.Command, _ []string) {
 		jwksJSON, err := jwks.GenerateJWKS(cmd.Context(), jwksPublicKeyFile, jwksKID)
 		if err != nil {
-			cmd.PrintErrf("Error generating JWKS: %s\n", err)
+			cmd.PrintErrf("Error generating JWKS: %s\n", errdisp.FormatCause(err))
 
 			return
 		}

@@ -14,6 +14,16 @@
 
     Jwtinfo: add sentinel and typed errors for errors.Is/As, and route CLI/MCP display through errdisp domain leaves.
 
+    Jwks: add sentinel errors for PEM decode, unsupported key, and non-public key; route CLI display through errdisp.
+
+    Requests: add sentinel and typed errors for client/validation leaves (nil client, empty args, serverName URL, wrong transport, timeout, proxyproto, URI, transport URL).
+
+    Mcp: add sentinel and typed errors for tool-boundary input rules (config/token sources, required fields, TLS info, encrypted key env, validation joins).
+
+    Certinfo: add InvalidTLSEndpointError for host:port parse failures.
+
+    Jwtinfo: add typed errors for base64 JWT parts, JWT parse sources, and invalid request-values JSON.
+
 ### Fix
 
     Devenv: prefer httpbin on 127.0.0.1:8081 and proxy nginx upstreams through the allocated httpbin port so `devenv test` keeps working when the preferred port is already taken; fail fast in request integration tests with `set -e`, enable `pipefail` on success-case request leaf pipelines, and assert request exit status separately from expected error text.

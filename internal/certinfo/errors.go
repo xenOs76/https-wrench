@@ -17,6 +17,7 @@ var (
 	ErrEmptyArg             = errors.New("empty string provided as argument")
 	ErrNoCertsInFile        = errors.New("no valid certificates found in file")
 	ErrUnrecognizedKeyType  = errors.New("unrecognized private key type")
+	ErrInvalidTLSEndpoint   = errors.New("invalid TLS endpoint")
 )
 
 // EmptyArgError is returned when a required string argument is empty.
@@ -65,4 +66,20 @@ func (e *UnrecognizedKeyTypeError) Error() string {
 // Is reports whether target is ErrUnrecognizedKeyType.
 func (*UnrecognizedKeyTypeError) Is(target error) bool {
 	return target == ErrUnrecognizedKeyType
+}
+
+// InvalidTLSEndpointError is returned when host:port cannot be split.
+// errors.Is(err, ErrInvalidTLSEndpoint) is true.
+type InvalidTLSEndpointError struct {
+	Endpoint string
+}
+
+// Error returns a message including the invalid endpoint.
+func (e *InvalidTLSEndpointError) Error() string {
+	return fmt.Sprintf("invalid TLS endpoint %q", e.Endpoint)
+}
+
+// Is reports whether target is ErrInvalidTLSEndpoint.
+func (*InvalidTLSEndpointError) Is(target error) bool {
+	return target == ErrInvalidTLSEndpoint
 }

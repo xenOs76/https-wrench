@@ -276,7 +276,7 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 		desc       string
 		reqConf    RequestConfig
 		serverName string
-		errMsg     string
+		target     error
 	}{
 		{
 			desc: "EnableProxyProtocolV2",
@@ -284,7 +284,7 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 				EnableProxyProtocolV2: true,
 			},
 			serverName: "localhost",
-			errMsg:     "if EnableProxyProtocolV2 is true, a TransportOverrideURL must be set",
+			target:     ErrProxyProtoNeedsOverride,
 		},
 		{
 			desc: "EnableProxyProtoNoServerName",
@@ -293,7 +293,7 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 				EnableProxyProtocolV2: true,
 			},
 			serverName: emptyString,
-			errMsg:     "SetServerName error: serverName cannot be empty",
+			target:     ErrEmptyArg,
 		},
 	}
 
@@ -307,11 +307,7 @@ func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
 				tt.serverName,
 				nil,
 			)
-			require.Error(t, err)
-			assert.Equal(t,
-				tt.errMsg,
-				err.Error(),
-			)
+			require.ErrorIs(t, err, tt.target)
 		})
 	}
 }
@@ -485,17 +481,17 @@ func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 	testsError := []struct {
 		desc       string
 		serverName string
-		errMsg     string
+		target     error
 	}{
 		{
 			"empty serverName",
 			emptyString,
-			"serverName cannot be empty",
+			ErrEmptyArg,
 		},
 		{
 			"url as serverName",
 			"https://localhost",
-			"serverName should be a hostname, not a URL: https://localhost",
+			ErrServerNameIsURL,
 		},
 	}
 
@@ -506,8 +502,7 @@ func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 
 			c := NewRequestHTTPClient()
 			_, err := c.SetServerName(tt.serverName)
-			require.Error(t, err)
-			assert.Equal(t, tt.errMsg, err.Error())
+			require.ErrorIs(t, err, tt.target)
 		})
 	}
 
@@ -517,11 +512,7 @@ func TestNewRequestHTTPClient_SetServerName_Error(t *testing.T) {
 		var c RequestHTTPClient
 
 		_, err := c.SetServerName("localhost")
-		require.Error(t, err)
-		assert.Equal(t,
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
-			err.Error(),
-		)
+		require.ErrorIs(t, err, ErrNilClient)
 	})
 }
 
@@ -561,8 +552,7 @@ func TestNewRequestHTTPClient_SetClientTimeout_Error(t *testing.T) {
 		timeout := -1
 
 		_, err := c.SetClientTimeout(timeout)
-		require.Error(t, err)
-		assert.Equal(t, "timeout value must be positive: -1 provided", err.Error())
+		require.ErrorIs(t, err, ErrInvalidTimeout)
 	})
 
 	t.Run("Nil Timeout", func(t *testing.T) {
@@ -573,12 +563,7 @@ func TestNewRequestHTTPClient_SetClientTimeout_Error(t *testing.T) {
 		timeout := 10
 
 		_, err := c.SetClientTimeout(timeout)
-		require.Error(t, err)
-		assert.Equal(
-			t,
-			"*RequestHTTPClient.client is nil. Use NewRequestHTTPClient to initialize",
-			err.Error(),
-		)
+		require.ErrorIs(t, err, ErrNilClient)
 	})
 }
 
@@ -1241,15 +1226,14 @@ func TestProcessHTTPRequestsByHost_Errors(t *testing.T) {
 			},
 		}
 		_, err := processHTTPRequestsByHost(context.Background(), io.Discard, reqConf, nil, false)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "invalid uri")
+		require.ErrorIs(t, err, ErrInvalidURI)
 	})
 }
 
 func TestProxyProtoHeaderFromRequest_Errors(t *testing.T) {
 	t.Run("not enabled", func(t *testing.T) {
 		_, err := proxyProtoHeaderFromRequest(RequestConfig{}, "localhost")
-		require.ErrorContains(t, err, "proxy protocol v2 is not enabled")
+		require.ErrorIs(t, err, ErrProxyProtoDisabled)
 	})
 
 	// url.Parse won't fail for typical invalid URLs, but let's try a control character

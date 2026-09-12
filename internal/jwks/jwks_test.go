@@ -104,8 +104,7 @@ func TestGenerateJWKS_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = GenerateJWKS(context.Background(), invalidFile, "")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to decode PEM block")
+		require.ErrorIs(t, err, ErrPEMDecode)
 	})
 
 	t.Run("Unsupported block type", func(t *testing.T) {
@@ -116,8 +115,7 @@ func TestGenerateJWKS_Errors(t *testing.T) {
 		file.Close()
 
 		_, err := GenerateJWKS(context.Background(), path, "")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "unsupported or invalid public key format")
+		require.ErrorIs(t, err, ErrUnsupportedPublicKey)
 	})
 
 	t.Run("Private key rejected", func(t *testing.T) {
@@ -129,7 +127,6 @@ func TestGenerateJWKS_Errors(t *testing.T) {
 		file.Close()
 
 		_, err := GenerateJWKS(context.Background(), path, "")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "does not contain a supported public key")
+		require.ErrorIs(t, err, ErrNotPublicKey)
 	})
 }

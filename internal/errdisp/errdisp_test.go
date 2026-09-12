@@ -11,7 +11,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/certinfo"
+	"github.com/xenos76/https-wrench/internal/jwks"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
+	"github.com/xenos76/https-wrench/internal/requests"
 )
 
 func TestCause(t *testing.T) {
@@ -79,6 +81,27 @@ func TestFormatCause(t *testing.T) {
 
 		err := fmt.Errorf("claims: %w", &jwtinfo.ClaimError{Claim: "exp", Kind: jwtinfo.ClaimMissing})
 		require.Equal(t, "exp claim missing", FormatCause(err))
+	})
+
+	t.Run("jwks PEM sentinel", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("generate: %w", jwks.ErrPEMDecode)
+		require.Equal(t, jwks.ErrPEMDecode.Error(), FormatCause(err))
+	})
+
+	t.Run("requests empty arg", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("SetServerName error: %w", &requests.EmptyArgError{Name: "serverName"})
+		require.Equal(t, "empty string provided as serverName", FormatCause(err))
+	})
+
+	t.Run("certinfo invalid TLS endpoint", func(t *testing.T) {
+		t.Parallel()
+
+		err := fmt.Errorf("set: %w", &certinfo.InvalidTLSEndpointError{Endpoint: "bad"})
+		require.Equal(t, `invalid TLS endpoint "bad"`, FormatCause(err))
 	})
 }
 

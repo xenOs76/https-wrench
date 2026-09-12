@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,7 +36,7 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 
 	yaml, errs := buildRequestsConfigYAML(input)
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("%s", strings.Join(errs, "; "))
+		return nil, &ValidationError{Messages: errs}
 	}
 
 	exampleHints := exampleResourceHints(input)
