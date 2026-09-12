@@ -664,5 +664,9 @@ func TestCertinfo_PrintData_WithTLSInfo(t *testing.T) {
 
 	err = cc.PrintData(context.Background(), &buf)
 	require.NoError(t, err)
-	require.Contains(t, buf.String(), "Negotiated TLS Connection")
+
+	got := buf.String()
+	require.Contains(t, got, "Negotiated TLS Connection")
+	require.NotContains(t, got, "Protocol Support Scan")
+	require.NotContains(t, got, "Cipher Suite Scan")
 }

@@ -332,11 +332,15 @@ func CertsDoc(certs []*x509.Certificate, filter ...[]map[int][]string) view.Doc 
 }
 
 func tlsInfoNodes(info *TLSInfoSection) []view.Node {
-	return []view.Node{
-		negotiatedTLSSection(info),
-		protocolSupportSection(info),
-		cipherSuiteSection(info),
+	nodes := []view.Node{negotiatedTLSSection(info)}
+
+	// ProbeTLSInfo initializes ProbedProtocols; until then omit scan sections so
+	// missing probe data is not shown as unsupported protocols/ciphers.
+	if info.ProbedProtocols == nil {
+		return nodes
 	}
+
+	return append(nodes, protocolSupportSection(info), cipherSuiteSection(info))
 }
 
 func negotiatedTLSSection(info *TLSInfoSection) view.Node {
