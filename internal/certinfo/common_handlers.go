@@ -66,8 +66,13 @@ func GetRootCertsFromFile(caBundlePath string, fileReader Reader) (*x509.CertPoo
 		return nil, fmt.Errorf("failed to read CA bundle file: %w", err)
 	}
 
+	return GetRootCertsFromPEM(certsFromFile)
+}
+
+// GetRootCertsFromPEM builds an x509 CertPool from a PEM-encoded byte slice.
+func GetRootCertsFromPEM(certsPEM []byte) (*x509.CertPool, error) {
 	rootCAPool := x509.NewCertPool()
-	if ok := rootCAPool.AppendCertsFromPEM(certsFromFile); !ok {
+	if ok := rootCAPool.AppendCertsFromPEM(certsPEM); !ok {
 		return nil, ErrCertPoolFromFile
 	}
 
@@ -80,12 +85,12 @@ func GetRootCertsFromString(caBundleString string) (*x509.CertPool, error) {
 		return nil, &EmptyArgError{Name: "caBundleString"}
 	}
 
-	rootCAPool := x509.NewCertPool()
-	if ok := rootCAPool.AppendCertsFromPEM([]byte(caBundleString)); !ok {
+	pool, err := GetRootCertsFromPEM([]byte(caBundleString))
+	if err != nil {
 		return nil, ErrNoCertsInConfig
 	}
 
-	return rootCAPool, nil
+	return pool, nil
 }
 
 // GetCertsFromBundle reads a PEM bundle from a file and returns a slice of x509 Certificates.
@@ -103,6 +108,12 @@ func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certi
 		return nil, fmt.Errorf("error reading certificate file: %w", err)
 	}
 
+	return GetCertsFromPEM(certPEM, certBundlePath)
+}
+
+// GetCertsFromPEM parses CERTIFICATE PEM blocks from a byte slice.
+// path is used only for NoCertsInFileError context when no certificates are found.
+func GetCertsFromPEM(certPEM []byte, path string) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 
 	rest := certPEM
@@ -129,7 +140,7 @@ func GetCertsFromBundle(certBundlePath string, fileReader Reader) ([]*x509.Certi
 	}
 
 	if len(certs) == 0 {
-		return nil, &NoCertsInFileError{Path: certBundlePath}
+		return nil, &NoCertsInFileError{Path: path}
 	}
 
 	return certs, nil

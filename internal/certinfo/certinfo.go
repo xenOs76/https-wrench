@@ -124,18 +124,25 @@ func New() (*Config, error) {
 // SetCaPoolFromFile loads a CA certificate pool from the specified PEM bundle file.
 // Note that x509.SystemCertPool is not used in this case. All certificates
 // from the system certificate pool are excluded. Parsed certificates are cached
-// on Config.CACerts so sinks never re-open the file.
+// on Config.CACerts so sinks never re-open the file. The file is read once; both
+// CACertsPool and CACerts are derived from the same PEM bytes.
 func (c *Config) SetCaPoolFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
-		caCertsPool, err := GetRootCertsFromFile(
-			filePath,
-			fileReader,
-		)
+		if fileReader == nil {
+			return ErrNilReader
+		}
+
+		certsPEM, err := fileReader.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read CA bundle file: %w", err)
+		}
+
+		caCertsPool, err := GetRootCertsFromPEM(certsPEM)
 		if err != nil {
 			return err
 		}
 
-		certs, err := GetCertsFromBundle(filePath, fileReader)
+		certs, err := GetCertsFromPEM(certsPEM, filePath)
 		if err != nil {
 			return err
 		}
