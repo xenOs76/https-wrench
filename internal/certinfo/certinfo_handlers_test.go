@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/tlstest"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 //nolint:revive
@@ -588,7 +589,7 @@ func runPrintDataSubtest(t *testing.T, tt printDataTestCase) {
 		}
 	}
 
-	errPrint := cc.PrintData(context.Background(), &buffer)
+	errPrint := cc.PrintDataWithOptions(&buffer, view.Options{Plain: true})
 	require.NoError(t, errPrint)
 
 	got := buffer.String()
@@ -624,12 +625,10 @@ func verifyPrintDataOutput(t *testing.T, got string, tt printDataTestCase) {
 	}
 
 	if tt.keyFile != emptyString {
-		require.Contains(t, got, "PrivateKey match:")
-
 		if tt.keyCertMatch {
-			require.Contains(t, got, "true")
+			require.Contains(t, got, "PrivateKey match: true")
 		} else {
-			require.Contains(t, got, "false")
+			require.Contains(t, got, "PrivateKey match: false")
 		}
 	}
 
