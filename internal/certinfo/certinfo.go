@@ -25,6 +25,8 @@ const (
 type Config struct {
 	// CACertsPool is the pool of root CA certificates used for verification.
 	CACertsPool *x509.CertPool
+	// CACerts is the slice of CA certificates loaded from CACertsFilePath (cached at load).
+	CACerts []*x509.Certificate
 	// CACertsFilePath is the path to the CA certificate bundle file.
 	CACertsFilePath string
 	// CertsBundle is a slice of certificates loaded from a local bundle.
@@ -121,18 +123,32 @@ func New() (*Config, error) {
 
 // SetCaPoolFromFile loads a CA certificate pool from the specified PEM bundle file.
 // Note that x509.SystemCertPool is not used in this case. All certificates
-// from the system certificate pool are excluded.
+// from the system certificate pool are excluded. Parsed certificates are cached
+// on Config.CACerts so sinks never re-open the file. The file is read once; both
+// CACertsPool and CACerts are derived from the same PEM bytes.
 func (c *Config) SetCaPoolFromFile(filePath string, fileReader Reader) error {
 	if filePath != emptyString {
-		caCertsPool, err := GetRootCertsFromFile(
-			filePath,
-			fileReader,
-		)
+		if fileReader == nil {
+			return ErrNilReader
+		}
+
+		certsPEM, err := fileReader.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read CA bundle file: %w", err)
+		}
+
+		caCertsPool, err := GetRootCertsFromPEM(certsPEM)
+		if err != nil {
+			return err
+		}
+
+		certs, err := GetCertsFromPEM(certsPEM, filePath)
 		if err != nil {
 			return err
 		}
 
 		c.CACertsPool = caCertsPool
+		c.CACerts = certs
 		c.CACertsFilePath = filePath
 	}
 
@@ -220,11 +236,11 @@ func (c *Config) SetTLSServerName(serverName string) *Config {
 
 // ProbedCipher holds the result of a single cipher suite probe.
 type ProbedCipher struct {
-	ID        uint16
-	Name      string
-	Protocol  string
-	Insecure  bool
-	Supported bool
+	ID        uint16 `json:"id"`
+	Name      string `json:"name"`
+	Protocol  string `json:"protocol"`
+	Insecure  bool   `json:"insecure"`
+	Supported bool   `json:"supported"`
 }
 
 // SetTLSInfoRequested sets whether to probe and print remote TLS protocol/cipher information.

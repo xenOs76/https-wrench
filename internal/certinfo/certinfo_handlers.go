@@ -7,23 +7,15 @@ package certinfo
 import (
 	"cmp"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"slices"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
-	"github.com/dustin/go-humanize"
-	"github.com/xenos76/https-wrench/internal/style"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 // defaultCurvePreferences lists Go 1.27 TLS hybrids plus classical fallbacks.
@@ -37,150 +29,26 @@ var defaultCurvePreferences = []tls.CurveID{
 	tls.CurveP384,
 }
 
-// PrintData prints all collected certificate and key information (local files and remote endpoints)
-// to the provided writer in a human-readable format.
-//
-//nolint:revive
-func (c *Config) PrintData(ctx context.Context, w io.Writer) error {
-	ks := style.ItemKey.PaddingBottom(0).PaddingTop(1).PaddingLeft(1)
-	sl := style.CertKeyP4.Bold(true)
-	sv := style.CertValue.Bold(false)
+// PrintData writes collected certificate and key information to w via the console view sink.
+// Call ProbeTLSInfo before PrintData when TLSInfoRequested is set; PrintData does not probe
+// or re-read certificate files.
+func (c *Config) PrintData(_ context.Context, w io.Writer) error {
+	return c.PrintDataWithOptions(w, view.Options{ForceColor: true})
+}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, style.LgSprintf(style.Cmd, "Certinfo"))
-	fmt.Fprintln(w)
-
-	c.printPrivateKey(w, ks, sl, sv)
-
-	if err := c.printLocalCerts(w, ks, sl, sv); err != nil {
+// PrintDataWithOptions writes the certinfo report using the given view options.
+func (c *Config) PrintDataWithOptions(w io.Writer, opts view.Options) error {
+	result, err := c.BuildResult()
+	if err != nil {
 		return err
 	}
 
-	if err := c.printRemoteCerts(w, ks, sl, sv); err != nil {
-		return err
-	}
-
-	if c.TLSInfoRequested {
-		_ = c.ProbeTLSInfo(ctx)
-		c.printTLSInfo(w, ks, sl, sv)
-	}
-
-	return c.printCACerts(w, ks, sl, sv)
+	return view.Render(w, BuildDoc(result), opts)
 }
 
-// printPrivateKey prints the loaded private key information if available.
-func (c *Config) printPrivateKey(w io.Writer, ks, sl, sv lipgloss.Style) {
-	if c.PrivKey != nil {
-		fmt.Fprintln(w, style.LgSprintf(ks, "PrivateKey"))
-		fmt.Fprintln(w, style.LgSprintf(
-			sl.PaddingTop(1),
-			"PrivateKey file: %v",
-			sv.Render(c.PrivKeyFilePath),
-		))
-		style.PrintKeyInfoStyle(w, c.PrivKey)
-	}
-}
-
-// printLocalCerts prints the information for certificates loaded from a local bundle file.
-func (c *Config) printLocalCerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
-	if len(c.CertsBundle) > 0 {
-		fmt.Fprintln(w, style.LgSprintf(ks, "Certificates"))
-
-		fmt.Fprintln(w, style.LgSprintf(
-			sl.PaddingTop(1),
-			"Certificate bundle file: %v",
-			sv.Render(c.CertsBundleFilePath),
-		))
-
-		if c.PrivKey != nil {
-			certMatch, err := certMatchPrivateKey(c.CertsBundle[0], c.PrivKey)
-			if err != nil {
-				return fmt.Errorf(
-					"unable to check if private key matches local certificate: %w",
-					err,
-				)
-			}
-
-			fmt.Fprintln(w, style.LgSprintf(
-				sl,
-				"PrivateKey match: %v",
-				style.BoolStyle(certMatch),
-			))
-		}
-
-		CertsToTables(w, c.CertsBundle)
-	}
-
-	return nil
-}
-
-// printRemoteCerts prints the information for certificates retrieved from a remote TLS endpoint.
-func (c *Config) printRemoteCerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
-	if len(c.TLSEndpointCerts) > 0 {
-		endpoint := sv.Render(c.TLSEndpointHost + ":" + c.TLSEndpointPort)
-
-		fmt.Fprintln(w, style.LgSprintf(ks, "TLSEndpoint Certificates"))
-		fmt.Fprintln(w, style.LgSprintf(
-			sl.PaddingTop(1),
-			"Endpoint: %v",
-			endpoint,
-		))
-
-		if c.TLSServerName != emptyString {
-			fmt.Fprintln(w, style.LgSprintf(
-				sl,
-				"ServerName: %v",
-				sv.Render(c.TLSServerName),
-			))
-		}
-
-		if c.PrivKey != nil {
-			tlsMatch, err := certMatchPrivateKey(c.TLSEndpointCerts[0], c.PrivKey)
-			if err != nil {
-				return fmt.Errorf(
-					"unable to check if private key matches remote TLS Endpoint certificate: %w",
-					err,
-				)
-			}
-
-			fmt.Fprintln(w, style.LgSprintf(
-				sl,
-				"PrivateKey match: %v",
-				style.BoolStyle(tlsMatch),
-			))
-		}
-
-		CertsToTables(w, c.TLSEndpointCerts)
-	}
-
-	return nil
-}
-
-// printCACerts prints the information for CA certificates loaded from a file.
-func (c *Config) printCACerts(w io.Writer, ks, sl, sv lipgloss.Style) error {
-	if len(c.CACertsFilePath) > 0 {
-		fmt.Fprintln(w, style.LgSprintf(ks, "CA Certificates"))
-		fmt.Fprintln(
-			w,
-			style.LgSprintf(
-				sl.PaddingTop(1).PaddingBottom(1),
-				"CA Certificates file: %v",
-				sv.Render(c.CACertsFilePath),
-			),
-		)
-
-		rootCerts, err := GetCertsFromBundle(
-			c.CACertsFilePath,
-			inputReader,
-		)
-		if err != nil {
-			return fmt.Errorf("unable to read Root certificates: %w", err)
-		}
-
-		CertsToTables(w, rootCerts)
-	}
-
-	return nil
+// CertsToTables formats and prints certificates as tables (adapter over CertsDoc + view.Render).
+func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][]string) {
+	_ = view.Render(w, CertsDoc(certs, filter...), view.Options{ForceColor: true})
 }
 
 // dialTLS connects to serverAddr and completes a TLS handshake using ctx for cancellation.
@@ -256,181 +124,6 @@ func (c *Config) GetRemoteCerts(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// CertsToTables formats and prints a list of x509 certificates as tables to the provided writer.
-// An optional filter slice of maps can be provided to filter printed output by certificate index and field names.
-//
-//nolint:gocognit,funlen,gocyclo,wsl,revive,cyclop
-func CertsToTables(w io.Writer, certs []*x509.Certificate, filter ...[]map[int][]string) {
-	sl := style.CertKeyP4.Render
-	sv := style.CertValue.Render
-	svn := style.CertValueNotice.Render
-
-	var f []map[int][]string
-	if len(filter) > 0 {
-		f = filter[0]
-	}
-
-	// If a filter is provided, map it for fast lookup by certificate index
-	requestedCerts := make(map[int][]string)
-
-	hasFilter := len(f) > 0
-	if hasFilter {
-		for _, m := range f {
-			for k, fields := range m {
-				requestedCerts[k] = fields
-			}
-		}
-	}
-
-	for i := range certs {
-		var fields []string
-
-		if hasFilter {
-			var ok bool
-
-			fields, ok = requestedCerts[i]
-			if !ok {
-				// Certificate index not in filter list, skip displaying it
-				continue
-			}
-		}
-
-		header := style.LgSprintf(
-			style.CertKeyP4.Bold(true),
-			"Certificate %d",
-			i,
-		)
-		cert := certs[i]
-
-		// Helper to check if a specific field is requested (case-insensitive)
-		hasField := func(fieldName string) bool {
-			if !hasFilter || len(fields) == 0 {
-				return true // Print all fields if no filter is active or if field list is empty for this cert
-			}
-
-			for _, field := range fields {
-				if strings.EqualFold(field, fieldName) {
-					return true
-				}
-			}
-
-			return false
-		}
-
-		t := table.New().Border(style.LGDefBorder).Headers(header)
-		hasRows := false
-		addRow := func(k, v string) {
-			t.Row(k, v)
-
-			hasRows = true
-		}
-
-		if hasField("Subject") {
-			subject := cert.Subject.String()
-			addRow(sl("Subject"), sv(subject))
-		}
-
-		if hasField("DNSNames") {
-			dnsNames := strings.Join(cert.DNSNames, "\n")
-			addRow(sl("DNSNames"), sv(dnsNames))
-		}
-
-		if hasField("IPAddresses") {
-			var ipStrs []string
-
-			for _, ip := range cert.IPAddresses {
-				ipStrs = append(ipStrs, ip.String())
-			}
-
-			ips := strings.Join(ipStrs, "\n")
-			addRow(sl("IPAddresses"), sv(ips))
-		}
-
-		if hasField("Issuer") {
-			issuer := cert.Issuer.String()
-			addRow(sl("Issuer"), sv(issuer))
-		}
-
-		if hasField("NotBefore") {
-			notBefore := cert.NotBefore
-			addRow(sl("NotBefore"), sv(notBefore.String()))
-		}
-
-		// Calculate expiration colors if needed
-		var expStyle func(...string) string
-
-		getExpStyle := func() func(...string) string {
-			if expStyle != nil {
-				return expStyle
-			}
-
-			daysUntilExpiration := time.Until(cert.NotAfter).Hours() / 24
-
-			expStyle = sv
-			if (0 < daysUntilExpiration) && (daysUntilExpiration < CertExpWarnDays) {
-				expStyle = style.Warn.Render
-			}
-
-			if daysUntilExpiration <= 0 {
-				expStyle = style.Crit.Render
-			}
-
-			return expStyle
-		}
-
-		if hasField("NotAfter") {
-			notAfter := cert.NotAfter
-			addRow(sl("NotAfter"), getExpStyle()(notAfter.String()))
-		}
-
-		if hasField("Expiration") {
-			expiration := humanize.Time(cert.NotAfter)
-			addRow(sl("Expiration"), getExpStyle()(expiration))
-		}
-
-		if hasField("IsCA") {
-			isCA := strconv.FormatBool(cert.IsCA)
-			addRow(sl("IsCA"), svn(isCA))
-		}
-
-		if hasField("AuthorityKeyId") {
-			authorityKeyID := hex.EncodeToString(cert.AuthorityKeyId)
-			addRow(sl("AuthorityKeyId"), svn(authorityKeyID))
-		}
-
-		if hasField("SubjectKeyId") {
-			subjectKeyID := hex.EncodeToString(cert.SubjectKeyId)
-			addRow(sl("SubjectKeyId"), svn(subjectKeyID))
-		}
-
-		if hasField("PublicKeyAlgorithm") {
-			publicKeyAlgorithm := cert.PublicKeyAlgorithm.String()
-			addRow(sl("PublicKeyAlgorithm"), sv(publicKeyAlgorithm))
-		}
-
-		if hasField("SignatureAlgorithm") {
-			signatureAlgorithm := cert.SignatureAlgorithm.String()
-			addRow(sl("SignatureAlgorithm"), sv(signatureAlgorithm))
-		}
-
-		if hasField("SerialNumber") {
-			serialNumber := cert.SerialNumber.String()
-			addRow(sl("SerialNumber"), sv(serialNumber))
-		}
-
-		if hasField("Fingerprint SHA-256") || hasField("Fingerprint") {
-			fingerprintSha256 := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-			addRow(sl("Fingerprint SHA-256"), sv(fingerprintSha256))
-		}
-
-		if hasRows {
-			fmt.Fprintln(w, t.Render())
-		}
-
-		t.ClearRows()
-	}
 }
 
 // tlsVersionToString converts TLS version uint16 to standard string representation.
@@ -636,77 +329,4 @@ func (c *Config) probeCiphersConcurrently(ctx context.Context, suites []*tls.Cip
 	})
 
 	return list
-}
-
-// printTLSInfo formats and prints the scanned TLS info tables.
-func (c *Config) printTLSInfo(w io.Writer, ks, _, _ lipgloss.Style) {
-	if !c.TLSInfoRequested {
-		return
-	}
-
-	// 1. Render Negotiated Connection details
-	fmt.Fprintln(w, style.LgSprintf(ks, "Negotiated TLS Connection"))
-
-	t1 := table.New().Border(style.LGDefBorder)
-	t1.Row(style.CertKeyP4.Render("Protocol Version"), style.CertValue.Render(c.NegotiatedProtocol))
-	t1.Row(style.CertKeyP4.Render("Cipher Suite"), style.CertValue.Render(c.NegotiatedCipher))
-	t1.Row(style.CertKeyP4.Render("Key Exchange"), style.CertValue.Render(c.NegotiatedCurveID))
-	fmt.Fprintln(w, t1.Render())
-
-	// 2. Render Supported Protocol Versions Scan
-	fmt.Fprintln(w, style.LgSprintf(ks, "Protocol Support Scan"))
-
-	t2 := table.New().Border(style.LGDefBorder)
-	protoOrder := []string{"TLS 1.3", "TLS 1.2", "TLS 1.1", "TLS 1.0"}
-
-	for _, protoName := range protoOrder {
-		supported := c.ProbedProtocols[protoName]
-		statusStr, statusStyle := "No", style.BoolFalse.Render
-
-		if supported {
-			statusStr, statusStyle = "Yes", style.BoolTrue.Render
-		}
-
-		t2.Row(style.CertKeyP4.Render(protoName), statusStyle(statusStr))
-	}
-
-	fmt.Fprintln(w, t2.Render())
-
-	// 3. Render Probed Cipher Suites
-	fmt.Fprintln(w, style.LgSprintf(ks, "Cipher Suite Scan"))
-
-	slRender := style.CertKeyP4.Bold(true).Render
-	slNoPadRender := style.CertKeyP4.PaddingLeft(0).Bold(true).Render
-	t3 := table.New().Border(style.LGDefBorder).Headers(
-		slRender("Cipher Suite Name"),
-		slNoPadRender("Protocol"),
-		slNoPadRender("Status"),
-		slNoPadRender("Security"),
-	)
-
-	var hasSupported bool
-
-	for _, pc := range c.ProbedCiphers {
-		if pc.Supported {
-			hasSupported = true
-			secStr, secStyle := "Secure", style.BoolTrue.Render
-
-			if pc.Insecure {
-				secStr, secStyle = "Insecure", style.Warn.Render
-			}
-
-			t3.Row(
-				style.CertKeyP4.Render(pc.Name),
-				style.CertValue.Render(pc.Protocol),
-				style.BoolTrue.Render("Yes"),
-				secStyle(secStr),
-			)
-		}
-	}
-
-	if !hasSupported {
-		t3.Row(style.CertKeyP4.Render("No supported cipher suites found"), "", "", "")
-	}
-
-	fmt.Fprintln(w, t3.Render())
 }

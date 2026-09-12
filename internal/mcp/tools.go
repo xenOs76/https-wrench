@@ -295,6 +295,7 @@ var allowedCLICommands = map[string]cliCommandDef{
 		allowedFlags: map[string]struct{}{
 			"ca-bundle": {}, "cert-bundle": {}, "key-file": {},
 			"tls-endpoint": {}, "tls-servername": {}, "tls-insecure": {}, "tls-info": {},
+			"format": {},
 		},
 	},
 	"jwtinfo": {
