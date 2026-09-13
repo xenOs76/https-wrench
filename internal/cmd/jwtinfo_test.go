@@ -3,12 +3,14 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/jwtinfo"
 )
 
 func TestJwtinfoCmd_Errors(t *testing.T) {
@@ -32,6 +34,14 @@ func TestJwtinfoCmd_Errors(t *testing.T) {
 				requestURL = ""
 			},
 			expected: []string{"Error: --refresh requires --request-url"},
+		},
+		{
+			name: "unsupported format",
+			setup: func() {
+				tokenFile = "some.jwt"
+				jwtinfoFmt = "yaml"
+			},
+			expected: []string{"Error: unsupported --format \"yaml\" (use text or json)"},
 		},
 	}
 
@@ -68,21 +78,50 @@ func TestJwtinfoCmd_Success(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	resetFlags()
+	t.Run("default text format", func(t *testing.T) {
+		resetFlags()
 
-	requestURL = ts.URL
-	requestSteps = []requestValueStep{{kind: "kv", value: "key=val"}}
+		requestURL = ts.URL
+		requestSteps = []requestValueStep{{kind: "kv", value: "key=val"}}
 
-	out := new(bytes.Buffer)
-	jwtinfoCmd.SetOut(out)
-	jwtinfoCmd.SetErr(out)
-	jwtinfoCmd.SetContext(context.Background())
+		out := new(bytes.Buffer)
+		jwtinfoCmd.SetOut(out)
+		jwtinfoCmd.SetErr(out)
+		jwtinfoCmd.SetContext(context.Background())
 
-	jwtinfoCmd.Run(jwtinfoCmd, nil)
+		jwtinfoCmd.Run(jwtinfoCmd, nil)
 
-	got := out.String()
-	require.Contains(t, got, "\"sub\"")
-	require.Contains(t, got, "\"1234567890\"")
+		got := out.String()
+		require.Contains(t, got, "JwtInfo")
+		require.Contains(t, got, "AccessToken")
+		require.Contains(t, got, "\"sub\"")
+		require.Contains(t, got, "\"1234567890\"")
+	})
+
+	t.Run("json format", func(t *testing.T) {
+		resetFlags()
+
+		requestURL = ts.URL
+		requestSteps = []requestValueStep{{kind: "kv", value: "key=val"}}
+		jwtinfoFmt = "json"
+
+		out := new(bytes.Buffer)
+		jwtinfoCmd.SetOut(out)
+		jwtinfoCmd.SetErr(out)
+		jwtinfoCmd.SetContext(context.Background())
+
+		jwtinfoCmd.Run(jwtinfoCmd, nil)
+
+		got := out.String()
+		require.NotContains(t, got, "\x1b[")
+
+		var res jwtinfo.Result
+		require.NoError(t, json.Unmarshal(out.Bytes(), &res))
+		require.Equal(t, jwtinfo.ResultSchemaVersion, res.SchemaVersion)
+		require.Equal(t, "jwtinfo", res.Command)
+		require.NotNil(t, res.AccessToken)
+		require.Contains(t, string(res.AccessToken.Claims), "1234567890")
+	})
 }
 
 func resetFlags() {
@@ -98,4 +137,5 @@ func resetFlags() {
 	jwksURL = ""
 	tokenOutputFile = ""
 	renewThreshold = 80.0
+	jwtinfoFmt = "text"
 }

@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -17,7 +16,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xenos76/https-wrench/internal/errdisp"
 	"github.com/xenos76/https-wrench/internal/jwtinfo"
-	"github.com/xenos76/https-wrench/internal/style"
+	"github.com/xenos76/https-wrench/internal/view"
+	"golang.org/x/term"
 )
 
 var (
@@ -36,6 +36,7 @@ var (
 	refresh                   bool
 	tokenOutputFile           string
 	renewThreshold            float64
+	jwtinfoFmt                string
 	keyfuncDefOverride        keyfunc.Override
 
 	// requestSteps tracks the sequence of request-related flags as they appear on the command line.
@@ -99,6 +100,9 @@ Examples:
    --request-values-json $REQ_VALUES \
    --validation-url $VALIDATION_URL
 
+  # Emit machine-readable JSON (agents / MCP)
+  https-wrench jwtinfo --token-file ./token.jwt --format json
+
   # Request a JWT token, write it to a file and refresh it before expiration
   https-wrench jwtinfo \
    --request-url $REQ_URL \
@@ -114,8 +118,15 @@ Examples:
 			requestValuesMap = make(map[string]string)
 		)
 
+		switch jwtinfoFmt {
+		case "", "text", "json":
+		default:
+			cmd.Printf("Error: unsupported --format %q (use text or json)\n", jwtinfoFmt)
+			return
+		}
+
 		if refresh && requestURL == "" {
-			fmt.Fprintln(cmd.OutOrStdout(), style.LgSprintf(style.Error, "Error: --refresh requires --request-url"))
+			cmd.Print("Error: --refresh requires --request-url\n")
 			return
 		}
 
@@ -187,14 +198,36 @@ Examples:
 				}
 			}
 
-			err = jwtinfo.PrintTokenInfo(tokenData, cmd.OutOrStdout())
-			if err != nil {
-				cmd.Printf("error while printing token data: %s\n", errdisp.FormatCause(err))
+			result, buildErr := tokenData.BuildResult()
+			if buildErr != nil {
+				cmd.Printf("error building Jwtinfo result: %s\n", errdisp.FormatCause(buildErr))
 				return
 			}
 
+			out := cmd.OutOrStdout()
+
+			if jwtinfoFmt == "json" {
+				payload, encErr := jwtinfo.EncodeJSON(result)
+				if encErr != nil {
+					cmd.Printf("error encoding Jwtinfo JSON: %s\n", errdisp.FormatCause(encErr))
+					return
+				}
+
+				cmd.Println(string(payload))
+			} else {
+				opts := view.Options{}
+				if f, ok := out.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+					opts.ForceColor = true
+				}
+
+				if err = view.Render(out, jwtinfo.BuildDoc(result), opts); err != nil {
+					cmd.Printf("error while printing token data: %s\n", errdisp.FormatCause(err))
+					return
+				}
+			}
+
 			if tokenOutputFile != "" {
-				tokenData.WriteTokenToFile(tokenOutputFile, cmd.OutOrStdout())
+				tokenData.WriteTokenToFile(tokenOutputFile, out)
 			}
 
 			if refresh {
@@ -295,6 +328,13 @@ func init() {
 		flagNameRenewThreshold,
 		80.0,
 		"Percentage of token lifetime to wait before refreshing",
+	)
+
+	jwtinfoCmd.Flags().StringVar(
+		&jwtinfoFmt,
+		"format",
+		"text",
+		"Output format: text (default) or json",
 	)
 
 	// Either read a token from a file or request it from an HTTP address

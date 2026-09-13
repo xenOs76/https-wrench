@@ -61,7 +61,8 @@ func TestJwtinfoTool_tokenFile(t *testing.T) {
 		"tokenFile": tokenFile,
 	})
 	require.Empty(t, out["error"])
-	require.Contains(t, out["output"], "JwtInfo")
+	require.Contains(t, out["output"], `"schemaVersion"`)
+	require.Contains(t, out["output"], `"jwtinfo"`)
 }
 
 func TestRunRequestsTool_invalidConfig(t *testing.T) {

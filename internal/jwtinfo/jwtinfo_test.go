@@ -17,6 +17,7 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 func TestReadRequestValuesFile(t *testing.T) {
@@ -1028,8 +1029,7 @@ func TestReadTokenFromFile(t *testing.T) {
 }
 
 func TestPrintTokenInfo_Errors(t *testing.T) {
-	t.Run("jsonIndent error header", func(t *testing.T) {
-		//nolint:revive
+	t.Run("invalid header still renders", func(t *testing.T) {
 		buffer := bytes.Buffer{}
 
 		// Valid claims so unmarshalTokenTimeClaims succeeds.
@@ -1042,12 +1042,10 @@ func TestPrintTokenInfo_Errors(t *testing.T) {
 			AccessTokenClaims: []byte(claimsJSON),
 		}
 
-		err := PrintTokenInfo(&jtd, &buffer)
+		err := PrintTokenInfoWithOptions(&jtd, &buffer, view.Options{Plain: true})
 		require.NoError(t, err)
-
-		// The json.Indent for header failed and it wrote the raw header.
-		// It will be syntax-highlighted, adding ANSI codes, so we just check it wrote something.
 		require.Positive(t, buffer.Len())
+		require.Contains(t, buffer.String(), "invalid json")
 	})
 
 	t.Run("unmarshalTokenTimeClaims error", func(t *testing.T) {

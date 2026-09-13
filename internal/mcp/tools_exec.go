@@ -322,14 +322,21 @@ func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, er
 		}
 	}
 
-	output, err := captureOutput(func(w io.Writer) error {
-		return jwtinfo.PrintTokenInfo(tokenData, w)
-	})
+	return jwtinfoJSONOutput(tokenData)
+}
+
+func jwtinfoJSONOutput(tokenData *jwtinfo.JwtTokenData) (execToolOutput, error) {
+	result, err := tokenData.BuildResult()
 	if err != nil {
 		return execToolOutput{}, err
 	}
 
-	return execToolOutput{Output: output}, nil
+	payload, err := jwtinfo.EncodeJSON(result)
+	if err != nil {
+		return execToolOutput{}, err
+	}
+
+	return execToolOutput{Output: string(payload)}, nil
 }
 
 func executeGenerateJWKS(ctx context.Context, input generateJWKSInput) (execToolOutput, error) {
