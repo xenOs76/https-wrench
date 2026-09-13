@@ -19,7 +19,7 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xenos76/https-wrench/internal/certinfo"
-	"github.com/xenos76/https-wrench/internal/style"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 const (
@@ -160,6 +160,8 @@ type ResponseData struct {
 	URL string
 	// ResponseBody is the content of the HTTP response.
 	ResponseBody string
+	// ResponseContentType indicates the language/type of the response body.
+	ResponseContentType string
 	// ResponseBodyRegexpMatched indicates if the response body matched the configured regexp.
 	ResponseBodyRegexpMatched bool
 	// Response is the raw HTTP response object.
@@ -243,14 +245,50 @@ func (r *RequestsMetaConfig) SetRequests(requests []RequestConfig) *RequestsMeta
 	return r
 }
 
+// Execute runs all configured HTTP requests and returns the structured Result and response map.
+func (r *RequestsMetaConfig) Execute(ctx context.Context) (*Result, map[string][]ResponseData, error) {
+	return r.ExecuteWithWriter(ctx, io.Discard)
+}
+
+// ExecuteWithWriter runs all configured HTTP requests, writing debug output to w.
+func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer) (*Result, map[string][]ResponseData, error) {
+	if w == nil {
+		w = io.Discard
+	}
+
+	responseDataMap := make(map[string][]ResponseData)
+
+	for _, reqCfg := range r.Requests {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
+
+		responseDataList, err := processHTTPRequestsByHost(ctx, w, reqCfg, r.CACertsPool, r.RequestVerbose)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		responseDataMap[reqCfg.Name] = responseDataList
+	}
+
+	result, err := BuildResult(responseDataMap, r)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return result, responseDataMap, nil
+}
+
 // PrintCmd prints a header for the requests execution if verbose mode is enabled.
 func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
-	if r.RequestVerbose {
-		fmt.Fprintf(
-			w,
-			"\n%s\n",
-			style.LgSprintf(style.Cmd, "Requests"),
-		)
+	if r.RequestVerbose && w != nil {
+		_ = view.Render(w, view.Doc{
+			Nodes: []view.Node{
+				view.Blank{},
+				view.Banner{Text: "Requests"},
+				view.Blank{},
+			},
+		}, view.Options{ForceColor: true})
 	}
 }
 
@@ -258,14 +296,21 @@ func (r *RequestsMetaConfig) PrintCmd(w io.Writer) {
 //
 //nolint:revive
 func (r *RequestConfig) PrintTitle(w io.Writer, isVerbose bool) {
-	if isVerbose {
-		fmt.Fprint(w, style.LgSprintf(style.TitleKey, "Request:"))
-		fmt.Fprintln(w, style.LgSprintf(style.Title, "%s", r.Name))
-
+	if isVerbose && w != nil {
+		kids := make([]view.Node, 0, 1)
 		if r.TransportOverrideURL != "" {
-			fmt.Fprint(w, style.LgSprintf(style.ItemKey, "Via:"))
-			fmt.Fprintln(w, style.LgSprintf(style.Via, "%s", r.TransportOverrideURL))
+			kids = append(kids, view.KV{Key: "Via", Value: r.TransportOverrideURL, Tone: view.ToneURL})
 		}
+
+		_ = view.Render(w, view.Doc{
+			Nodes: []view.Node{
+				view.Section{
+					Title: fmt.Sprintf("Request: %s", r.Name),
+					Level: 1,
+					Kids:  kids,
+				},
+			},
+		}, view.Options{ForceColor: true})
 	}
 }
 
@@ -647,8 +692,6 @@ func processHTTPRequestsByHost(
 ) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
-	r.PrintTitle(w, isVerbose)
-
 	for _, host := range r.Hosts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -695,7 +738,6 @@ func processRequestsForHost(
 
 		responseData := executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
 		responseDataList = append(responseDataList, responseData)
-		responseData.PrintResponseData(w, isVerbose)
 	}
 
 	return responseDataList, nil

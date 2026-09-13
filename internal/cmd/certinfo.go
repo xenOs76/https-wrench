@@ -5,6 +5,7 @@ Copyright © 2025 Zeno Belli xeno@os76.xyz
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -157,7 +158,7 @@ Examples:
 				return
 			}
 
-			cmd.Println(string(payload))
+			_, _ = fmt.Fprintln(out, string(payload))
 
 			return
 		}
