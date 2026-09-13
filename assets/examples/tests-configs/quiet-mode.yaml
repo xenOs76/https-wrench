@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: false
+requests:
+  - name: QuietModeReq
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /get

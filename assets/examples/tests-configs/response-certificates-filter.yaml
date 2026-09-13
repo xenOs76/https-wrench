@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: ResponseCertificatesFilter
+    transportOverrideUrl: https://localhost:9443
+    printResponseCertificates: true
+    responseCertificatesFilter:
+      - 0:
+          - Subject
+          - Issuer
+          - Expiration
+    hosts:
+      - name: localhost
+        uriList:
+          - /

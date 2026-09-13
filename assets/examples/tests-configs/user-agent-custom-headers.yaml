@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: UserAgentCustomHeaders
+    requestMethod: POST
+    transportOverrideUrl: https://localhost:9443
+    userAgent: DevenvWrench/1.0
+    requestHeaders:
+      - key: X-Devenv-Header
+        value: Verified
+      - key: Content-Type
+        value: application/json
+    requestBody: '{"ping":"pong"}'
+    printResponseBody: true
+    hosts:
+      - name: localhost
+        uriList:
+          - /post

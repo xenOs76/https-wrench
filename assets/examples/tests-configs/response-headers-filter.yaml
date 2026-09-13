@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: ResponseHeadersFilter
+    transportOverrideUrl: https://localhost:9443
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Content-Type
+      - Server
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers
