@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -205,6 +206,11 @@ Examples:
 			}
 
 			out := cmd.OutOrStdout()
+			statusOut := out
+
+			if jwtinfoFmt == "json" {
+				statusOut = cmd.ErrOrStderr()
+			}
 
 			if jwtinfoFmt == "json" {
 				payload, encErr := jwtinfo.EncodeJSON(result)
@@ -227,7 +233,7 @@ Examples:
 			}
 
 			if tokenOutputFile != "" {
-				tokenData.WriteTokenToFile(tokenOutputFile, out)
+				tokenData.WriteTokenToFile(tokenOutputFile, statusOut)
 			}
 
 			if refresh {
@@ -243,7 +249,7 @@ Examples:
 					cancel()
 				}()
 
-				cmd.Printf("Starting refresh loop...\n")
+				fmt.Fprintln(statusOut, "Starting refresh loop...")
 
 				err := tokenData.RefreshLoop(
 					ctx,
@@ -253,12 +259,12 @@ Examples:
 					io.ReadAll,
 					renewThreshold,
 					tokenOutputFile,
-					cmd.OutOrStdout(),
+					statusOut,
 				)
 				if err != nil {
-					cmd.Printf("Refresh loop exited with error: %s\n", errdisp.FormatCause(err))
+					fmt.Fprintf(statusOut, "Refresh loop exited with error: %s\n", errdisp.FormatCause(err))
 				} else {
-					cmd.Printf("Refresh loop stopped gracefully.\n")
+					fmt.Fprintln(statusOut, "Refresh loop stopped gracefully.")
 				}
 			}
 		} else {

@@ -69,7 +69,13 @@ func (r renderer) renderNode(n Node) error {
 		return r.renderTable(v)
 	case Code:
 		if r.styled && v.Lang != "" {
-			_, err := fmt.Fprint(r.w, style.CodeSyntaxHighlight(v.Lang, v.Body))
+			out := style.CodeSyntaxHighlight(v.Lang, v.Body)
+			if !strings.HasSuffix(out, "\n") {
+				out += "\n"
+			}
+
+			_, err := fmt.Fprint(r.w, out)
+
 			return err
 		}
 

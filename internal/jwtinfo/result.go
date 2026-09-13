@@ -65,6 +65,11 @@ func (jtd *JwtTokenData) BuildResult() (*Result, error) {
 			return nil, err
 		}
 
+		if jtd.RefreshTokenJwt != nil {
+			valid := jtd.RefreshTokenJwt.Valid
+			sec.Valid = &valid
+		}
+
 		r.RefreshToken = sec
 	}
 

@@ -6,6 +6,7 @@ package view
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -82,4 +83,6 @@ func TestRender_Code_ForceColor(t *testing.T) {
 	got := buf.String()
 	require.Contains(t, got, "RS256")
 	require.Contains(t, got, "\x1b[")
+	require.True(t, strings.HasSuffix(got, "\n"))
+	require.False(t, strings.HasSuffix(got, "\n\n"))
 }

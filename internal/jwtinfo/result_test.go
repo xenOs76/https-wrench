@@ -56,15 +56,20 @@ func TestBuildResult_ValidWhenParsed(t *testing.T) {
 	now := time.Now().Unix()
 	exp := now + 3600
 	jtd := &JwtTokenData{
-		AccessTokenHeader: []byte(`{"alg":"RS256","typ":"JWT"}`),
-		AccessTokenClaims: []byte(fmt.Sprintf(`{"iat":%d,"exp":%d}`, now, exp)),
-		AccessTokenJwt:    &jwt.Token{Valid: true},
+		AccessTokenHeader:  []byte(`{"alg":"RS256","typ":"JWT"}`),
+		AccessTokenClaims:  []byte(fmt.Sprintf(`{"iat":%d,"exp":%d}`, now, exp)),
+		AccessTokenJwt:     &jwt.Token{Valid: true},
+		RefreshTokenHeader: []byte(`{"alg":"HS256","typ":"JWT"}`),
+		RefreshTokenClaims: []byte(fmt.Sprintf(`{"iat":%d,"exp":%d}`, now, exp)),
+		RefreshTokenJwt:    &jwt.Token{Valid: true},
 	}
 
 	result, err := jtd.BuildResult()
 	require.NoError(t, err)
 	require.NotNil(t, result.AccessToken.Valid)
 	require.True(t, *result.AccessToken.Valid)
+	require.NotNil(t, result.RefreshToken.Valid)
+	require.True(t, *result.RefreshToken.Valid)
 }
 
 func TestBuildDoc_PlainHasNoANSI(t *testing.T) {
