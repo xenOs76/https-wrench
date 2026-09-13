@@ -18,13 +18,11 @@ import (
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/xenos76/https-wrench/internal/style"
+	"github.com/xenos76/https-wrench/internal/view"
 )
 
 var (
-	chromaStyle = "catppuccin-frappe"
 	emptyString string
 	userAgent   = "HTTPS-Wrench/JwtInfo"
 )
@@ -335,94 +333,19 @@ func (jtd *JwtTokenData) ParseWithJWKS(ctx context.Context, jwksURL string, keyf
 }
 
 // PrintTokenInfo prints the decoded JWT token information (headers and claims)
-// to the provided writer in a human-readable format.
-//
-//nolint:revive
+// to the provided writer in a human-readable format with forced color.
 func PrintTokenInfo(jtd *JwtTokenData, w io.Writer) error {
-	sl := style.CertKeyP4.Render
-	sv := style.CertValue.Render
-	sTrue := style.BoolTrue.Render
-	sFalse := style.BoolFalse.Render
+	return PrintTokenInfoWithOptions(jtd, w, view.Options{ForceColor: true})
+}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, style.LgSprintf(style.Cmd, "JwtInfo"))
-	fmt.Fprintln(w)
-
-	validString := sFalse("false")
-	if jtd.AccessTokenJwt != nil && jtd.AccessTokenJwt.Valid {
-		validString = sTrue("true")
+// PrintTokenInfoWithOptions builds a Result and renders the console Doc with opts.
+func PrintTokenInfoWithOptions(jtd *JwtTokenData, w io.Writer, opts view.Options) error {
+	result, err := jtd.BuildResult()
+	if err != nil {
+		return err
 	}
 
-	tokens := []struct {
-		name   string
-		header []byte
-		claims []byte
-	}{
-		{
-			name:   "AccessToken",
-			header: jtd.AccessTokenHeader,
-			claims: jtd.AccessTokenClaims,
-		},
-		{
-			name:   "RefreshToken",
-			header: jtd.RefreshTokenHeader,
-			claims: jtd.RefreshTokenClaims,
-		},
-	}
-
-	for _, token := range tokens {
-		if len(token.header) == 0 {
-			continue
-		}
-
-		fmt.Fprintln(w, style.LgSprintf(style.Title2, "%s", token.name))
-		fmt.Fprintln(w)
-
-		if token.name == "AccessToken" && jtd.AccessTokenJwt != nil {
-			fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Valid %s", validString))
-			fmt.Fprintln(w)
-		}
-
-		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Header"))
-
-		var prettyJSON bytes.Buffer
-
-		err := json.Indent(&prettyJSON, token.header, "", "  ")
-		if err != nil {
-			prettyJSON.Write(token.header)
-		}
-
-		headerCode := prettyJSON.String()
-
-		fmt.Fprint(w, style.CodeSyntaxHighlightWithStyle("json", headerCode, chromaStyle))
-		prettyJSON.Reset()
-
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, style.LgSprintf(style.ItemKey, "Claims"))
-
-		tokenTimeClaims, err := unmarshalTokenTimeClaims(token.claims)
-		if err != nil {
-			return fmt.Errorf("unable to unmarshal time claims from %s: %w", token.name, err)
-		}
-
-		cTable := table.New().Border(style.LGDefBorder)
-		cTable.Row(sl("Issued At"), sv(tokenTimeClaims["iat"]))
-		cTable.Row(sl("Expiration Time"), sv(tokenTimeClaims["exp"]))
-		fmt.Fprintln(w, cTable.Render())
-		cTable.ClearRows()
-
-		err = json.Indent(&prettyJSON, token.claims, "", "  ")
-		if err != nil {
-			prettyJSON.Write(token.claims)
-		}
-
-		claimsCode := prettyJSON.String()
-
-		fmt.Fprint(w, style.CodeSyntaxHighlightWithStyle("json", claimsCode, chromaStyle))
-		fmt.Fprintln(w)
-	}
-
-	return nil
+	return view.Render(w, BuildDoc(result), opts)
 }
 
 // unmarshalTokenTimeClaims extracts and converts numeric "iat" and "exp" claims

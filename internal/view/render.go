@@ -68,7 +68,19 @@ func (r renderer) renderNode(n Node) error {
 	case Table:
 		return r.renderTable(v)
 	case Code:
+		if r.styled && v.Lang != "" {
+			out := style.CodeSyntaxHighlight(v.Lang, v.Body)
+			if !strings.HasSuffix(out, "\n") {
+				out += "\n"
+			}
+
+			_, err := fmt.Fprint(r.w, out)
+
+			return err
+		}
+
 		_, err := fmt.Fprintln(r.w, v.Body)
+
 		return err
 	default:
 		return fmt.Errorf("view: unsupported node %T", n)

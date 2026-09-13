@@ -314,7 +314,8 @@ func TestJwtinfoHandler_requestURL(t *testing.T) {
 		RequestValues: map[string]string{"grant_type": "client_credentials"},
 	})
 	require.NoError(t, err)
-	require.Contains(t, out.Output, "JwtInfo")
+	require.Contains(t, out.Output, `"schemaVersion"`)
+	require.Contains(t, out.Output, `"jwtinfo"`)
 }
 
 func TestRequestsConfigTemplateHandler_error(t *testing.T) {
