@@ -256,6 +256,15 @@ func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer)
 		w = io.Discard
 	}
 
+	seenNames := make(map[string]struct{}, len(r.Requests))
+	for _, reqCfg := range r.Requests {
+		if _, exists := seenNames[reqCfg.Name]; exists {
+			return nil, nil, &DuplicateRequestNameError{Name: reqCfg.Name}
+		}
+
+		seenNames[reqCfg.Name] = struct{}{}
+	}
+
 	responseDataMap := make(map[string][]ResponseData)
 
 	for _, reqCfg := range r.Requests {

@@ -199,6 +199,11 @@ func FromX509(index int, cert *x509.Certificate) CertInfo {
 
 	days := time.Until(cert.NotAfter).Hours() / 24
 
+	var serialNumber string
+	if cert.SerialNumber != nil {
+		serialNumber = cert.SerialNumber.String()
+	}
+
 	return CertInfo{
 		Index:              index,
 		Subject:            cert.Subject.String(),
@@ -214,7 +219,7 @@ func FromX509(index int, cert *x509.Certificate) CertInfo {
 		SubjectKeyID:       hex.EncodeToString(cert.SubjectKeyId),
 		PublicKeyAlgorithm: cert.PublicKeyAlgorithm.String(),
 		SignatureAlgorithm: cert.SignatureAlgorithm.String(),
-		SerialNumber:       cert.SerialNumber.String(),
+		SerialNumber:       serialNumber,
 		FingerprintSHA256:  fmt.Sprintf("%x", sha256.Sum256(cert.Raw)),
 	}
 }

@@ -36,6 +36,10 @@
 
     Requests: gate response body output on `printResponseBody` so configuring `responseBodyMatchRegexp` does not inadvertently dump the response body.
 
+    Requests: reject duplicate request names with DuplicateRequestNameError in ExecuteWithWriter and BuildResult to preserve distinct response data.
+
+    Certinfo: safely handle nil SerialNumber in FromX509.
+
     Certinfo: read the CA bundle once in SetCaPoolFromFile and derive both CertPool and certificate slice from the same PEM bytes.
 
     Certinfo: omit protocol/cipher scan sections until ProbeTLSInfo has completed; keep negotiated TLS output when requested.

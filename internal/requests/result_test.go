@@ -2,11 +2,14 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
 	"errors"
+	"io"
+	"math/big"
 	"net/http"
 	"testing"
 
@@ -30,7 +33,8 @@ func sampleResultData() (*RequestsMetaConfig, map[string][]ResponseData) {
 	}
 
 	mockCert := &x509.Certificate{
-		Subject: pkix.Name{CommonName: "test.example.com"},
+		Subject:      pkix.Name{CommonName: "test.example.com"},
+		SerialNumber: big.NewInt(12345),
 	}
 
 	matched := true
@@ -214,4 +218,43 @@ func TestRequests_BuildResult_ResponseBodyNotPrintedByDefault(t *testing.T) {
 	require.NoError(t, view.Render(&buf, doc, view.Options{Plain: true}))
 	assert.Contains(t, buf.String(), "BodyRegexpMatch: true")
 	assert.NotContains(t, buf.String(), "Body:")
+}
+
+func TestRequests_BuildResult_DuplicateRequestName(t *testing.T) {
+	t.Parallel()
+
+	cfg := &RequestsMetaConfig{
+		Requests: []RequestConfig{
+			{Name: "duplicate-name"},
+			{Name: "duplicate-name"},
+		},
+	}
+
+	_, err := BuildResult(nil, cfg)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDuplicateRequestName)
+
+	var dupErr *DuplicateRequestNameError
+	require.ErrorAs(t, err, &dupErr)
+	assert.Equal(t, "duplicate-name", dupErr.Name)
+}
+
+func TestRequests_ExecuteWithWriter_DuplicateRequestName(t *testing.T) {
+	t.Parallel()
+
+	rmc, err := NewRequestsMetaConfig()
+	require.NoError(t, err)
+
+	rmc.Requests = []RequestConfig{
+		{Name: "same-name"},
+		{Name: "same-name"},
+	}
+
+	_, _, err = rmc.ExecuteWithWriter(context.Background(), io.Discard)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDuplicateRequestName)
+
+	var dupErr *DuplicateRequestNameError
+	require.ErrorAs(t, err, &dupErr)
+	assert.Equal(t, "same-name", dupErr.Name)
 }

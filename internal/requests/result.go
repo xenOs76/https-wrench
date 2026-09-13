@@ -61,6 +61,15 @@ func BuildResult(responseMap map[string][]ResponseData, cfg *RequestsMetaConfig)
 		return nil, errors.New("requests: nil meta config")
 	}
 
+	seenNames := make(map[string]struct{}, len(cfg.Requests))
+	for _, reqCfg := range cfg.Requests {
+		if _, exists := seenNames[reqCfg.Name]; exists {
+			return nil, &DuplicateRequestNameError{Name: reqCfg.Name}
+		}
+
+		seenNames[reqCfg.Name] = struct{}{}
+	}
+
 	res := &Result{
 		SchemaVersion: ResultSchemaVersion,
 		Command:       resultCommand,

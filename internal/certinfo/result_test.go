@@ -6,6 +6,7 @@ package certinfo
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
 	"testing"
 
@@ -52,4 +53,16 @@ func TestBuildDoc_PlainHasNoANSI(t *testing.T) {
 	require.NoError(t, cc.PrintDataWithOptions(&buf, view.Options{Plain: true}))
 	require.Contains(t, buf.String(), "Certinfo")
 	require.NotContains(t, buf.String(), "\x1b[")
+}
+
+func TestFromX509_NilSerialNumber(t *testing.T) {
+	t.Parallel()
+
+	info := FromX509(0, nil)
+	require.Equal(t, 0, info.Index)
+	require.Empty(t, info.SerialNumber)
+
+	info = FromX509(1, &x509.Certificate{})
+	require.Equal(t, 1, info.Index)
+	require.Empty(t, info.SerialNumber)
 }

@@ -440,7 +440,7 @@ in
 
   scripts.test-requests-response-headers-filter.exec = ''
     gum format "## test request response headers filter"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/response-headers-filter.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'Server'
     printf '%s\n' "$out" | grep 'Content-Type'
@@ -449,7 +449,7 @@ in
 
   scripts.test-requests-response-certificates-filter.exec = ''
     gum format "## test request response certificates filter"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/response-certificates-filter.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'Subject'
     printf '%s\n' "$out" | grep 'Issuer'
@@ -459,7 +459,7 @@ in
 
   scripts.test-requests-debug-dumps.exec = ''
     gum format "## test request and response debug dumps"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/request-response-debug.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'GET /get HTTP/1.1'
     printf '%s\n' "$out" | grep -E 'HTTP/(1\.1|2\.0) 200 OK'
@@ -467,7 +467,7 @@ in
 
   scripts.test-requests-base-request.exec = ''
     gum format "## test request with baseRequest template merge"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/base-request-template.yaml)
     printf '%s\n' "$out" | grep 'wrench-base-template'
     printf '%s\n' "$out" | grep 'X-Merged-Template'
@@ -475,7 +475,7 @@ in
 
   scripts.test-requests-user-agent-and-headers.exec = ''
     gum format "## test request user-agent and custom headers reflection"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/user-agent-custom-headers.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'DevenvWrench/1.0'
     printf '%s\n' "$out" | grep 'X-Devenv-Header'
@@ -483,7 +483,7 @@ in
 
   scripts.test-requests-multiple-hosts-default-uri.exec = ''
     gum format "## test request multiple hosts and default URI"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/multiple-hosts-default-uri.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'https://localhost/get'
     printf '%s\n' "$out" | grep 'https://example.com'
@@ -491,7 +491,7 @@ in
 
   scripts.test-requests-body-regexp-no-print.exec = ''
     gum format "## test request body regexp match without body dump"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/body-regexp-no-print.yaml --ca-bundle $CAROOT/rootCA.pem)
     printf '%s\n' "$out" | grep 'BodyRegexpMatch: true'
     ! printf '%s\n' "$out" | grep -E '^\s*Body:'
@@ -499,7 +499,7 @@ in
 
   scripts.test-requests-format-json.exec = ''
     gum format "## test request --format json output"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/ca-bundle-200.yaml --ca-bundle $CAROOT/rootCA.pem --format json)
     printf '%s\n' "$out" | jq -e '.schemaVersion == "1" and .command == "requests" and .requests[0].responses[0].statusCode == 200' > /dev/null
     ! printf '%s\n' "$out" | grep -q $'\x1b'
@@ -507,7 +507,7 @@ in
 
   scripts.test-requests-quiet.exec = ''
     gum format "## test request quiet mode (verbose: false)"
-    set -o pipefail
+    set -eo pipefail
     out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/quiet-mode.yaml --ca-bundle $CAROOT/rootCA.pem)
     ! printf '%s\n' "$out" | grep 'StatusCode:'
   '';
