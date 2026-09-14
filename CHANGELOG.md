@@ -2,7 +2,7 @@
 
 # https-wrench - changelog
 
-## Unreleased
+## 0.15.2 (2026-09-14)
 
 ### CI
 
