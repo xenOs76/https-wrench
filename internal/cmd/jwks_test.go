@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -62,10 +63,9 @@ func TestJWKSCmd_Errors(t *testing.T) {
 		jwksCmd.SetErr(out)
 		jwksCmd.SetContext(context.Background())
 
-		jwksCmd.Run(jwksCmd, nil)
-
-		got := out.String()
-		require.Contains(t, got, `Error: unsupported --format "yaml" (use text or json)`)
+		err := jwksCmd.RunE(jwksCmd, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `unsupported --format "yaml" (use text or json)`)
 	})
 
 	t.Run("invalid file", func(t *testing.T) {
@@ -77,7 +77,8 @@ func TestJWKSCmd_Errors(t *testing.T) {
 		jwksCmd.SetErr(errOut)
 		jwksCmd.SetContext(context.Background())
 
-		jwksCmd.Run(jwksCmd, nil)
+		err := jwksCmd.RunE(jwksCmd, nil)
+		require.NoError(t, err)
 
 		got := errOut.String()
 		require.Contains(t, got, "Error generating JWKS:")
@@ -98,7 +99,8 @@ func TestJWKSCmd_Success(t *testing.T) {
 		jwksCmd.SetErr(out)
 		jwksCmd.SetContext(context.Background())
 
-		jwksCmd.Run(jwksCmd, nil)
+		err := jwksCmd.RunE(jwksCmd, nil)
+		require.NoError(t, err)
 
 		got := out.String()
 		require.Contains(t, got, "Jwks")
@@ -117,7 +119,8 @@ func TestJWKSCmd_Success(t *testing.T) {
 		jwksCmd.SetErr(out)
 		jwksCmd.SetContext(context.Background())
 
-		jwksCmd.Run(jwksCmd, nil)
+		err := jwksCmd.RunE(jwksCmd, nil)
+		require.NoError(t, err)
 
 		got := out.String()
 		require.Contains(t, got, "custom-kid-123")
@@ -134,18 +137,78 @@ func TestJWKSCmd_Success(t *testing.T) {
 		jwksCmd.SetErr(out)
 		jwksCmd.SetContext(context.Background())
 
-		jwksCmd.Run(jwksCmd, nil)
+		err := jwksCmd.RunE(jwksCmd, nil)
+		require.NoError(t, err)
 
 		got := out.String()
 		require.NotContains(t, got, "\x1b[", "JSON output must not contain ANSI escape codes")
 
 		var res jwks.Result
 
-		err := json.Unmarshal([]byte(got), &res)
+		err = json.Unmarshal([]byte(got), &res)
 		require.NoError(t, err)
 		require.Equal(t, jwks.ResultSchemaVersion, res.SchemaVersion)
 		require.Equal(t, "jwks", res.Command)
 		require.Len(t, res.Keys, 1)
 		require.Contains(t, string(res.Keys[0]), `"kty": "RSA"`)
+	})
+}
+
+//nolint:revive
+func TestJWKSCmd_Execution_UnsupportedFormat(t *testing.T) {
+	if os.Getenv("TEST_JWKS_EXIT") == "1" {
+		rootCmd.SetArgs(os.Args[3:])
+
+		if err := rootCmd.Execute(); err != nil {
+			os.Exit(1)
+		}
+
+		os.Exit(0)
+	}
+
+	pubFile := writeTestRSAPublicKeyPEM(t)
+
+	t.Run("Execute returns error on unsupported format", func(t *testing.T) {
+		t.Cleanup(func() {
+			resetJWKSFlags()
+			rootCmd.SetArgs(nil)
+
+			_ = jwksCmd.Flags().Set("format", "text")
+			_ = jwksCmd.Flags().Set("public-key-file", "")
+			_ = jwksCmd.Flags().Set("kid", "")
+		})
+
+		out := new(bytes.Buffer)
+		rootCmd.SetOut(out)
+		rootCmd.SetErr(out)
+		rootCmd.SetArgs([]string{"jwks", "--public-key-file", pubFile, "--format", "yaml"})
+
+		err := rootCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `unsupported --format "yaml" (use text or json)`)
+	})
+
+	t.Run("subprocess fails with exit status 1", func(t *testing.T) {
+		cmd := exec.Command(
+			os.Args[0],
+			"-test.run=^TestJWKSCmd_Execution_UnsupportedFormat$",
+			"--",
+			"jwks",
+			"--public-key-file",
+			pubFile,
+			"--format",
+			"yaml",
+		)
+
+		cmd.Env = append(os.Environ(), "TEST_JWKS_EXIT=1")
+
+		out, err := cmd.CombinedOutput()
+		require.Error(t, err)
+
+		var exitErr *exec.ExitError
+
+		require.ErrorAs(t, err, &exitErr)
+		require.Equal(t, 1, exitErr.ExitCode())
+		require.Contains(t, string(out), `unsupported --format "yaml" (use text or json)`)
 	})
 }

@@ -39,20 +39,18 @@ Examples:
   # Emit machine-readable JSON (agents / MCP)
   https-wrench jwks --public-key-file rsa-public.pem --format json
 `,
-	Run: func(cmd *cobra.Command, _ []string) {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		switch jwksFmt {
 		case "", "text", "json":
 		default:
-			cmd.Printf("Error: unsupported --format %q (use text or json)\n", jwksFmt)
-
-			return
+			return fmt.Errorf("unsupported --format %q (use text or json)", jwksFmt)
 		}
 
 		result, err := jwks.Generate(cmd.Context(), jwksPublicKeyFile, jwksKID)
 		if err != nil {
 			cmd.PrintErrf("Error generating JWKS: %s\n", errdisp.FormatCause(err))
 
-			return
+			return nil
 		}
 
 		out := cmd.OutOrStdout()
@@ -62,12 +60,12 @@ Examples:
 			if encErr != nil {
 				cmd.Printf("error encoding JWKS JSON: %s\n", errdisp.FormatCause(encErr))
 
-				return
+				return nil
 			}
 
 			_, _ = fmt.Fprintln(out, string(payload))
 
-			return
+			return nil
 		}
 
 		opts := view.Options{}
@@ -78,8 +76,10 @@ Examples:
 		if err = view.Render(out, jwks.BuildDoc(result), opts); err != nil {
 			cmd.Printf("error rendering JWKS: %s\n", errdisp.FormatCause(err))
 
-			return
+			return nil
 		}
+
+		return nil
 	},
 }
 

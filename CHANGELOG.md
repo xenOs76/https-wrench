@@ -47,6 +47,8 @@
 
 ### Fix
 
+    Jwks: return error from RunE on unsupported format so command execution exits with status 1.
+
     Cmd: write JSON output to cmd.OutOrStdout() directly via fmt.Fprintln instead of cmd.Println to ensure payloads go to stdout.
 
     Requests: gate response body output on `printResponseBody` so configuring `responseBodyMatchRegexp` does not inadvertently dump the response body.
