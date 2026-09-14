@@ -34,6 +34,14 @@ const (
 	ToneValue
 	// ToneHeader styles table column headers.
 	ToneHeader
+	// ToneStatus2xx styles 2xx HTTP status codes (success).
+	ToneStatus2xx
+	// ToneStatus3xx styles 3xx HTTP status codes (redirection).
+	ToneStatus3xx
+	// ToneStatus4xx styles 4xx HTTP status codes (client error).
+	ToneStatus4xx
+	// ToneStatus5xx styles 5xx HTTP status codes (server error).
+	ToneStatus5xx
 )
 
 // Node is a view document node.

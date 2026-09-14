@@ -16,6 +16,10 @@
 
     Requests: multi-sink output — typed Result as source of truth, console via internal/view Doc, and `--format json` (schemaVersion, no ANSI). MCP requests returns JSON.
 
+    Requests: add `followRedirects` configuration option (defaulting to false) in JSON schema and Go client to control HTTP 3xx redirection.
+
+    Requests: adopt traffic-light color progression for HTTP status codes (2xx green, 3xx yellow, 4xx peach, 5xx red).
+
     Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
 
     Jwtinfo: add sentinel and typed errors for errors.Is/As, and route CLI/MCP display through errdisp domain leaves.

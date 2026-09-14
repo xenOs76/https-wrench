@@ -111,7 +111,7 @@ func responseNodes(resp ResponseResult) []view.Node {
 func statusNodes(resp ResponseResult) []view.Node {
 	if resp.Error != "" {
 		return []view.Node{
-			view.KV{Key: "StatusCode", Value: "0", Tone: view.ToneCrit},
+			view.KV{Key: "StatusCode", Value: "0", Tone: view.ToneStatus5xx},
 			view.KV{Key: "Error", Value: resp.Error, Tone: view.ToneCrit},
 		}
 	}
@@ -121,9 +121,19 @@ func statusNodes(resp ResponseResult) []view.Node {
 		statusStr = resp.Status
 	}
 
-	statusTone := view.ToneBoolTrue
-	if resp.StatusCode >= 400 || resp.StatusCode == 0 {
-		statusTone = view.ToneCrit
+	var statusTone view.Tone
+
+	switch {
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
+		statusTone = view.ToneStatus2xx
+	case resp.StatusCode >= 300 && resp.StatusCode < 400:
+		statusTone = view.ToneStatus3xx
+	case resp.StatusCode >= 400 && resp.StatusCode < 500:
+		statusTone = view.ToneStatus4xx
+	case resp.StatusCode >= 500 && resp.StatusCode < 600:
+		statusTone = view.ToneStatus5xx
+	default:
+		statusTone = view.ToneStatus5xx
 	}
 
 	return []view.Node{

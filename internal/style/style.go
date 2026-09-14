@@ -110,11 +110,11 @@ var (
 
 	// Status3xx is the style for 3xx HTTP status codes.
 	Status3xx = lipgloss.NewStyle().
-			Foreground(catMauve)
+			Foreground(catYellow)
 
 	// Status4xx is the style for 4xx HTTP status codes.
 	Status4xx = lipgloss.NewStyle().
-			Foreground(catYellow)
+			Foreground(catPeach)
 
 	// Status5xx is the style for 5xx HTTP status codes.
 	Status5xx = lipgloss.NewStyle().

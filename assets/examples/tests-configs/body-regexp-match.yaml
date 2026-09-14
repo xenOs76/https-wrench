@@ -8,5 +8,6 @@ requests:
     transportOverrideUrl: https://localhost:9443
     responseBodyMatchRegexp: <a\shref="https://github\.com\/\w+\/httpbin"\s.*
     printResponseBody: false
+    insecure: true
     hosts:
       - name: localhost

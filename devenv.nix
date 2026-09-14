@@ -512,6 +512,36 @@ in
     ! printf '%s\n' "$out" | grep 'StatusCode:'
   '';
 
+  scripts.test-requests-http-status-codes.exec = ''
+    gum format "## test request HTTP status codes (2xx, 3xx, 4xx, 5xx) and followRedirects"
+    set -eo pipefail
+    out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/http-status-codes.yaml --ca-bundle $CAROOT/rootCA.pem)
+    # 2xx
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+200'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+201'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+202'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+204'
+    # 3xx
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+301'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+302'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+304'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+307'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+308'
+    # 4xx
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+400'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+401'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+403'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+404'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+405'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+418'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+429'
+    # 5xx
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+500'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+502'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+503'
+    printf '%s\n' "$out" | grep -E 'StatusCode:\s+504'
+  '';
+
   scripts.test-certinfo-encrypted-rsa-key.exec = ''
     gum format "## test certinfo load encrypted RSA key using env var"
     export CERTINFO_PKEY_PW=$KEY_TEST_PW
@@ -754,6 +784,7 @@ in
     test-requests-multiple-hosts-default-uri
     test-requests-format-json
     test-requests-quiet
+    test-requests-http-status-codes
   '';
 
   scripts.run-certinfo-tlsendpoint-tests.exec = ''

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/xenos76/https-wrench/internal/style"
 	"golang.org/x/term"
@@ -234,28 +235,51 @@ func (r renderer) paint(text string, tone Tone) string {
 		return text
 	}
 
+	return toneStyle(tone).Render(text)
+}
+
+func toneStyle(tone Tone) lipgloss.Style {
+	if st, ok := statusToneStyle(tone); ok {
+		return st
+	}
+
 	switch tone {
 	case ToneWarn:
-		return style.Warn.Render(text)
+		return style.Warn
 	case ToneCrit:
-		return style.Crit.Render(text)
+		return style.Crit
 	case ToneBoolTrue:
-		return style.BoolTrue.Render(text)
+		return style.BoolTrue
 	case ToneBoolFalse:
-		return style.BoolFalse.Render(text)
+		return style.BoolFalse
 	case ToneNotice:
-		return style.CertValueNotice.Render(text)
+		return style.CertValueNotice
 	case ToneURL:
-		return style.URL.Render(text)
+		return style.URL
 	case ToneCmd:
-		return style.Cmd.Render(text)
+		return style.Cmd
 	case ToneSection:
-		return style.ItemKey.Render(text)
+		return style.ItemKey
 	case ToneKey:
-		return style.CertKeyP4.Render(text)
+		return style.CertKeyP4
 	case ToneHeader:
-		return style.CertKeyP4.Bold(true).Render(text)
+		return style.CertKeyP4.Bold(true)
 	default:
-		return style.CertValue.Render(text)
+		return style.CertValue
+	}
+}
+
+func statusToneStyle(tone Tone) (lipgloss.Style, bool) {
+	switch tone {
+	case ToneStatus2xx:
+		return style.Status2xx, true
+	case ToneStatus3xx:
+		return style.Status3xx, true
+	case ToneStatus4xx:
+		return style.Status4xx, true
+	case ToneStatus5xx:
+		return style.Status5xx, true
+	default:
+		return lipgloss.Style{}, false
 	}
 }

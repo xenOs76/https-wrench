@@ -9,11 +9,11 @@ baseRequest: &httpbin
 requests:
   - <<: *httpbin
     name: httpbin-443
-    responseBodyMatchRegexp: go-httpbin
+    responseBodyMatchRegexp: teapot
     hosts:
       - name: httpbin.os76.xyz
         uriList:
-          - /
+          - /status/302
 
   - <<: *httpbin
     name: httpbin-transportOverride

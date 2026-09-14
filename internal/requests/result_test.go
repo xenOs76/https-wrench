@@ -258,3 +258,49 @@ func TestRequests_ExecuteWithWriter_DuplicateRequestName(t *testing.T) {
 	require.ErrorAs(t, err, &dupErr)
 	assert.Equal(t, "same-name", dupErr.Name)
 }
+
+func TestRequests_SingleResponseDoc_StatusTones(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		statusCode   int
+		statusStr    string
+		err          string
+		expectedTone view.Tone
+	}{
+		{statusCode: 200, statusStr: "200 OK", expectedTone: view.ToneStatus2xx},
+		{statusCode: 204, statusStr: "204 No Content", expectedTone: view.ToneStatus2xx},
+		{statusCode: 301, statusStr: "301 Moved Permanently", expectedTone: view.ToneStatus3xx},
+		{statusCode: 302, statusStr: "302 Found", expectedTone: view.ToneStatus3xx},
+		{statusCode: 400, statusStr: "400 Bad Request", expectedTone: view.ToneStatus4xx},
+		{statusCode: 404, statusStr: "404 Not Found", expectedTone: view.ToneStatus4xx},
+		{statusCode: 500, statusStr: "500 Internal Server Error", expectedTone: view.ToneStatus5xx},
+		{statusCode: 503, statusStr: "503 Service Unavailable", expectedTone: view.ToneStatus5xx},
+		{statusCode: 0, err: "dial tcp: connection refused", expectedTone: view.ToneStatus5xx},
+	}
+
+	for _, tc := range tests {
+		tt := tc
+		t.Run(tt.statusStr, func(t *testing.T) {
+			t.Parallel()
+
+			doc := SingleResponseDoc(ResponseResult{
+				StatusCode: tt.statusCode,
+				Status:     tt.statusStr,
+				Error:      tt.err,
+			})
+
+			var foundKV *view.KV
+
+			for _, node := range doc.Nodes {
+				if kv, ok := node.(view.KV); ok && kv.Key == "StatusCode" {
+					foundKV = &kv
+					break
+				}
+			}
+
+			require.NotNil(t, foundKV)
+			assert.Equal(t, tt.expectedTone, foundKV.Tone)
+		})
+	}
+}

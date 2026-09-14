@@ -9,6 +9,7 @@ requests:
     printResponseCertificates: true
     printResponseBody: true
     enableProxyProtocolV2: true
+    insecure: true
 
     hosts:
       - name: localhost
