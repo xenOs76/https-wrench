@@ -129,15 +129,19 @@ func TestBuildCLICommand(t *testing.T) {
 	cmd, errs := buildCLICommand("jwks", map[string]string{
 		"public-key-file": "/keys/pub.pem",
 		"kid":             "my-kid",
+		"format":          "json",
 	})
 	require.Empty(t, errs)
 	require.Contains(t, cmd, "https-wrench jwks")
+	require.Contains(t, cmd, "--format json")
 
-	_, errs = buildCLICommand("jwtinfo", map[string]string{"token-file": "t.jwt"})
+	cmd, errs = buildCLICommand("jwtinfo", map[string]string{"token-file": "t.jwt", "format": "json"})
 	require.Empty(t, errs)
+	require.Contains(t, cmd, "--format json")
 
-	_, errs = buildCLICommand("requests", map[string]string{"config": "cfg.yaml"})
+	cmd, errs = buildCLICommand("requests", map[string]string{"config": "cfg.yaml", "format": "json"})
 	require.Empty(t, errs)
+	require.Contains(t, cmd, "--format json")
 
 	_, errs = buildCLICommand("certinfo", map[string]string{"unknown-flag": "x"})
 	require.NotEmpty(t, errs)

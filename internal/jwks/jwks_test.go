@@ -16,47 +16,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func createTestPEM(t *testing.T, tmpDir, filename, blockType string, bytes []byte) string {
+	t.Helper()
+
+	path := filepath.Join(tmpDir, filename)
+	block := &pem.Block{
+		Type:  blockType,
+		Bytes: bytes,
+	}
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	err = pem.Encode(file, block)
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	return path
+}
+
 func TestGenerateJWKS_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-
-	// Helper to create a PEM file
-	createPEM := func(t *testing.T, filename, blockType string, bytes []byte) string {
-		t.Helper()
-
-		path := filepath.Join(tmpDir, filename)
-		block := &pem.Block{
-			Type:  blockType,
-			Bytes: bytes,
-		}
-		file, err := os.Create(path)
-		require.NoError(t, err)
-		err = pem.Encode(file, block)
-		require.NoError(t, err)
-		require.NoError(t, file.Close())
-
-		return path
-	}
 
 	// RSA Setup
 	rsaPriv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	rsaPubBytes, err := x509.MarshalPKIXPublicKey(&rsaPriv.PublicKey)
 	require.NoError(t, err)
-	rsaPubFile := createPEM(t, "rsa_public.pem", "PUBLIC KEY", rsaPubBytes)
+	rsaPubFile := createTestPEM(t, tmpDir, "rsa_public.pem", "PUBLIC KEY", rsaPubBytes)
 
 	// ECDSA Setup
 	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	ecdsaPubBytes, err := x509.MarshalPKIXPublicKey(&ecdsaPriv.PublicKey)
 	require.NoError(t, err)
-	ecdsaPubFile := createPEM(t, "ecdsa_public.pem", "PUBLIC KEY", ecdsaPubBytes)
+	ecdsaPubFile := createTestPEM(t, tmpDir, "ecdsa_public.pem", "PUBLIC KEY", ecdsaPubBytes)
 
 	// Ed25519 Setup
 	edPub, _, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 	edPubBytes, err := x509.MarshalPKIXPublicKey(edPub)
 	require.NoError(t, err)
-	edPubFile := createPEM(t, "ed25519_public.pem", "PUBLIC KEY", edPubBytes)
+	edPubFile := createTestPEM(t, tmpDir, "ed25519_public.pem", "PUBLIC KEY", edPubBytes)
 
 	t.Run("RSA", func(t *testing.T) {
 		jwksJSON, err := GenerateJWKS(context.Background(), rsaPubFile, "")
@@ -86,6 +85,16 @@ func TestGenerateJWKS_Success(t *testing.T) {
 		jwksJSON, err := GenerateJWKS(context.Background(), rsaPubFile, expectedKID)
 		require.NoError(t, err)
 		require.Contains(t, jwksJSON, `"kid": "`+expectedKID+`"`)
+	})
+
+	t.Run("Generate Result", func(t *testing.T) {
+		res, err := Generate(context.Background(), rsaPubFile, "test-kid")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, ResultSchemaVersion, res.SchemaVersion)
+		require.Equal(t, resultCommand, res.Command)
+		require.Len(t, res.Keys, 1)
+		require.Contains(t, string(res.Keys[0]), `"test-kid"`)
 	})
 }
 

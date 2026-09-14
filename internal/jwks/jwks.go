@@ -2,7 +2,6 @@
 package jwks
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -18,22 +17,22 @@ import (
 	"github.com/MicahParks/jwkset"
 )
 
-// GenerateJWKS reads a public key from a file, parses it, and returns its JSON Web Key Set (JWKS) representation.
+// Generate reads a public key from a file, parses it, and returns its typed Result.
 // If kid is provided, it sets the Key ID explicitly; otherwise, it computes a SHA-256-derived kid from the public key.
-func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string, error) {
+func Generate(ctx context.Context, publicKeyFile string, kid string) (*Result, error) {
 	keyPEM, err := os.ReadFile(publicKeyFile)
 	if err != nil {
-		return "", fmt.Errorf("unable to read public key from %s: %w", publicKeyFile, err)
+		return nil, fmt.Errorf("unable to read public key from %s: %w", publicKeyFile, err)
 	}
 
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
-		return "", ErrPEMDecode
+		return nil, ErrPEMDecode
 	}
 
 	key, err := jwkset.LoadX509KeyInfer(block)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrUnsupportedPublicKey, err)
+		return nil, fmt.Errorf("%w: %w", ErrUnsupportedPublicKey, err)
 	}
 
 	// Ensure the key is a public key
@@ -41,13 +40,13 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
 		// Valid public key types
 	default:
-		return "", ErrNotPublicKey
+		return nil, ErrNotPublicKey
 	}
 
 	if kid == "" {
 		pubBytes, err := x509.MarshalPKIXPublicKey(key)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal public key for SHA-256-derived kid: %w", err)
+			return nil, fmt.Errorf("failed to marshal public key for SHA-256-derived kid: %w", err)
 		}
 
 		hash := sha256.Sum256(pubBytes)
@@ -63,7 +62,7 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 	// Create JWK from the parsed public key
 	jwk, err := jwkset.NewJWKFromKey(key, options)
 	if err != nil {
-		return "", fmt.Errorf("failed to create JWK from public key: %w", err)
+		return nil, fmt.Errorf("failed to create JWK from public key: %w", err)
 	}
 
 	// Initialize in-memory storage for the JWK Set
@@ -71,19 +70,35 @@ func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string
 
 	err = storage.KeyWrite(ctx, jwk)
 	if err != nil {
-		return "", fmt.Errorf("failed to write key to JWK Set storage: %w", err)
+		return nil, fmt.Errorf("failed to write key to JWK Set storage: %w", err)
 	}
 
 	jwksBytes, err := storage.JSONPublic(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate JWKS JSON: %w", err)
+		return nil, fmt.Errorf("failed to generate JWKS JSON: %w", err)
 	}
 
-	// Pretty-print the JSON
-	var prettyJWKS bytes.Buffer
-	if err := json.Indent(&prettyJWKS, jwksBytes, "", "  "); err != nil {
-		return string(jwksBytes), nil
+	var parsed struct {
+		Keys []json.RawMessage `json:"keys"`
+	}
+	if err := json.Unmarshal(jwksBytes, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse generated JWKS JSON: %w", err)
 	}
 
-	return prettyJWKS.String(), nil
+	return &Result{
+		SchemaVersion: ResultSchemaVersion,
+		Command:       resultCommand,
+		Keys:          parsed.Keys,
+	}, nil
+}
+
+// GenerateJWKS reads a public key from a file, parses it, and returns its JSON Web Key Set (JWKS) representation.
+// If kid is provided, it sets the Key ID explicitly; otherwise, it computes a SHA-256-derived kid from the public key.
+func GenerateJWKS(ctx context.Context, publicKeyFile string, kid string) (string, error) {
+	res, err := Generate(ctx, publicKeyFile, kid)
+	if err != nil {
+		return "", err
+	}
+
+	return res.JWKSJSON()
 }
