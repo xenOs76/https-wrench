@@ -39,6 +39,9 @@ requests:
     ## insecure - If true, skips TLS certificate verification (InsecureSkipVerify).
     insecure: false
 
+    ## followRedirects - If true, follows HTTP redirects. Defaults to false.
+    followRedirects: false
+
     ## requestDebug - If true, dumps the raw HTTP request to the output for debugging.
     requestDebug: false
 

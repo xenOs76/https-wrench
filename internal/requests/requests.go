@@ -112,6 +112,8 @@ type RequestConfig struct {
 	EnableProxyProtocolV2 bool `mapstructure:"enableProxyProtocolV2"`
 	// Insecure skips TLS certificate verification.
 	Insecure bool `mapstructure:"insecure"`
+	// FollowRedirects indicates if HTTP redirects should be followed. Defaults to false.
+	FollowRedirects bool `mapstructure:"followRedirects"`
 	// RequestDebug enables dumping the outgoing HTTP request.
 	RequestDebug bool `mapstructure:"requestDebug"`
 	// RequestHeaders is a slice of custom HTTP headers to include in the request.
@@ -408,6 +410,9 @@ func NewRequestHTTPClient() *RequestHTTPClient {
 			ExpectContinueTimeout: transportExpectContinueTimeout,
 			TLSClientConfig:       tlsConfig,
 		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 		Timeout: httpClientTimeout,
 	}
 
@@ -439,8 +444,9 @@ func (rc *RequestHTTPClient) SetServerName(serverName string) (*RequestHTTPClien
 	tr.TLSClientConfig.ServerName = serverName
 
 	rc.client = &http.Client{
-		Transport: tr,
-		Timeout:   rc.client.Timeout,
+		Transport:     tr,
+		CheckRedirect: rc.client.CheckRedirect,
+		Timeout:       rc.client.Timeout,
 	}
 
 	return rc, nil
@@ -470,8 +476,9 @@ func (rc *RequestHTTPClient) SetCACertsPool(caPool *x509.CertPool) (*RequestHTTP
 	tr.TLSClientConfig.RootCAs = caPool
 
 	rc.client = &http.Client{
-		Transport: tr,
-		Timeout:   rc.client.Timeout,
+		Transport:     tr,
+		CheckRedirect: rc.client.CheckRedirect,
+		Timeout:       rc.client.Timeout,
 	}
 
 	return rc, nil
@@ -492,8 +499,9 @@ func (rc *RequestHTTPClient) SetInsecureSkipVerify(isInsecure bool) (*RequestHTT
 	tr.TLSClientConfig.InsecureSkipVerify = isInsecure
 
 	rc.client = &http.Client{
-		Transport: tr,
-		Timeout:   rc.client.Timeout,
+		Transport:     tr,
+		CheckRedirect: rc.client.CheckRedirect,
+		Timeout:       rc.client.Timeout,
 	}
 
 	return rc, nil
@@ -555,8 +563,9 @@ func (rc *RequestHTTPClient) SetTransportOverride(transportURL string) (*Request
 	}
 
 	rc.client = &http.Client{
-		Transport: tr,
-		Timeout:   rc.client.Timeout,
+		Transport:     tr,
+		CheckRedirect: rc.client.CheckRedirect,
+		Timeout:       rc.client.Timeout,
 	}
 
 	return rc, nil
@@ -607,8 +616,9 @@ func (rc *RequestHTTPClient) SetProxyProtocolHeader(header proxyproto.Header) (*
 	}
 
 	rc.client = &http.Client{
-		Transport: tr,
-		Timeout:   rc.client.Timeout,
+		Transport:     tr,
+		CheckRedirect: rc.client.CheckRedirect,
+		Timeout:       rc.client.Timeout,
 	}
 
 	return rc, nil
@@ -630,6 +640,23 @@ func (rc *RequestHTTPClient) SetClientTimeout(timeout int) (*RequestHTTPClient, 
 	return rc, nil
 }
 
+// SetFollowRedirects configures whether the HTTP client follows redirects.
+func (rc *RequestHTTPClient) SetFollowRedirects(follow bool) *RequestHTTPClient {
+	if rc == nil || rc.client == nil {
+		return rc
+	}
+
+	if follow {
+		rc.client.CheckRedirect = nil
+	} else {
+		rc.client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+
+	return rc
+}
+
 // NewHTTPClientFromRequestConfig initializes a RequestHTTPClient using the provided RequestConfig.
 func NewHTTPClientFromRequestConfig(
 	r RequestConfig,
@@ -637,6 +664,7 @@ func NewHTTPClientFromRequestConfig(
 	caPool *x509.CertPool,
 ) (*RequestHTTPClient, error) {
 	reqClient := NewRequestHTTPClient()
+	reqClient.SetFollowRedirects(r.FollowRedirects)
 
 	_, err := reqClient.SetCACertsPool(caPool)
 	if err != nil {

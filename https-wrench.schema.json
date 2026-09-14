@@ -126,6 +126,10 @@
           "type": "boolean",
           "description": "If true, skips TLS server certificate verification (InsecureSkipVerify)."
         },
+        "followRedirects": {
+          "type": "boolean",
+          "description": "If true, follows HTTP redirects. Defaults to false."
+        },
         "responseHeadersFilter": {
           "type": "array",
           "description": "Response header names to include when printResponseHeaders is enabled.",

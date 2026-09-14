@@ -268,7 +268,112 @@ func TestNewRequestHTTPClient(t *testing.T) {
 			defaultCurvePreferences,
 			transport.TLSClientConfig.CurvePreferences,
 			"unexpected CurvePreferences")
+		assert.NotNil(t,
+			client.client.CheckRedirect,
+			"CheckRedirect should not be nil by default")
 	})
+}
+
+func TestRequestHTTPClient_SetFollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil client returns nil", func(t *testing.T) {
+		t.Parallel()
+
+		var c *RequestHTTPClient
+		assert.Nil(t, c.SetFollowRedirects(true))
+	})
+
+	t.Run("default no follow redirects", func(t *testing.T) {
+		t.Parallel()
+
+		c := NewRequestHTTPClient()
+		require.NotNil(t, c.client.CheckRedirect)
+
+		err := c.client.CheckRedirect(nil, nil)
+		require.ErrorIs(t, err, http.ErrUseLastResponse)
+	})
+
+	t.Run("enable follow redirects", func(t *testing.T) {
+		t.Parallel()
+
+		c := NewRequestHTTPClient()
+		c.SetFollowRedirects(true)
+		assert.Nil(t, c.client.CheckRedirect)
+	})
+
+	t.Run("disable follow redirects after enable", func(t *testing.T) {
+		t.Parallel()
+
+		c := NewRequestHTTPClient()
+		c.SetFollowRedirects(true)
+		assert.Nil(t, c.client.CheckRedirect)
+
+		c.SetFollowRedirects(false)
+		require.NotNil(t, c.client.CheckRedirect)
+		require.ErrorIs(t, c.client.CheckRedirect(nil, nil), http.ErrUseLastResponse)
+	})
+}
+
+func TestRequestHTTPClient_FollowRedirects_Server(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/redirect":
+			http.Redirect(w, r, "/final", http.StatusFound)
+		case "/final":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("final-destination"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	// Default (no follow): should return 302 Found
+	clientNoFollow := NewRequestHTTPClient()
+
+	req1, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL+"/redirect", nil)
+	require.NoError(t, err)
+
+	resp1, err := clientNoFollow.client.Do(req1)
+	require.NoError(t, err)
+
+	defer resp1.Body.Close()
+
+	assert.Equal(t, http.StatusFound, resp1.StatusCode)
+
+	// Follow redirects: should return 200 OK
+	clientFollow := NewRequestHTTPClient()
+	clientFollow.SetFollowRedirects(true)
+
+	req2, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL+"/redirect", nil)
+	require.NoError(t, err)
+
+	resp2, err := clientFollow.client.Do(req2)
+	require.NoError(t, err)
+
+	defer resp2.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp2.StatusCode)
+}
+
+func TestNewHTTPClientFromRequestConfig_FollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	clientNoFollow, err := NewHTTPClientFromRequestConfig(RequestConfig{
+		FollowRedirects: false,
+	}, "example.com", nil)
+	require.NoError(t, err)
+	require.NotNil(t, clientNoFollow.client.CheckRedirect)
+	require.ErrorIs(t, clientNoFollow.client.CheckRedirect(nil, nil), http.ErrUseLastResponse)
+
+	clientFollow, err := NewHTTPClientFromRequestConfig(RequestConfig{
+		FollowRedirects: true,
+	}, "example.com", nil)
+	require.NoError(t, err)
+	assert.Nil(t, clientFollow.client.CheckRedirect)
 }
 
 func TestNewHTTPClientFromRequestConfig_Error(t *testing.T) {
