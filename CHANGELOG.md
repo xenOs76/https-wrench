@@ -16,6 +16,9 @@
 
     Requests: multi-sink output — typed Result as source of truth, console via internal/view Doc, and `--format json` (schemaVersion, no ANSI). MCP requests returns JSON.
 
+    Jwks: multi-sink output — typed Result as source of truth, console via internal/view Doc, and `--format json` (schemaVersion, no ANSI). MCP generate_jwks returns JSON. Synchronize allowedCLICommands format flag in MCP.
+
+
     Requests: add `followRedirects` configuration option (defaulting to false) in JSON schema and Go client to control HTTP 3xx redirection.
 
     Requests: adopt traffic-light color progression for HTTP status codes (2xx green, 3xx yellow, 4xx peach, 5xx red).
@@ -34,7 +37,17 @@
 
     Jwtinfo: add typed errors for base64 JWT parts, JWT parse sources, and invalid request-values JSON.
 
+### Next Steps
+
+    Documentation: Document `--format json` across all diagnostic subcommands (certinfo, jwtinfo, requests, jwks) in README.md.
+
+    Requests: Deprecate legacy imperative `printTLSInfo` in `internal/requests/requests.go` in favor of `internal/requests/view.go` Doc rendering.
+
+    Testing: Expand devenv integration scripts for `certinfo` and `jwtinfo` `--format json` to match `requests` and `jwks`.
+
 ### Fix
+
+    Jwks: return error from RunE on unsupported format so command execution exits with status 1.
 
     Cmd: write JSON output to cmd.OutOrStdout() directly via fmt.Fprintln instead of cmd.Println to ensure payloads go to stdout.
 

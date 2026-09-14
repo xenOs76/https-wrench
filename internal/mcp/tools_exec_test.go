@@ -28,6 +28,8 @@ func TestGenerateJwksTool(t *testing.T) {
 		"publicKeyFile": pubFile,
 	})
 	require.Empty(t, out["error"])
+	require.Contains(t, out["output"], `"schemaVersion": "1"`)
+	require.Contains(t, out["output"], `"command": "jwks"`)
 	require.Contains(t, out["output"], `"keys"`)
 }
 

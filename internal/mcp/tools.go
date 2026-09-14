@@ -304,18 +304,20 @@ var allowedCLICommands = map[string]cliCommandDef{
 			"token-file": {}, "request-url": {}, "request-values": {},
 			"request-values-json": {}, "request-values-file": {},
 			"validation-url": {}, "refresh": {}, "token-output-file": {}, "renew-threshold": {},
+			"format": {},
 		},
 	},
 	"jwks": {
 		requiredFlags: []string{"public-key-file"},
 		allowedFlags: map[string]struct{}{
-			"public-key-file": {}, "kid": {},
+			"public-key-file": {}, "kid": {}, "format": {},
 		},
 	},
 	"requests": {
 		oneOfGroups: [][]string{{"config", "show-sample-config"}},
 		allowedFlags: map[string]struct{}{
 			"config": {}, "show-sample-config": {}, "ca-bundle": {},
+			"format": {},
 		},
 	},
 }

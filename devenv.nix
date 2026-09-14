@@ -505,6 +505,15 @@ in
     ! printf '%s\n' "$out" | grep -q $'\x1b'
   '';
 
+  scripts.test-jwks-format-json.exec = ''
+    gum format "## test jwks --format json output"
+    set -eo pipefail
+    out=$(./dist/https-wrench jwks --public-key-file ./internal/jwtinfo/testdata/rsa-pkcs8-public-key.pem --format json)
+    printf '%s\n' "$out" | jq -e '.schemaVersion == "1" and .command == "jwks" and (.keys | length > 0)' > /dev/null
+    ! printf '%s\n' "$out" | grep -q $'\x1b'
+  '';
+
+
   scripts.test-requests-quiet.exec = ''
     gum format "## test request quiet mode (verbose: false)"
     set -eo pipefail

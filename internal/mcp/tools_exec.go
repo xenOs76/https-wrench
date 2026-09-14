@@ -349,12 +349,17 @@ func executeGenerateJWKS(ctx context.Context, input generateJWKSInput) (execTool
 		return execToolOutput{}, &RequiredFieldError{Field: "publicKeyFile"}
 	}
 
-	jwksJSON, err := jwks.GenerateJWKS(ctx, input.PublicKeyFile, input.Kid)
+	result, err := jwks.Generate(ctx, input.PublicKeyFile, input.Kid)
 	if err != nil {
 		return execToolOutput{}, err
 	}
 
-	return execToolOutput{Output: jwksJSON}, nil
+	payload, err := jwks.EncodeJSON(result)
+	if err != nil {
+		return execToolOutput{}, err
+	}
+
+	return execToolOutput{Output: string(payload)}, nil
 }
 
 func loadConfigYAML(configYAML, configPath string) (string, error) {
