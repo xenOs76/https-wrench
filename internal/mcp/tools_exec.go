@@ -205,16 +205,21 @@ func runRequestsExec(ctx context.Context, input runRequestsInput) (execToolOutpu
 		return execToolOutput{}, err
 	}
 
-	output, err := captureOutput(func(w io.Writer) error {
-		_, handleErr := requests.HandleRequests(ctx, w, meta)
-
-		return handleErr
-	})
+	result, _, err := meta.Execute(ctx)
 	if err != nil {
 		return execToolOutput{}, err
 	}
 
-	return execToolOutput{Output: output}, nil
+	return requestsJSONOutput(result)
+}
+
+func requestsJSONOutput(result *requests.Result) (execToolOutput, error) {
+	payload, err := requests.EncodeJSON(result)
+	if err != nil {
+		return execToolOutput{}, err
+	}
+
+	return execToolOutput{Output: string(payload)}, nil
 }
 
 func executeCertinfo(ctx context.Context, input certinfoInput) (execToolOutput, error) {

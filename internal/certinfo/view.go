@@ -295,6 +295,11 @@ func fieldRequested(fields []string, names ...string) bool {
 
 // CertsDoc builds certificate table nodes from x509 certificates with optional field filters.
 func CertsDoc(certs []*x509.Certificate, filter ...[]map[int][]string) view.Doc {
+	return CertInfosDoc(CertInfos(certs), filter...)
+}
+
+// CertInfosDoc builds certificate table nodes from CertInfo slices with optional field filters.
+func CertInfosDoc(certs []CertInfo, filter ...[]map[int][]string) view.Doc {
 	var f []map[int][]string
 	if len(filter) > 0 {
 		f = filter[0]
@@ -312,19 +317,19 @@ func CertsDoc(certs []*x509.Certificate, filter ...[]map[int][]string) view.Doc 
 	}
 
 	nodes := make([]view.Node, 0, len(certs))
-	for i, cert := range certs {
+
+	for _, info := range certs {
 		var fields []string
 
 		if hasFilter {
 			var ok bool
 
-			fields, ok = requested[i]
+			fields, ok = requested[info.Index]
 			if !ok {
 				continue
 			}
 		}
 
-		info := certInfoFromX509(i, cert)
 		nodes = append(nodes, certInfoTable(info, fields))
 	}
 

@@ -95,6 +95,8 @@ requests:
 		"configPath": cfgPath,
 	})
 	require.Empty(t, out["error"])
+	require.Contains(t, out["output"], `"schemaVersion": "1"`)
+	require.Contains(t, out["output"], `"command": "requests"`)
 	require.Contains(t, out["output"], "from-file")
 }
 

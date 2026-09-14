@@ -86,3 +86,21 @@ func TestRender_Code_ForceColor(t *testing.T) {
 	require.True(t, strings.HasSuffix(got, "\n"))
 	require.False(t, strings.HasSuffix(got, "\n\n"))
 }
+
+func TestRender_StatusTones_ForceColor(t *testing.T) {
+	t.Parallel()
+
+	tones := []Tone{ToneStatus2xx, ToneStatus3xx, ToneStatus4xx, ToneStatus5xx}
+	for _, tone := range tones {
+		doc := Doc{Nodes: []Node{
+			KV{Key: "StatusCode", Value: "test", Tone: tone},
+		}}
+
+		var buf bytes.Buffer
+		require.NoError(t, Render(&buf, doc, Options{ForceColor: true}))
+
+		got := buf.String()
+		require.Contains(t, got, "StatusCode")
+		require.Contains(t, got, "test")
+	}
+}

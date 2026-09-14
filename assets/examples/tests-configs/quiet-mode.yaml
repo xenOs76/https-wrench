@@ -2,12 +2,11 @@
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 ---
 debug: false
-verbose: true
+verbose: false
 requests:
-  - name: BodyRegexpMatch
+  - name: QuietModeReq
     transportOverrideUrl: https://localhost:9443
-    responseBodyMatchRegexp: <a\shref="https://github\.com\/\w+\/httpbin"\s.*
-    printResponseBody: false
-    insecure: true
     hosts:
       - name: localhost
+        uriList:
+          - /get

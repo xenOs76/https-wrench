@@ -4,7 +4,7 @@
 debug: false
 verbose: true
 requests:
-  - name: httpBunGetDefault
+  - name: httpBinGetDefault
 
     requestHeaders:
       - key: x-custom-header
@@ -14,11 +14,11 @@ requests:
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /get?method=DefaultGet
 
-  - name: httpBunGetDeclared
+  - name: httpBinGetDeclared
     requestMethod: GET
 
     requestHeaders:
@@ -29,11 +29,11 @@ requests:
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /get?clientMethod=GET
 
-  - name: httpBunPost
+  - name: httpBinPost
     requestMethod: POST
 
     requestHeaders:
@@ -44,11 +44,11 @@ requests:
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /post
 
-  - name: httpBunPostBodyText
+  - name: httpBinPostBodyText
     requestMethod: POST
 
     requestHeaders:
@@ -60,11 +60,11 @@ requests:
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /post
 
-  - name: httpBunPostBodyJson
+  - name: httpBinPostBodyJson
     requestMethod: POST
 
     requestHeaders:
@@ -76,40 +76,40 @@ requests:
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /post
 
-  - name: httpBunPut
+  - name: httpBinPut
     requestMethod: PUT
 
     # printResponseHeaders: true
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /put
 
-  - name: httpBunDelete
+  - name: httpBinDelete
     requestMethod: DELETE
 
     # printResponseHeaders: true
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /delete
 
-  - name: httpBunPatch
+  - name: httpBinPatch
     requestMethod: PATCH
 
     # printResponseHeaders: true
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /patch
 
@@ -131,33 +131,33 @@ requests:
         uriList:
           - /api/v1/requests
 
-  - name: httpBunTraceNotAllowed
+  - name: httpBinTraceNotAllowed
     requestMethod: TRACE
 
     # printResponseHeaders: true
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /get
 
-  - name: httpBunTrace
+  - name: httpBinTrace
     requestMethod: TRACE
 
     # printResponseHeaders: true
     # printResponseBody: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz
         uriList:
           - /any
 
-  - name: httpBunHead
+  - name: httpBinHead
     requestMethod: HEAD
 
     # requestDebug: true
     # printResponseHeaders: true
 
     hosts:
-      - name: httpbun.com
+      - name: httpbin.os76.xyz

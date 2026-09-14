@@ -126,7 +126,7 @@ func (c *Config) BuildResult() (*Result, error) {
 	if len(c.CACertsFilePath) > 0 {
 		r.CACerts = &CertsSection{
 			FilePath:     c.CACertsFilePath,
-			Certificates: certInfos(c.CACerts),
+			Certificates: CertInfos(c.CACerts),
 		}
 	}
 
@@ -161,7 +161,7 @@ func certsSectionFromBundle(
 		FilePath:     filePath,
 		Endpoint:     endpoint,
 		ServerName:   serverName,
-		Certificates: certInfos(certs),
+		Certificates: CertInfos(certs),
 	}
 
 	if privKey != nil && len(certs) > 0 {
@@ -176,16 +176,18 @@ func certsSectionFromBundle(
 	return sec, nil
 }
 
-func certInfos(certs []*x509.Certificate) []CertInfo {
+// CertInfos converts a slice of x509.Certificate into serializable CertInfo structs.
+func CertInfos(certs []*x509.Certificate) []CertInfo {
 	out := make([]CertInfo, 0, len(certs))
 	for i, cert := range certs {
-		out = append(out, certInfoFromX509(i, cert))
+		out = append(out, FromX509(i, cert))
 	}
 
 	return out
 }
 
-func certInfoFromX509(index int, cert *x509.Certificate) CertInfo {
+// FromX509 builds a plain CertInfo from an x509.Certificate.
+func FromX509(index int, cert *x509.Certificate) CertInfo {
 	if cert == nil {
 		return CertInfo{Index: index}
 	}
@@ -196,6 +198,11 @@ func certInfoFromX509(index int, cert *x509.Certificate) CertInfo {
 	}
 
 	days := time.Until(cert.NotAfter).Hours() / 24
+
+	var serialNumber string
+	if cert.SerialNumber != nil {
+		serialNumber = cert.SerialNumber.String()
+	}
 
 	return CertInfo{
 		Index:              index,
@@ -212,7 +219,7 @@ func certInfoFromX509(index int, cert *x509.Certificate) CertInfo {
 		SubjectKeyID:       hex.EncodeToString(cert.SubjectKeyId),
 		PublicKeyAlgorithm: cert.PublicKeyAlgorithm.String(),
 		SignatureAlgorithm: cert.SignatureAlgorithm.String(),
-		SerialNumber:       cert.SerialNumber.String(),
+		SerialNumber:       serialNumber,
 		FingerprintSHA256:  fmt.Sprintf("%x", sha256.Sum256(cert.Raw)),
 	}
 }

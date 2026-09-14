@@ -4,10 +4,11 @@
 debug: false
 verbose: true
 requests:
-  - name: BodyRegexpMatch
+  - name: RequestResponseDebug
     transportOverrideUrl: https://localhost:9443
-    responseBodyMatchRegexp: <a\shref="https://github\.com\/\w+\/httpbin"\s.*
-    printResponseBody: false
-    insecure: true
+    requestDebug: true
+    responseDebug: true
     hosts:
       - name: localhost
+        uriList:
+          - /get

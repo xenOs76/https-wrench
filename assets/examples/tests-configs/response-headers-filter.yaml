@@ -4,10 +4,13 @@
 debug: false
 verbose: true
 requests:
-  - name: BodyRegexpMatch
+  - name: ResponseHeadersFilter
     transportOverrideUrl: https://localhost:9443
-    responseBodyMatchRegexp: <a\shref="https://github\.com\/\w+\/httpbin"\s.*
-    printResponseBody: false
-    insecure: true
+    printResponseHeaders: true
+    responseHeadersFilter:
+      - Content-Type
+      - Server
     hosts:
       - name: localhost
+        uriList:
+          - /headers

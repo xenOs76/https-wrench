@@ -87,6 +87,13 @@ func TestRequests_errorSentinels_Is(t *testing.T) {
 	}
 }
 
+func TestRequests_duplicateRequestName_Is(t *testing.T) {
+	t.Parallel()
+
+	require.ErrorIs(t, &DuplicateRequestNameError{Name: "req-1"}, ErrDuplicateRequestName)
+	require.ErrorIs(t, fmt.Errorf("validation: %w", &DuplicateRequestNameError{Name: "req-1"}), ErrDuplicateRequestName)
+}
+
 // TestRequests_errorTypes_AsType checks errors.AsType for typed requests errors.
 func TestRequests_errorTypes_AsType(t *testing.T) {
 	t.Parallel()
@@ -111,4 +118,10 @@ func TestRequests_errorTypes_AsType(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "/x", gotURI.URI)
 	require.Equal(t, "h", gotURI.Host)
+
+	dup := fmt.Errorf("wrap: %w", &DuplicateRequestNameError{Name: "dup-req"})
+	gotDup, ok := errors.AsType[*DuplicateRequestNameError](dup)
+	require.True(t, ok)
+	require.Equal(t, "dup-req", gotDup.Name)
+	require.Equal(t, "duplicate request name: dup-req", gotDup.Error())
 }

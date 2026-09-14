@@ -219,7 +219,7 @@ Examples:
 					return
 				}
 
-				cmd.Println(string(payload))
+				_, _ = fmt.Fprintln(out, string(payload))
 			} else {
 				opts := view.Options{}
 				if f, ok := out.(*os.File); ok && term.IsTerminal(int(f.Fd())) {

@@ -26,8 +26,9 @@ var (
 	ErrTransportOverrideRequired = errors.New(
 		"SetProxyProtocolHeader failed: transportOverrideURL not set",
 	)
-	ErrInvalidURI          = errors.New("invalid uri")
-	ErrInvalidTransportURL = errors.New("failed to parse transport override url")
+	ErrInvalidURI           = errors.New("invalid uri")
+	ErrInvalidTransportURL  = errors.New("failed to parse transport override url")
+	ErrDuplicateRequestName = errors.New("duplicate request name")
 )
 
 // EmptyArgError is returned when a required string argument is empty.
@@ -125,4 +126,20 @@ func (e *InvalidTransportURLError) Error() string {
 // Is reports whether target is ErrInvalidTransportURL.
 func (*InvalidTransportURLError) Is(target error) bool {
 	return target == ErrInvalidTransportURL
+}
+
+// DuplicateRequestNameError is returned when multiple requests share the same name.
+// errors.Is(err, ErrDuplicateRequestName) is true.
+type DuplicateRequestNameError struct {
+	Name string
+}
+
+// Error returns a message identifying the duplicate request name.
+func (e *DuplicateRequestNameError) Error() string {
+	return fmt.Sprintf("duplicate request name: %s", e.Name)
+}
+
+// Is reports whether target is ErrDuplicateRequestName.
+func (*DuplicateRequestNameError) Is(target error) bool {
+	return target == ErrDuplicateRequestName
 }

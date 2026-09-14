@@ -12,6 +12,14 @@
 
     Certinfo: multi-sink output — typed Result as source of truth, console via internal/view Doc + lipgloss renderer, and `--format json` (schemaVersion, no ANSI). MCP certinfo returns JSON.
 
+    Jwtinfo: multi-sink output — typed Result as source of truth, console via internal/view Doc, and `--format json` (schemaVersion, no ANSI). MCP jwtinfo returns JSON.
+
+    Requests: multi-sink output — typed Result as source of truth, console via internal/view Doc, and `--format json` (schemaVersion, no ANSI). MCP requests returns JSON.
+
+    Requests: add `followRedirects` configuration option (defaulting to false) in JSON schema and Go client to control HTTP 3xx redirection.
+
+    Requests: adopt traffic-light color progression for HTTP status codes (2xx green, 3xx yellow, 4xx peach, 5xx red).
+
     Requests: pin Go 1.27 ML-KEM hybrid CurvePreferences (including P-521 fallback) and print the negotiated key exchange.
 
     Jwtinfo: add sentinel and typed errors for errors.Is/As, and route CLI/MCP display through errdisp domain leaves.
@@ -28,6 +36,14 @@
 
 ### Fix
 
+    Cmd: write JSON output to cmd.OutOrStdout() directly via fmt.Fprintln instead of cmd.Println to ensure payloads go to stdout.
+
+    Requests: gate response body output on `printResponseBody` so configuring `responseBodyMatchRegexp` does not inadvertently dump the response body.
+
+    Requests: reject duplicate request names with DuplicateRequestNameError in ExecuteWithWriter and BuildResult to preserve distinct response data.
+
+    Certinfo: safely handle nil SerialNumber in FromX509.
+
     Certinfo: read the CA bundle once in SetCaPoolFromFile and derive both CertPool and certificate slice from the same PEM bytes.
 
     Certinfo: omit protocol/cipher scan sections until ProbeTLSInfo has completed; keep negotiated TLS output when requested.
@@ -40,7 +56,15 @@
 
     Certinfo: collapse styled and plain cert printers onto CertsDoc + view.Render; separate collect from present (cache CA certs, probe TLS before sinks).
 
+    Jwtinfo: separate collect from present onto BuildDoc + view.Render; route `--format json` token persistence and refresh progress to stderr to keep stdout machine-readable.
+
+    Requests: separate HTTP/TLS execution from presentation onto BuildDoc + view.Render; route `--format json` output purely to stdout with debug logs routed to stderr.
+
+    View: centralize Chroma syntax highlighting on Code nodes with line boundary preservation.
+
 ### Tests
+
+    Devenv: expand requests test suite to cover all schema settings combinations including responseHeadersFilter, responseCertificatesFilter, request/response debug dumps, baseRequest YAML anchors, userAgent and custom headers, multi-host with default URI fallback, regex matching without body printing, quiet mode, and --format json schema validation.
 
     Certinfo: assert PrivateKey match label and value together under plain PrintData rendering.
 

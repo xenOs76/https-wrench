@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+
+baseRequest: &base
+  transportOverrideUrl: https://localhost:9443
+  insecure: true
+  userAgent: wrench-base-template
+  printResponseBody: true
+
+requests:
+  - <<: *base
+    name: BaseTemplateReq1
+    hosts:
+      - name: localhost
+        uriList:
+          - /user-agent
+
+  - <<: *base
+    name: BaseTemplateReq2
+    requestHeaders:
+      - key: X-Merged-Template
+        value: Active
+    hosts:
+      - name: localhost
+        uriList:
+          - /headers

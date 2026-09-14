@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=../../../https-wrench.schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+---
+debug: false
+verbose: true
+requests:
+  - name: statusCodes2xx
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /status/200
+          - /status/201
+          - /status/202
+          - /status/204
+
+  - name: statusCodes3xxNoFollow
+    followRedirects: false
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /status/301
+          - /status/302
+          - /status/304
+          - /status/307
+          - /status/308
+
+  - name: statusCodes3xxFollow
+    followRedirects: true
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /status/302
+
+  - name: statusCodes4xx
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /status/400
+          - /status/401
+          - /status/403
+          - /status/404
+          - /status/405
+          - /status/418
+          - /status/429
+
+  - name: statusCodes5xx
+    transportOverrideUrl: https://localhost:9443
+    hosts:
+      - name: localhost
+        uriList:
+          - /status/500
+          - /status/502
+          - /status/503
+          - /status/504
