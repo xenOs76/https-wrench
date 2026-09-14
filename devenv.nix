@@ -527,6 +527,9 @@ in
     printf '%s\n' "$out" | grep -E 'StatusCode:\s+304'
     printf '%s\n' "$out" | grep -E 'StatusCode:\s+307'
     printf '%s\n' "$out" | grep -E 'StatusCode:\s+308'
+    # 3xx followRedirects
+    json_out=$(./dist/https-wrench requests --config ./${config.env.EXAMPLES}/tests-configs/http-status-codes.yaml --ca-bundle $CAROOT/rootCA.pem --format json)
+    printf '%s\n' "$json_out" | jq -e '.requests[] | select(.name == "statusCodes3xxFollow") | .responses[0].statusCode == 200' > /dev/null
     # 4xx
     printf '%s\n' "$out" | grep -E 'StatusCode:\s+400'
     printf '%s\n' "$out" | grep -E 'StatusCode:\s+401'
