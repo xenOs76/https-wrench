@@ -9,12 +9,11 @@ baseRequest: &httpbin
 requests:
   - <<: *httpbin
     name: httpbin-443
-    followRedirects: true
     responseBodyMatchRegexp: teapot
     hosts:
       - name: httpbin.os76.xyz
         uriList:
-          - /status/302
+          - /status/418
 
   - <<: *httpbin
     name: httpbin-transportOverride
