@@ -9,6 +9,7 @@ baseRequest: &httpbin
 requests:
   - <<: *httpbin
     name: httpbin-443
+    followRedirects: true
     responseBodyMatchRegexp: teapot
     hosts:
       - name: httpbin.os76.xyz
