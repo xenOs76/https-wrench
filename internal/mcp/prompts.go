@@ -58,7 +58,7 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 		"",
 		"To run via CLI with machine-readable output:",
 		"```shell",
-		"https-wrench requests --config <file.yaml> --format json",
+		"https-wrench requests --config path/to/file.yaml --format json",
 		"```",
 	}, "\n")
 
