@@ -235,6 +235,7 @@ func TestBuildCLICommand_jwtinfo(t *testing.T) {
 	})
 	require.Empty(t, out["errors"])
 	require.Contains(t, out["command"], "jwtinfo")
+	require.Contains(t, out["command"], "--format json")
 }
 
 func TestBuildCLICommand_requests(t *testing.T) {
@@ -248,6 +249,7 @@ func TestBuildCLICommand_requests(t *testing.T) {
 	})
 	require.Empty(t, out["errors"])
 	require.Contains(t, out["command"], "requests")
+	require.Contains(t, out["command"], "--format json")
 }
 
 func TestResources_readDocs(t *testing.T) {

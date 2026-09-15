@@ -42,7 +42,7 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 		"jwtinfo",
 		"generate_jwks",
 	}, toolNames)
-	require.Contains(t, buildCLIDesc, `format: "json"`)
+	require.Contains(t, buildCLIDesc, "--format json")
 
 	var resourceURIs []string
 
@@ -175,6 +175,7 @@ func TestBuildCLICommand_quotedFlag(t *testing.T) {
 	})
 	require.Empty(t, out["errors"])
 	require.Contains(t, out["command"], `'host with spaces:443'`)
+	require.Contains(t, out["command"], `--format json`)
 }
 
 func TestValidateRequestsConfig_valid(t *testing.T) {
@@ -240,7 +241,24 @@ func TestBuildCLICommand_certinfo(t *testing.T) {
 	})
 
 	require.Empty(t, out["errors"])
-	require.Equal(t, "https-wrench certinfo --tls-endpoint example.com:443 --tls-info true", out["command"])
+	require.Equal(t,
+		"https-wrench certinfo --format json --tls-endpoint example.com:443 --tls-info true",
+		out["command"],
+	)
+
+	outText := callBuildCLITool(t, map[string]any{
+		"command": "certinfo",
+		"flags": map[string]any{
+			"tls-endpoint": "example.com:443",
+			"tls-info":     "true",
+			"format":       "text",
+		},
+	})
+	require.Empty(t, outText["errors"])
+	require.Equal(t,
+		"https-wrench certinfo --format text --tls-endpoint example.com:443 --tls-info true",
+		outText["command"],
+	)
 }
 
 func TestBuildCLICommand_jwksMissingRequired(t *testing.T) {
@@ -253,6 +271,27 @@ func TestBuildCLICommand_jwksMissingRequired(t *testing.T) {
 
 	require.NotEmpty(t, out["errors"])
 	require.Empty(t, out["command"])
+}
+
+func TestMCPTools_descriptionsSuggestFormatJSON(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	for tool, err := range session.Tools(ctx, nil) {
+		require.NoError(t, err)
+		require.NotEmpty(t, tool.Description)
+		require.Contains(t,
+			tool.Description,
+			"--format json",
+			"tool %s description should suggest --format json",
+			tool.Name,
+		)
+	}
 }
 
 func TestRequestsConfigTemplate(t *testing.T) {

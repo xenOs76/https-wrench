@@ -38,22 +38,22 @@ type runRequestsInput struct {
 }
 
 type certinfoInput struct {
-	CaBundle      string `json:"caBundle,omitempty"`
-	CertBundle    string `json:"certBundle,omitempty"`
-	KeyFile       string `json:"keyFile,omitempty"`
-	TLSEndpoint   string `json:"tlsEndpoint,omitempty"`
-	TLSServername string `json:"tlsServername,omitempty"`
-	TLSInsecure   bool   `json:"tlsInsecure,omitempty"`
-	TLSInfo       bool   `json:"tlsInfo,omitempty"`
-	TimeoutSec    int    `json:"timeoutSec,omitempty"`
+	CaBundle      string `json:"caBundle,omitempty" jsonschema:"Optional CA bundle PEM file path"`
+	CertBundle    string `json:"certBundle,omitempty" jsonschema:"PEM certificate bundle file path"`
+	KeyFile       string `json:"keyFile,omitempty" jsonschema:"PEM key path (use CERTINFO_PKEY_PW env)"`
+	TLSEndpoint   string `json:"tlsEndpoint,omitempty" jsonschema:"TLS endpoint host:port"`
+	TLSServername string `json:"tlsServername,omitempty" jsonschema:"Optional SNI server name"`
+	TLSInsecure   bool   `json:"tlsInsecure,omitempty" jsonschema:"Skip TLS certificate verification"`
+	TLSInfo       bool   `json:"tlsInfo,omitempty" jsonschema:"Probe negotiated and supported TLS info"`
+	TimeoutSec    int    `json:"timeoutSec,omitempty" jsonschema:"Timeout in seconds (default 60)"`
 }
 
 type jwtinfoInput struct {
-	TokenFile     string            `json:"tokenFile,omitempty"`
-	RequestURL    string            `json:"requestUrl,omitempty"`
-	RequestValues map[string]string `json:"requestValues,omitempty"`
-	ValidationURL string            `json:"validationUrl,omitempty"`
-	TimeoutSec    int               `json:"timeoutSec,omitempty"`
+	TokenFile     string            `json:"tokenFile,omitempty" jsonschema:"File path containing JWT token string"`
+	RequestURL    string            `json:"requestUrl,omitempty" jsonschema:"OAuth/OIDC token endpoint URL"`
+	RequestValues map[string]string `json:"requestValues,omitempty" jsonschema:"Key-value pairs for token request"`
+	ValidationURL string            `json:"validationUrl,omitempty" jsonschema:"Remote JWKS URL for verification"`
+	TimeoutSec    int               `json:"timeoutSec,omitempty" jsonschema:"Timeout in seconds (default 60)"`
 }
 
 type generateJWKSInput struct {
@@ -82,23 +82,27 @@ func (mcpFileReader) ReadPassword(_ int) ([]byte, error) {
 
 func registerExecTools(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "run_requests",
-		Description: "Execute https-wrench requests from inline YAML or a config file path",
+		Name: "run_requests",
+		Description: "Execute https-wrench requests from inline YAML or a config file path " +
+			"(returns JSON; CLI: https-wrench requests --config path/to/file.yaml --format json)",
 	}, runRequestsHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "certinfo",
-		Description: "Inspect x.509 certificates and keys from local files or a TLS endpoint",
+		Name: "certinfo",
+		Description: "Inspect x.509 certificates and keys from local files or a TLS endpoint " +
+			"(returns JSON; CLI: https-wrench certinfo --tls-endpoint example.com:443 --format json)",
 	}, certinfoHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "jwtinfo",
-		Description: "Inspect JWT tokens from a file or token endpoint (no refresh loop)",
+		Name: "jwtinfo",
+		Description: "Inspect JWT tokens from a file or token endpoint (no refresh loop) " +
+			"(returns JSON; CLI: https-wrench jwtinfo --token-file path/to/token.jwt --format json)",
 	}, jwtinfoHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "generate_jwks",
-		Description: "Generate a JSON Web Key Set from a PEM public key file",
+		Name: "generate_jwks",
+		Description: "Generate a JSON Web Key Set from a PEM public key file " +
+			"(returns JSON; CLI: https-wrench jwks --public-key-file path/to/public.pem --format json)",
 	}, generateJWKSHandler)
 }
 
