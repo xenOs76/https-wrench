@@ -2,7 +2,7 @@
 
 # https-wrench - changelog
 
-## Unreleased
+## 0.15.4 (2026-09-15)
 
 ### Feat
 
