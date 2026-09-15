@@ -2,6 +2,14 @@
 
 # https-wrench - changelog
 
+## Unreleased
+
+### Feat
+
+    MCP: update all MCP tool descriptions and parameter schemas to consistently suggest `--format json` CLI examples with standard `path/to/...` placeholders, and default `build_cli_command` to `--format json` output.
+
+    MCP: add rich `jsonschema` parameter annotations to `certinfoInput` and `jwtinfoInput` for agent schema discovery.
+
 ## 0.15.3 (2026-09-15)
 
 ### Dependencies

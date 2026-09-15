@@ -412,12 +412,13 @@ commands for all subcommands (`author_requests_config`, `inspect_certificate`,
 `inspect_jwt`, `generate_jwks`).
 
 **Tools (assist):** `validate_requests_config`, `requests_config_template`,
-`build_cli_command` (suggesting `format: "json"` for machine-readable output).
+`build_cli_command` (defaults to `--format json` for machine-readable output;
+all tool descriptions provide `--format json` CLI examples).
 
 **Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`
-(all return structured JSON results). Encrypted private keys for `certinfo`
-require the `CERTINFO_PKEY_PW` environment variable (no interactive prompt
-under MCP).
+(all return structured JSON results and reference equivalent `--format json` CLI commands).
+Encrypted private keys for `certinfo` require the `CERTINFO_PKEY_PW` environment
+variable (no interactive prompt under MCP).
 
 ## Sample output
 

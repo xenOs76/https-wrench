@@ -43,6 +43,7 @@ https://github.com/xenOs76/https-wrench/blob/main/https-wrench.schema.json
 Examples:
  https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
  https-wrench requests --config https-wrench-sample-config.yaml
+ https-wrench requests --config https-wrench-sample-config.yaml --format json
 	`,
 
 	Run: func(cmd *cobra.Command, _ []string) {

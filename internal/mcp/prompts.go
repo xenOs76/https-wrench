@@ -14,7 +14,10 @@ func registerPrompts(server *sdkmcp.Server) {
 		Arguments: []*sdkmcp.PromptArgument{
 			{Name: "hostname", Description: "Application hostname (hosts[].name)", Required: true},
 			{Name: "paths", Description: "Comma-separated URI paths starting with / (default /)"},
-			{Name: "transport_override_url", Description: "Optional https:// dial URL for transportOverrideUrl"},
+			{
+				Name:        "transport_override_url",
+				Description: "Optional https:// dial URL for transportOverrideUrl",
+			},
 			{Name: "insecure", Description: "Set to true to skip TLS verification for this request"},
 			{Name: "method", Description: "HTTP method (default HEAD)"},
 		},

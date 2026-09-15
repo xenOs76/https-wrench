@@ -36,7 +36,7 @@ type requestsConfigTemplateOutput struct {
 
 type buildCLICommandInput struct {
 	Command string            `json:"command" jsonschema:"Subcommand: certinfo, jwtinfo, jwks, or requests"`
-	Flags   map[string]string `json:"flags" jsonschema:"Flag names to values (use format: json for JSON output)"`
+	Flags   map[string]string `json:"flags" jsonschema:"Flag names to values (defaults to format: json)"`
 }
 
 type buildCLICommandOutput struct {
@@ -57,19 +57,21 @@ type parsedRequestsConfig struct {
 
 func registerTools(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "validate_requests_config",
-		Description: "Parse and structurally validate a https-wrench requests YAML configuration",
+		Name: "validate_requests_config",
+		Description: "Parse and structurally validate a https-wrench requests YAML configuration " +
+			"(run with 'https-wrench requests --config path/to/file.yaml --format json')",
 	}, validateRequestsConfigHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "requests_config_template",
-		Description: "Generate a starter requests YAML configuration from high-level parameters",
+		Name: "requests_config_template",
+		Description: "Generate a starter requests YAML configuration from high-level parameters " +
+			"(use with 'https-wrench requests --config path/to/file.yaml --format json')",
 	}, requestsConfigTemplateHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name: "build_cli_command",
 		Description: "Build a shell-ready https-wrench CLI command for certinfo, jwtinfo, jwks, or requests " +
-			"(pass format: \"json\" for machine-readable output)",
+			"(defaults to --format json for machine-readable output)",
 	}, buildCLICommandHandler)
 
 	registerExecTools(server)
@@ -198,7 +200,9 @@ func validateRequestHost(prefix string, index int, host requests.Host) []string 
 
 	for ui, uri := range host.URIList {
 		if !uri.Parse() {
-			errs = append(errs, fmt.Sprintf("%s.uriList[%d]: path %q must start with /", hostPrefix, ui, uri))
+			errs = append(errs,
+				fmt.Sprintf("%s.uriList[%d]: path %q must start with /", hostPrefix, ui, uri),
+			)
 		}
 	}
 
@@ -333,18 +337,29 @@ func buildCLICommand(command string, flags map[string]string) (string, []string)
 		}
 	}
 
-	errs := validateCLIFlags(command, def, flags)
+	effectiveFlags := make(map[string]string, len(flags)+1)
+	for k, v := range flags {
+		effectiveFlags[k] = v
+	}
+
+	if _, hasFormat := effectiveFlags["format"]; !hasFormat {
+		if _, allowed := def.allowedFlags["format"]; allowed {
+			effectiveFlags["format"] = "json"
+		}
+	}
+
+	errs := validateCLIFlags(command, def, effectiveFlags)
 	if len(errs) > 0 {
 		return "", errs
 	}
 
-	names := sortedAllowedFlagNames(def, flags)
+	names := sortedAllowedFlagNames(def, effectiveFlags)
 
 	var parts []string
 
 	parts = append(parts, "https-wrench", command)
 	for _, name := range names {
-		parts = append(parts, "--"+name, shellQuote(flags[name]))
+		parts = append(parts, "--"+name, shellQuote(effectiveFlags[name]))
 	}
 
 	return strings.Join(parts, " "), nil

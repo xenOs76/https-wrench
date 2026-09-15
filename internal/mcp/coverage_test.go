@@ -137,6 +137,22 @@ func TestBuildCLICommand(t *testing.T) {
 	require.Contains(t, cmd, "https-wrench jwks")
 	require.Contains(t, cmd, "--format json")
 
+	// Omitting format defaults to format: json
+	cmd, errs = buildCLICommand("jwks", map[string]string{
+		"public-key-file": "/keys/pub.pem",
+	})
+	require.Empty(t, errs)
+	require.Contains(t, cmd, "--format json")
+
+	// Explicit format: text is preserved
+	cmd, errs = buildCLICommand("jwks", map[string]string{
+		"public-key-file": "/keys/pub.pem",
+		"format":          "text",
+	})
+	require.Empty(t, errs)
+	require.Contains(t, cmd, "--format text")
+	require.NotContains(t, cmd, "--format json")
+
 	cmd, errs = buildCLICommand("jwtinfo", map[string]string{"token-file": "t.jwt", "format": "json"})
 	require.Empty(t, errs)
 	require.Contains(t, cmd, "--format json")
