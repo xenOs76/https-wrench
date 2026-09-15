@@ -403,12 +403,13 @@ Cursor configuration example:
 }
 ```
 
-**Resources:** JSON schema, sample config, example YAML files, and a requests
-cheat sheet (`https-wrench://schema`, `https-wrench://sample-config`,
-`https-wrench://examples/{name}`, `https-wrench://docs/requests`).
+**Resources:** JSON schema, sample config, example YAML files, and subcommand
+cheat sheets (`https-wrench://schema`, `https-wrench://sample-config`,
+`https-wrench://examples/{name}`, `https-wrench://docs/{requests,certinfo,jwtinfo,jwks}`).
 
-**Prompts:** `author_requests_config` — parameterized guidance for writing
-requests YAML, including recommended `--format json` CLI execution commands.
+**Prompts:** Parameterized guidance and recommended `--format json` CLI execution
+commands for all subcommands (`author_requests_config`, `inspect_certificate`,
+`inspect_jwt`, `generate_jwks`).
 
 **Tools (assist):** `validate_requests_config`, `requests_config_template`,
 `build_cli_command` (suggesting `format: "json"` for machine-readable output).
