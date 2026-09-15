@@ -36,7 +36,7 @@ type requestsConfigTemplateOutput struct {
 
 type buildCLICommandInput struct {
 	Command string            `json:"command" jsonschema:"Subcommand: certinfo, jwtinfo, jwks, or requests"`
-	Flags   map[string]string `json:"flags" jsonschema:"Flag names (without leading dashes) to values"`
+	Flags   map[string]string `json:"flags" jsonschema:"Flag names to values (use format: json for JSON output)"`
 }
 
 type buildCLICommandOutput struct {
@@ -67,8 +67,9 @@ func registerTools(server *sdkmcp.Server) {
 	}, requestsConfigTemplateHandler)
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "build_cli_command",
-		Description: "Build a shell-ready https-wrench CLI command for certinfo, jwtinfo, jwks, or requests",
+		Name: "build_cli_command",
+		Description: "Build a shell-ready https-wrench CLI command for certinfo, jwtinfo, jwks, or requests " +
+			"(pass format: \"json\" for machine-readable output)",
 	}, buildCLICommandHandler)
 
 	registerExecTools(server)

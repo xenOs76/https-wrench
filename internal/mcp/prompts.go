@@ -55,6 +55,11 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 		"```",
 		"",
 		"After editing, validate with the validate_requests_config tool.",
+		"",
+		"To run via CLI with machine-readable output:",
+		"```shell",
+		"https-wrench requests --config <file.yaml> --format json",
+		"```",
 	}, "\n")
 
 	return &sdkmcp.GetPromptResult{

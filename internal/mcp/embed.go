@@ -30,7 +30,12 @@ const schemaCommentHeader = "# yaml-language-server: $schema=" + uriSchema
 
 const requestsDocsMarkdown = `# https-wrench requests
 
-Run probes with: ` + "`https-wrench requests --config <file.yaml>`" + `
+Run probes with: ` + "`https-wrench requests --config <file.yaml> --format json`" + `
+
+## Output formats
+
+- ` + "`--format json`" + `: Machine-readable JSON output without ANSI styling.
+- ` + "`--format text`" + `: Formatted terminal report with ANSI color styling.
 
 ## Top level
 

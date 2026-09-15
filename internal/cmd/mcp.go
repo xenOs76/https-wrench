@@ -16,7 +16,8 @@ var mcpCmd = &cobra.Command{
 
 The server exposes reference resources (JSON schema, sample config, examples),
 prompts for authoring requests YAML, and assist tools to validate configs and
-build CLI invocations for other https-wrench subcommands.
+build CLI invocations (suggesting machine-readable --format json output).
+Execution tools return structured JSON directly.
 
 Configure in Cursor or Claude Desktop:
 

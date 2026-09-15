@@ -19,12 +19,18 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 
 	defer cleanup()
 
-	var toolNames []string
+	var (
+		toolNames    []string
+		buildCLIDesc string
+	)
 
 	for tool, err := range session.Tools(ctx, nil) {
 		require.NoError(t, err)
 
 		toolNames = append(toolNames, tool.Name)
+		if tool.Name == "build_cli_command" {
+			buildCLIDesc = tool.Description
+		}
 	}
 
 	require.ElementsMatch(t, []string{
@@ -36,6 +42,7 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 		"jwtinfo",
 		"generate_jwks",
 	}, toolNames)
+	require.Contains(t, buildCLIDesc, `format: "json"`)
 
 	var resourceURIs []string
 
@@ -58,6 +65,21 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 	}
 
 	require.Contains(t, promptNames, "author_requests_config")
+}
+
+func TestMCPServer_instructions(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	initRes := session.InitializeResult()
+	require.NotNil(t, initRes)
+	require.Contains(t, initRes.Instructions, "--format json")
+	require.Contains(t, initRes.Instructions, "structured JSON")
 }
 
 func TestResources_readSchema(t *testing.T) {
@@ -278,6 +300,7 @@ func TestAuthorRequestsConfigPrompt(t *testing.T) {
 	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
 	require.Contains(t, content.Text, "app.example.com")
 	require.Contains(t, content.Text, "validate_requests_config")
+	require.Contains(t, content.Text, "--format json")
 }
 
 func callValidateTool(t *testing.T, yaml string) map[string]any {

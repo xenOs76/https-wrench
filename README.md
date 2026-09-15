@@ -408,14 +408,15 @@ cheat sheet (`https-wrench://schema`, `https-wrench://sample-config`,
 `https-wrench://examples/{name}`, `https-wrench://docs/requests`).
 
 **Prompts:** `author_requests_config` — parameterized guidance for writing
-requests YAML.
+requests YAML, including recommended `--format json` CLI execution commands.
 
 **Tools (assist):** `validate_requests_config`, `requests_config_template`,
-`build_cli_command`.
+`build_cli_command` (suggesting `format: "json"` for machine-readable output).
 
-**Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`.
-Encrypted private keys for `certinfo` require the `CERTINFO_PKEY_PW` environment
-variable (no interactive prompt under MCP).
+**Tools (execution):** `run_requests`, `certinfo`, `jwtinfo`, `generate_jwks`
+(all return structured JSON results). Encrypted private keys for `certinfo`
+require the `CERTINFO_PKEY_PW` environment variable (no interactive prompt
+under MCP).
 
 ## Sample output
 
