@@ -406,5 +406,5 @@ func shellQuote(value string) string {
 		return value
 	}
 
-	return strconv.Quote(value)
+	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }

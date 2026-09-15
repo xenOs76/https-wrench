@@ -132,6 +132,10 @@ func inspectCertificatePrompt(
 	caBundle := strings.TrimSpace(args["ca_bundle"])
 	tlsInfo := strings.EqualFold(args["tls_info"], "true")
 
+	if tlsEndpoint == "" && certBundle == "" && keyFile == "" {
+		tlsEndpoint = "example.com:443"
+	}
+
 	cmdParts := []string{"https-wrench certinfo"}
 
 	if tlsEndpoint != "" {
@@ -157,9 +161,6 @@ func inspectCertificatePrompt(
 	cmdParts = append(cmdParts, "--format json")
 
 	cmd := strings.Join(cmdParts, " ")
-	if tlsEndpoint == "" && certBundle == "" && keyFile == "" {
-		cmd = "https-wrench certinfo --tls-endpoint example.com:443 --format json"
-	}
 
 	text := strings.Join([]string{
 		"Inspect x.509 certificates, keys, or TLS endpoints using the resources below.",

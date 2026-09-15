@@ -174,7 +174,7 @@ func TestBuildCLICommand_quotedFlag(t *testing.T) {
 		},
 	})
 	require.Empty(t, out["errors"])
-	require.Contains(t, out["command"], `"host with spaces:443"`)
+	require.Contains(t, out["command"], `'host with spaces:443'`)
 }
 
 func TestValidateRequestsConfig_valid(t *testing.T) {
@@ -332,6 +332,23 @@ func TestInspectCertificatePrompt(t *testing.T) {
 	require.Contains(t, content.Text, "example.com:443")
 	require.Contains(t, content.Text, "--format json")
 	require.Contains(t, content.Text, "--tls-info")
+
+	fallbackRes, err := session.GetPrompt(ctx, &sdkmcp.GetPromptParams{
+		Name: "inspect_certificate",
+		Arguments: map[string]string{
+			"ca_bundle": "ca.crt",
+			"tls_info":  "true",
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, fallbackRes.Messages)
+
+	fallbackContent, ok := fallbackRes.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", fallbackRes.Messages[0].Content)
+	require.Contains(t, fallbackContent.Text, "example.com:443")
+	require.Contains(t, fallbackContent.Text, "--ca-bundle ca.crt")
+	require.Contains(t, fallbackContent.Text, "--tls-info")
+	require.Contains(t, fallbackContent.Text, "--format json")
 }
 
 func TestInspectJWTPrompt(t *testing.T) {

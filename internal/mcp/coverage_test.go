@@ -24,8 +24,10 @@ func TestShellQuote(t *testing.T) {
 
 	require.Equal(t, "''", shellQuote(""))
 	require.Equal(t, "plain", shellQuote("plain"))
-	require.Equal(t, `"has space"`, shellQuote("has space"))
-	require.Equal(t, `"say \"hi\""`, shellQuote(`say "hi"`))
+	require.Equal(t, `'has space'`, shellQuote("has space"))
+	require.Equal(t, `'say "hi"'`, shellQuote(`say "hi"`))
+	require.Equal(t, `'don'"'"'t'`, shellQuote("don't"))
+	require.Equal(t, `'$(cmd)'`, shellQuote("$(cmd)"))
 }
 
 func TestParsePaths(t *testing.T) {

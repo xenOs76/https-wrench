@@ -118,7 +118,7 @@ const jwksDocsMarkdown = `# https-wrench jwks
 
 Generate JSON Web Key Sets (JWKS) from public keys for exposure on well-known endpoints.
 
-Run generation with: ` + "`https-wrench jwks --public-key-file <file> [flags] --format json`" + `
+Run generation with: ` + "`https-wrench jwks --public-key-file path/to/public.pem [flags] --format json`" + `
 
 ## Output formats
 
