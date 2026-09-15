@@ -53,6 +53,7 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 	}
 
 	require.Contains(t, resourceURIs, "https-wrench://schema")
+	require.Contains(t, resourceURIs, "https-wrench://main-config")
 	require.Contains(t, resourceURIs, "https-wrench://sample-config")
 	require.Contains(t, resourceURIs, "https-wrench://docs/requests")
 	require.Contains(t, resourceURIs, "https-wrench://docs/certinfo")
@@ -120,6 +121,42 @@ func TestResources_readExample(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, res.Contents)
 	require.Contains(t, res.Contents[0].Text, "requests:")
+}
+
+func TestResources_readMainConfig(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{
+		URI: "https-wrench://main-config",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Contents)
+	require.Contains(t, res.Contents[0].Text, "EdgeIngressProxyProtocolV2")
+	require.Contains(t, res.Contents[0].Text, "httpbin-alt.os76.xyz:444")
+	require.Contains(t, res.Contents[0].Text, "responseCertificatesFilter:")
+}
+
+func TestResources_readExample_mainConfig(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{
+		URI: "https-wrench://examples/mcp-main-config",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Contents)
+	require.Contains(t, res.Contents[0].Text, "EdgeIngressProxyProtocolV2")
 }
 
 func TestValidateRequestsConfig_emptyRequests(t *testing.T) {

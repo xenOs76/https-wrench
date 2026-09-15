@@ -79,6 +79,7 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 		"",
 		"Reference resources:",
 		"- " + uriSchema,
+		"- " + uriMainConfig,
 		"- " + uriSampleConfig,
 		"- " + uriDocsRequests,
 		exampleHints,
@@ -108,6 +109,8 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 func exampleResourceHints(input requestsConfigTemplateInput) string {
 	var hints []string
 
+	hints = append(hints, "- https-wrench://examples/mcp-main-config")
+
 	if strings.TrimSpace(input.TransportOverrideURL) != "" {
 		hints = append(hints, "- https-wrench://examples/k3s")
 		hints = append(hints, "- https-wrench://examples/proxy-protocol-v2")
@@ -117,7 +120,7 @@ func exampleResourceHints(input requestsConfigTemplateInput) string {
 		hints = append(hints, "- https-wrench://examples/k3s")
 	}
 
-	if len(hints) == 0 {
+	if len(hints) == 1 {
 		hints = append(hints, "- https-wrench://examples/k3s")
 	}
 

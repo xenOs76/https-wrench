@@ -1,0 +1,163 @@
+# yaml-language-server: $schema=https-wrench://schema
+---
+## =============================================================================
+## HTTPS Wrench — Main MCP Configuration Reference
+## =============================================================================
+## Complete reference showcasing all configuration options, edge-probing
+## capabilities, and filtering rules.
+## Target endpoints restricted to os76.xyz infrastructure:
+##   - httpbin.os76.xyz     (port 443 standard, port 445 Proxy Protocol v2)
+##   - httpbin-alt.os76.xyz (strictly port 444 via transportOverrideUrl)
+
+## -----------------------------------------------------------------------------
+## 1. Global Settings
+## -----------------------------------------------------------------------------
+
+# verbose: [Required] Enables detailed operational output.
+verbose: true
+
+# debug: [Optional] Enables global parser and diagnostic debugging.
+debug: false
+
+# caBundle: [Optional] Custom CA bundle to verify server certificates.
+# Accepts a filesystem path ('/etc/ssl/certs/custom-ca.pem') or inline multiline PEM.
+# When omitted, the system trust store (or embedded Mozilla root certs) is used.
+# caBundle: /path/to/custom-ca.pem
+
+## -----------------------------------------------------------------------------
+## 2. Shared Request Defaults & Anchors (DRY Configuration)
+## -----------------------------------------------------------------------------
+# baseRequest: [Optional] Define a reusable YAML anchor (&standardDefaults)
+# merged into requests entries via merge keys (<<: *standardDefaults).
+# Ignored by https-wrench at runtime.
+baseRequest: &standardDefaults
+  clientTimeout: 5
+  followRedirects: false
+  userAgent: "https-wrench-agent/1.0"
+  requestHeaders:
+    - key: "Accept"
+      value: "application/json, text/plain, */*"
+
+## -----------------------------------------------------------------------------
+## 3. Requests Suite
+## -----------------------------------------------------------------------------
+requests:
+
+  # ---------------------------------------------------------------------------
+  # Case A: Edge Ingress Probe with Proxy Protocol v2 & Transport Dial Override
+  # ---------------------------------------------------------------------------
+  # Forces TCP/TLS connection to port 445 while preserving the logical hostname
+  # for HTTP Host header and TLS SNI negotiation.
+  - name: "EdgeIngressProxyProtocolV2"
+    <<: *standardDefaults
+
+    # transportOverrideUrl: Direct dial address (https://host:port or https://ip:port).
+    # The logical hostname for SNI and Host header remains hosts[].name.
+    transportOverrideUrl: "https://httpbin.os76.xyz:445"
+
+    # enableProxyProtocolV2: Sends an HAProxy PROXY protocol v2 header on connect.
+    # Note: Requires transportOverrideUrl to be set.
+    enableProxyProtocolV2: true
+
+    # insecure: Set to true if dial address does not match server certificate SAN.
+    insecure: true
+
+    requestMethod: "HEAD"
+
+    hosts:
+      - name: "httpbin.os76.xyz"
+        uriList:
+          - "/"
+          - "/status/200"
+
+  # ---------------------------------------------------------------------------
+  # Case B: In-Depth TLS Certificate Chain Inspection & Selective Field Filtering
+  # ---------------------------------------------------------------------------
+  # Probes TLS certificates on standard port 443 and prints only selected fields.
+  - name: "TLSCertificateChainInspection"
+    <<: *standardDefaults
+    requestMethod: "HEAD"
+
+    # printResponseCertificates: Prints peer TLS certificate chain.
+    printResponseCertificates: true
+
+    # responseCertificatesFilter: Selectively filter certificates by chain index
+    # (0 = Leaf / Server cert, 1 = Intermediate CA, 2 = Root CA) and field names.
+    # Supported fields: Subject, DNSNames, Issuer, NotBefore, NotAfter, Expiration,
+    # IsCA, AuthorityKeyId, SubjectKeyId, PublicKeyAlgorithm, SignatureAlgorithm,
+    # SerialNumber, Fingerprint SHA-256.
+    responseCertificatesFilter:
+      - 0: # Leaf Certificate
+          - Subject
+          - DNSNames
+          - Issuer
+          - NotBefore
+          - NotAfter
+          - Expiration
+          - Fingerprint SHA-256
+      - 1: # Intermediate Certificate
+          - Subject
+          - Issuer
+          - IsCA
+          - NotAfter
+
+    hosts:
+      - name: "httpbin.os76.xyz"
+
+  # ---------------------------------------------------------------------------
+  # Case C: HTTP API Mutation with Custom Headers & Body Regex Assertions
+  # ---------------------------------------------------------------------------
+  # Executes an HTTP mutation (POST/PUT/PATCH) on port 443 with custom headers
+  # and verifies response headers and body content with regular expressions.
+  - name: "APIPostPayloadAndRegexValidation"
+    <<: *standardDefaults
+    requestMethod: "POST"
+
+    requestHeaders:
+      - key: "Content-Type"
+        value: "application/json"
+      - key: "X-Trace-ID"
+        value: "agent-probe-98765"
+
+    requestBody: '{"probe": "synthetic", "environment": "production"}'
+
+    # Response inspection controls
+    printResponseHeaders: true
+    # responseHeadersFilter: Header names to include (must start with uppercase letter)
+    responseHeadersFilter:
+      - Content-Type
+      - Server
+      - X-Request-Id
+
+    printResponseBody: true
+
+    # responseBodyMatchRegexp: Regex assertion that the response body must satisfy.
+    responseBodyMatchRegexp: '.*"probe":\s*"synthetic".*'
+
+    hosts:
+      - name: "httpbin.os76.xyz"
+        uriList:
+          - "/post"
+
+  # ---------------------------------------------------------------------------
+  # Case D: Deep Wire Protocol Debugging on Alternative Port (Port 444)
+  # ---------------------------------------------------------------------------
+  # Dumps raw outgoing HTTP request bytes and incoming response bytes including
+  # low-level TLS handshake connection states on httpbin-alt.os76.xyz:444.
+  - name: "RawWireAndHandshakeDebugging"
+    <<: *standardDefaults
+
+    # httpbin-alt.os76.xyz is strictly available on port 444
+    transportOverrideUrl: "https://httpbin-alt.os76.xyz:444"
+    clientTimeout: 5
+
+    # requestDebug: Dumps the raw outgoing HTTP wire request.
+    requestDebug: true
+
+    # responseDebug: Dumps the raw incoming HTTP wire response + TLS details.
+    responseDebug: true
+
+    hosts:
+      - name: "httpbin-alt.os76.xyz"
+        uriList:
+          - "/get"

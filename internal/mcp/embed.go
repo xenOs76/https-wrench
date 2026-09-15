@@ -7,6 +7,7 @@ import "embed"
 //go:generate cp ../../assets/examples/https-wrench-k3s.yaml assets/examples/
 //go:generate cp ../../assets/examples/https-wrench-response-certificates-filter.yaml assets/examples/
 //go:generate cp ../../assets/examples/https-wrench-proxyProtocolV2.yaml assets/examples/
+//go:generate cp ../../assets/examples/https-wrench-mcp-main-config.yaml assets/examples/
 
 //go:embed assets/schema.json
 //go:embed assets/sample-config.yaml
@@ -15,6 +16,7 @@ var assets embed.FS
 
 const (
 	uriSchema       = "https-wrench://schema"
+	uriMainConfig   = "https-wrench://main-config"
 	uriSampleConfig = "https-wrench://sample-config"
 	uriDocsRequests = "https-wrench://docs/requests"
 	uriDocsCertinfo = "https-wrench://docs/certinfo"
@@ -24,6 +26,7 @@ const (
 )
 
 var exampleFiles = map[string]string{
+	"mcp-main-config":              "assets/examples/https-wrench-mcp-main-config.yaml",
 	"k3s":                          "assets/examples/https-wrench-k3s.yaml",
 	"response-certificates-filter": "assets/examples/https-wrench-response-certificates-filter.yaml",
 	"proxy-protocol-v2":            "assets/examples/https-wrench-proxyProtocolV2.yaml",
@@ -65,8 +68,9 @@ Run probes with: ` + "`https-wrench requests --config path/to/file.yaml --format
 ## MCP resources
 
 - ` + uriSchema + `
+- ` + uriMainConfig + `
 - ` + uriSampleConfig + `
-- ` + uriExampleTmpl + ` (names: k3s, response-certificates-filter, proxy-protocol-v2)
+- ` + uriExampleTmpl + ` (names: mcp-main-config, k3s, response-certificates-filter, proxy-protocol-v2)
 `
 
 const certinfoDocsMarkdown = `# https-wrench certinfo
