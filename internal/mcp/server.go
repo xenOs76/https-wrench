@@ -8,8 +8,9 @@ import (
 )
 
 const serverInstructions = "MCP server for https-wrench. " +
-	"Use resources and prompts to author requests YAML, validate configs, and build CLI commands. " +
-	"Execution tools run requests probes, certinfo, jwtinfo, and JWKS generation directly."
+	"Use resources and prompts to author requests YAML, inspect certs and JWTs, and generate JWKS. " +
+	"Execution tools return structured JSON directly; when building CLI commands for automated or agent use, " +
+	"pass format: \"json\" (or use --format json) for machine-readable output without ANSI styling."
 
 // Run starts the https-wrench MCP server on stdin/stdout until the client disconnects.
 func Run(ctx context.Context, version string) error {

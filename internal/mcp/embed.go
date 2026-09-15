@@ -17,6 +17,9 @@ const (
 	uriSchema       = "https-wrench://schema"
 	uriSampleConfig = "https-wrench://sample-config"
 	uriDocsRequests = "https-wrench://docs/requests"
+	uriDocsCertinfo = "https-wrench://docs/certinfo"
+	uriDocsJwtinfo  = "https-wrench://docs/jwtinfo"
+	uriDocsJWKS     = "https-wrench://docs/jwks"
 	uriExampleTmpl  = "https-wrench://examples/{name}"
 )
 
@@ -30,7 +33,12 @@ const schemaCommentHeader = "# yaml-language-server: $schema=" + uriSchema
 
 const requestsDocsMarkdown = `# https-wrench requests
 
-Run probes with: ` + "`https-wrench requests --config <file.yaml>`" + `
+Run probes with: ` + "`https-wrench requests --config path/to/file.yaml --format json`" + `
+
+## Output formats
+
+- ` + "`--format json`" + `: Machine-readable JSON output without ANSI styling.
+- ` + "`--format text`" + `: Formatted terminal report with ANSI color styling.
 
 ## Top level
 
@@ -59,4 +67,68 @@ Run probes with: ` + "`https-wrench requests --config <file.yaml>`" + `
 - ` + uriSchema + `
 - ` + uriSampleConfig + `
 - ` + uriExampleTmpl + ` (names: k3s, response-certificates-filter, proxy-protocol-v2)
+`
+
+const certinfoDocsMarkdown = `# https-wrench certinfo
+
+Inspect and verify x.509 certificates and keys from local files or remote TLS endpoints.
+
+Run inspection with: ` + "`https-wrench certinfo [flags] --format json`" + `
+
+## Output formats
+
+- ` + "`--format json`" + `: Machine-readable JSON output without ANSI styling.
+- ` + "`--format text`" + `: Formatted terminal report with lipgloss color styling.
+
+## Common operations
+
+- Remote TLS endpoint:
+  ` + "`https-wrench certinfo --tls-endpoint example.com:443 --format json`" + `
+- Local cert and key pairing:
+  ` + "`https-wrench certinfo --cert-bundle cert.pem --key-file key.pem --format json`" + `
+- Custom CA bundle verification:
+  ` + "`https-wrench certinfo --cert-bundle cert.pem --ca-bundle ca.pem --format json`" + `
+- TLS protocol and cipher suite probe:
+  ` + "`https-wrench certinfo --tls-endpoint example.com:443 --tls-info --format json`" + `
+`
+
+const jwtinfoDocsMarkdown = `# https-wrench jwtinfo
+
+Decode, inspect, and validate JSON Web Tokens (JWT).
+
+Run inspection with: ` + "`https-wrench jwtinfo [flags] --format json`" + `
+
+## Output formats
+
+- ` + "`--format json`" + `: Machine-readable JSON output without ANSI styling.
+- ` + "`--format text`" + `: Formatted terminal report with color styling.
+
+## Common operations
+
+- Inspect token from local file:
+  ` + "`https-wrench jwtinfo --token-file path/to/token.jwt --format json`" + `
+- Request token from OAuth endpoint:
+  ` + "`https-wrench jwtinfo --request-url https://auth.example.com/oauth/token --format json`" + `
+- Validate token signatures against remote JWKS:
+  ` + "`https-wrench jwtinfo --token-file token.jwt " +
+	`--validation-url https://auth.example.com/jwks.json --format json` + "`" + `
+`
+
+const jwksDocsMarkdown = `# https-wrench jwks
+
+Generate JSON Web Key Sets (JWKS) from public keys for exposure on well-known endpoints.
+
+Run generation with: ` + "`https-wrench jwks --public-key-file path/to/public.pem [flags] --format json`" + `
+
+## Output formats
+
+- ` + "`--format json`" + `: Machine-readable JSON output containing keys array without ANSI styling.
+- ` + "`--format text`" + `: Formatted console view with banner and highlighted JSON.
+
+## Common operations
+
+- Generate public JWKS from RSA or ECDSA public key:
+  ` + "`https-wrench jwks --public-key-file public.pem --format json`" + `
+- Generate JWKS with custom Key ID (kid):
+  ` + "`https-wrench jwks --public-key-file public.pem --kid my-key-id --format json`" + `
 `

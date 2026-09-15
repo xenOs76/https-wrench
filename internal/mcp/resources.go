@@ -32,6 +32,33 @@ func registerResources(server *sdkmcp.Server) {
 		return textResource(uriDocsRequests, requestsDocsMarkdown), nil
 	})
 
+	server.AddResource(&sdkmcp.Resource{
+		URI:         uriDocsCertinfo,
+		Name:        "certinfo command reference",
+		Description: "Markdown cheat sheet for inspecting x.509 certs and TLS endpoints",
+		MIMEType:    "text/markdown",
+	}, func(_ context.Context, _ *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+		return textResource(uriDocsCertinfo, certinfoDocsMarkdown), nil
+	})
+
+	server.AddResource(&sdkmcp.Resource{
+		URI:         uriDocsJwtinfo,
+		Name:        "jwtinfo command reference",
+		Description: "Markdown cheat sheet for decoding and validating JWT tokens",
+		MIMEType:    "text/markdown",
+	}, func(_ context.Context, _ *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+		return textResource(uriDocsJwtinfo, jwtinfoDocsMarkdown), nil
+	})
+
+	server.AddResource(&sdkmcp.Resource{
+		URI:         uriDocsJWKS,
+		Name:        "jwks command reference",
+		Description: "Markdown cheat sheet for generating JWKS from public keys",
+		MIMEType:    "text/markdown",
+	}, func(_ context.Context, _ *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+		return textResource(uriDocsJWKS, jwksDocsMarkdown), nil
+	})
+
 	server.AddResourceTemplate(&sdkmcp.ResourceTemplate{
 		URITemplate: uriExampleTmpl,
 		Name:        "Example requests config",

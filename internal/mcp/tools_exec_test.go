@@ -265,6 +265,8 @@ func TestResources_readDocs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, res.Contents)
 	require.Contains(t, res.Contents[0].Text, "requests")
+	require.Contains(t, res.Contents[0].Text, "--format json")
+	require.Contains(t, res.Contents[0].Text, "Output formats")
 }
 
 func TestResources_readSampleConfig(t *testing.T) {

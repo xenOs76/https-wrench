@@ -19,12 +19,18 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 
 	defer cleanup()
 
-	var toolNames []string
+	var (
+		toolNames    []string
+		buildCLIDesc string
+	)
 
 	for tool, err := range session.Tools(ctx, nil) {
 		require.NoError(t, err)
 
 		toolNames = append(toolNames, tool.Name)
+		if tool.Name == "build_cli_command" {
+			buildCLIDesc = tool.Description
+		}
 	}
 
 	require.ElementsMatch(t, []string{
@@ -36,6 +42,7 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 		"jwtinfo",
 		"generate_jwks",
 	}, toolNames)
+	require.Contains(t, buildCLIDesc, `format: "json"`)
 
 	var resourceURIs []string
 
@@ -48,6 +55,9 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 	require.Contains(t, resourceURIs, "https-wrench://schema")
 	require.Contains(t, resourceURIs, "https-wrench://sample-config")
 	require.Contains(t, resourceURIs, "https-wrench://docs/requests")
+	require.Contains(t, resourceURIs, "https-wrench://docs/certinfo")
+	require.Contains(t, resourceURIs, "https-wrench://docs/jwtinfo")
+	require.Contains(t, resourceURIs, "https-wrench://docs/jwks")
 
 	var promptNames []string
 
@@ -58,6 +68,24 @@ func TestMCPServer_listsFeatures(t *testing.T) {
 	}
 
 	require.Contains(t, promptNames, "author_requests_config")
+	require.Contains(t, promptNames, "inspect_certificate")
+	require.Contains(t, promptNames, "inspect_jwt")
+	require.Contains(t, promptNames, "generate_jwks")
+}
+
+func TestMCPServer_instructions(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	initRes := session.InitializeResult()
+	require.NotNil(t, initRes)
+	require.Contains(t, initRes.Instructions, "--format json")
+	require.Contains(t, initRes.Instructions, "structured JSON")
 }
 
 func TestResources_readSchema(t *testing.T) {
@@ -146,7 +174,7 @@ func TestBuildCLICommand_quotedFlag(t *testing.T) {
 		},
 	})
 	require.Empty(t, out["errors"])
-	require.Contains(t, out["command"], `"host with spaces:443"`)
+	require.Contains(t, out["command"], `'host with spaces:443'`)
 }
 
 func TestValidateRequestsConfig_valid(t *testing.T) {
@@ -278,6 +306,121 @@ func TestAuthorRequestsConfigPrompt(t *testing.T) {
 	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
 	require.Contains(t, content.Text, "app.example.com")
 	require.Contains(t, content.Text, "validate_requests_config")
+	require.Contains(t, content.Text, "--format json")
+}
+
+func TestInspectCertificatePrompt(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	res, err := session.GetPrompt(ctx, &sdkmcp.GetPromptParams{
+		Name: "inspect_certificate",
+		Arguments: map[string]string{
+			"tls_endpoint": "example.com:443",
+			"tls_info":     "true",
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Messages)
+	content, ok := res.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
+	require.Contains(t, content.Text, "example.com:443")
+	require.Contains(t, content.Text, "--format json")
+	require.Contains(t, content.Text, "--tls-info")
+
+	fallbackRes, err := session.GetPrompt(ctx, &sdkmcp.GetPromptParams{
+		Name: "inspect_certificate",
+		Arguments: map[string]string{
+			"ca_bundle": "ca.crt",
+			"tls_info":  "true",
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, fallbackRes.Messages)
+
+	fallbackContent, ok := fallbackRes.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", fallbackRes.Messages[0].Content)
+	require.Contains(t, fallbackContent.Text, "example.com:443")
+	require.Contains(t, fallbackContent.Text, "--ca-bundle ca.crt")
+	require.Contains(t, fallbackContent.Text, "--tls-info")
+	require.Contains(t, fallbackContent.Text, "--format json")
+}
+
+func TestInspectJWTPrompt(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	res, err := session.GetPrompt(ctx, &sdkmcp.GetPromptParams{
+		Name: "inspect_jwt",
+		Arguments: map[string]string{
+			"token_file":     "test.jwt",
+			"validation_url": "https://example.com/jwks.json",
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Messages)
+	content, ok := res.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
+	require.Contains(t, content.Text, "test.jwt")
+	require.Contains(t, content.Text, "--format json")
+	require.Contains(t, content.Text, "https://example.com/jwks.json")
+}
+
+func TestGenerateJWKSPrompt(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	res, err := session.GetPrompt(ctx, &sdkmcp.GetPromptParams{
+		Name: "generate_jwks",
+		Arguments: map[string]string{
+			"public_key_file": "pub.pem",
+			"kid":             "key-1",
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Messages)
+	content, ok := res.Messages[0].Content.(*sdkmcp.TextContent)
+	require.Truef(t, ok, "expected *sdkmcp.TextContent, got %T", res.Messages[0].Content)
+	require.Contains(t, content.Text, "pub.pem")
+	require.Contains(t, content.Text, "--format json")
+	require.Contains(t, content.Text, "--kid key-1")
+}
+
+func TestResources_readSubcommandDocs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	session, cleanup, err := mcpserver.RunInMemory(ctx, "test")
+	require.NoError(t, err)
+
+	defer cleanup()
+
+	for _, uri := range []string{
+		"https-wrench://docs/certinfo",
+		"https-wrench://docs/jwtinfo",
+		"https-wrench://docs/jwks",
+	} {
+		res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: uri})
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Contents)
+		require.Contains(t, res.Contents[0].Text, "--format json")
+		require.Contains(t, res.Contents[0].Text, "Output formats")
+	}
 }
 
 func callValidateTool(t *testing.T, yaml string) map[string]any {
