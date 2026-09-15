@@ -6,9 +6,17 @@
 
 ### Feat
 
+    MCP: add main requests configuration reference (`assets/examples/https-wrench-mcp-main-config.yaml`) covering all schema options, proxy protocol v2, full certificate chain filtering, and wire debugging against os76.xyz endpoints.
+
+    MCP: expose `https-wrench://main-config` static resource and `https-wrench://examples/mcp-main-config` template, and integrate them into `author_requests_config` prompt hints.
+
     MCP: update all MCP tool descriptions and parameter schemas to consistently suggest `--format json` CLI examples with standard `path/to/...` placeholders, and default `build_cli_command` to `--format json` output.
 
     MCP: add rich `jsonschema` parameter annotations to `certinfoInput` and `jwtinfoInput` for agent schema discovery.
+
+### Docs
+
+    MCP: add concrete CLI example to `build_cli_command` tool description.
 
 ## 0.15.3 (2026-09-15)
 

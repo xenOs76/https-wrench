@@ -214,18 +214,21 @@ func TestExampleResourceHints(t *testing.T) {
 	t.Parallel()
 
 	hints := exampleResourceHints(requestsConfigTemplateInput{Hostname: "app.example.com"})
+	require.Contains(t, hints, "mcp-main-config")
 	require.Contains(t, hints, "k3s")
 
 	hints = exampleResourceHints(requestsConfigTemplateInput{
 		Hostname:             "app.example.com",
 		TransportOverrideURL: "https://edge.example.net",
 	})
+	require.Contains(t, hints, "mcp-main-config")
 	require.Contains(t, hints, "proxy-protocol-v2")
 
 	hints = exampleResourceHints(requestsConfigTemplateInput{
 		Hostname: "app.example.com",
 		Insecure: true,
 	})
+	require.Contains(t, hints, "mcp-main-config")
 	require.Contains(t, hints, "k3s")
 }
 

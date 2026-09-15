@@ -17,6 +17,13 @@ func registerResources(server *sdkmcp.Server) {
 	}, readStaticResource("assets/schema.json", uriSchema))
 
 	server.AddResource(&sdkmcp.Resource{
+		URI:         uriMainConfig,
+		Name:        "Main requests configuration reference",
+		Description: "Comprehensive main YAML configuration demonstrating all https-wrench options",
+		MIMEType:    "text/yaml",
+	}, readStaticResource("assets/examples/https-wrench-mcp-main-config.yaml", uriMainConfig))
+
+	server.AddResource(&sdkmcp.Resource{
 		URI:         uriSampleConfig,
 		Name:        "Sample requests config",
 		Description: "Starter YAML configuration for https-wrench requests",
@@ -63,7 +70,7 @@ func registerResources(server *sdkmcp.Server) {
 		URITemplate: uriExampleTmpl,
 		Name:        "Example requests config",
 		Description: "Example YAML configs from assets/examples " +
-			"(names: k3s, response-certificates-filter, proxy-protocol-v2)",
+			"(names: mcp-main-config, k3s, response-certificates-filter, proxy-protocol-v2)",
 		MIMEType: "text/yaml",
 	}, readExampleResource)
 }
