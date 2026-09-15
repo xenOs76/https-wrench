@@ -71,7 +71,8 @@ func registerTools(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name: "build_cli_command",
 		Description: "Build a shell-ready https-wrench CLI command for certinfo, jwtinfo, jwks, or requests " +
-			"(defaults to --format json for machine-readable output)",
+			"(defaults to --format json, " +
+			"e.g. 'https-wrench certinfo --tls-endpoint example.com:443 --format json')",
 	}, buildCLICommandHandler)
 
 	registerExecTools(server)
