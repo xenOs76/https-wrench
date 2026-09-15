@@ -2,6 +2,28 @@
 
 # https-wrench - changelog
 
+## 0.15.3 (2026-09-15)
+
+### Dependencies
+
+    MCP: upgrade modelcontextprotocol/go-sdk to v1.8.0.
+
+### Feat
+
+    MCP: recommend `--format json` across MCP server instructions, tools, and cheat-sheet resources for structured machine readability.
+
+    MCP: add dedicated parameterized prompts (`inspect_certificate`, `inspect_jwt`, `generate_jwks`) and reference cheat sheets (`https-wrench://docs/certinfo`, `https-wrench://docs/jwtinfo`, `https-wrench://docs/jwks`) for all diagnostic subcommands.
+
+    Docs: document all MCP prompts and documentation cheat-sheet resources in README.md.
+
+### Fix
+
+    MCP: enforce POSIX single-quote escaping with standard `'"'"'` sequence in `shellQuote` to prevent subshell evaluation of special characters and variable substitutions.
+
+    MCP: preserve supplied `--ca-bundle` and `--tls-info` flags when defaulting to fallback endpoint in `inspect_certificate` prompt flow.
+
+    MCP: replace angle-bracket placeholders with shell-safe file paths in JWKS documentation and prompt examples to avoid shell redirection.
+
 ## 0.15.2 (2026-09-14)
 
 ### CI
