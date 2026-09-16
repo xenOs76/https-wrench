@@ -1742,3 +1742,188 @@ func verifyProcessHTTPRequestsResults(
 		}
 	}
 }
+
+func TestRequests_ExecuteWithWriter_Concurrent(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok: " + r.URL.Path))
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	const numRequests = 8
+
+	reqs := make([]RequestConfig, numRequests)
+	for i := 0; i < numRequests; i++ {
+		reqs[i] = RequestConfig{
+			Name: fmt.Sprintf("req-%d", i),
+			Hosts: []Host{
+				{
+					Name:    u.Host,
+					URIList: []URI{URI(fmt.Sprintf("/path-%d", i))},
+				},
+			},
+			TransportOverrideURL: ts.URL,
+			RequestDebug:         true,
+			ResponseDebug:        true,
+		}
+	}
+
+	rmc := &RequestsMetaConfig{
+		Requests: reqs,
+	}
+
+	// Sequential run (concurrency = 1)
+	rmc.SetConcurrency(1)
+
+	seqBuf := &bytes.Buffer{}
+	seqResult, seqMap, err := rmc.ExecuteWithWriter(context.Background(), seqBuf)
+	require.NoError(t, err)
+	require.Len(t, seqMap, numRequests)
+	require.Len(t, seqResult.Requests, numRequests)
+
+	// Concurrent run (concurrency = 4)
+	rmc.SetConcurrency(4)
+
+	concBuf := &bytes.Buffer{}
+	concResult, concMap, err := rmc.ExecuteWithWriter(context.Background(), concBuf)
+	require.NoError(t, err)
+	require.Len(t, concMap, numRequests)
+	require.Len(t, concResult.Requests, numRequests)
+
+	// Verify both produce identical result structures and response mappings
+	for i := 0; i < numRequests; i++ {
+		name := fmt.Sprintf("req-%d", i)
+		require.Contains(t, concMap, name)
+		require.Len(t, concMap[name], 1)
+		assert.Equal(t, seqMap[name][0].URL, concMap[name][0].URL)
+		assert.Equal(t, seqResult.Requests[i].Name, concResult.Requests[i].Name)
+	}
+
+	// Verify debug output was written to buffer
+	assert.NotEmpty(t, concBuf.String())
+}
+
+func TestRequests_ExecuteWithWriter_ContextCancel(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	reqs := make([]RequestConfig, 4)
+	for i := 0; i < 4; i++ {
+		reqs[i] = RequestConfig{
+			Name: fmt.Sprintf("cancel-req-%d", i),
+			Hosts: []Host{
+				{
+					Name:    u.Host,
+					URIList: []URI{"/sleep"},
+				},
+			},
+			TransportOverrideURL: ts.URL,
+			Insecure:             true,
+		}
+	}
+
+	rmc := &RequestsMetaConfig{
+		Concurrency: 4,
+		Requests:    reqs,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	_, _, err = rmc.ExecuteWithWriter(ctx, io.Discard)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestRequests_ExecuteWithWriter_SetupError(t *testing.T) {
+	reqs := []RequestConfig{
+		{
+			Name: "valid-req",
+			Hosts: []Host{
+				{
+					Name:    "localhost",
+					URIList: []URI{"/ok"},
+				},
+			},
+		},
+		{
+			Name: "invalid-req",
+			Hosts: []Host{
+				{
+					Name:    "localhost",
+					URIList: []URI{"invalid-uri-no-slash"},
+				},
+			},
+		},
+	}
+
+	rmc := &RequestsMetaConfig{
+		Concurrency: 2,
+		Requests:    reqs,
+	}
+
+	_, _, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrInvalidURI)
+}
+
+func BenchmarkExecuteWithWriter(b *testing.B) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(2 * time.Millisecond) // simulate small network I/O latency
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("benchmark-ok"))
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	const numRequests = 20
+
+	reqs := make([]RequestConfig, numRequests)
+	for i := 0; i < numRequests; i++ {
+		reqs[i] = RequestConfig{
+			Name: fmt.Sprintf("bench-req-%d", i),
+			Hosts: []Host{
+				{
+					Name:    u.Host,
+					URIList: []URI{URI(fmt.Sprintf("/path-%d", i))},
+				},
+			},
+			TransportOverrideURL: ts.URL,
+			Insecure:             true,
+		}
+	}
+
+	concurrencyTiers := []int{1, 2, 5, 10, 20}
+
+	for _, tier := range concurrencyTiers {
+		b.Run(fmt.Sprintf("concurrency-%d", tier), func(b *testing.B) {
+			rmc := &RequestsMetaConfig{
+				Concurrency: tier,
+				Requests:    reqs,
+			}
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				_, _, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
+				if err != nil {
+					b.Fatalf("benchmark failed: %v", err)
+				}
+			}
+		})
+	}
+}

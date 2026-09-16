@@ -1027,6 +1027,90 @@ in
     go tool trace -http=:3111 /tmp/BenchmarkProbeCiphersConcurrently.trace.out
   '';
 
+  scripts.bench-requests-concurrency-tiers.exec = ''
+    set -e
+    gum format "## BenchmarkExecuteWithWriter concurrency tiers (1, 2, 5, 10, 20)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter -benchmem -count=3
+  '';
+
+  scripts.profile-requests-concurrency-cpu.exec = ''
+    set -e
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.cpu.out internal/requests/requests.test' EXIT
+    gum format "## BenchmarkExecuteWithWriter CPU profile (pprof :3112)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -benchmem \
+      -cpuprofile BenchmarkExecuteWithWriter.cpu.out \
+      -outputdir /tmp
+    go tool pprof -http=:3112 /tmp/BenchmarkExecuteWithWriter.cpu.out
+  '';
+
+  scripts.profile-requests-concurrency-mem.exec = ''
+    set -e
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mem.out internal/requests/requests.test' EXIT
+    gum format "## BenchmarkExecuteWithWriter heap profile (pprof :3112, -alloc_objects)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -benchmem \
+      -memprofile BenchmarkExecuteWithWriter.mem.out \
+      -outputdir /tmp
+    go tool pprof -http=:3112 -alloc_objects /tmp/BenchmarkExecuteWithWriter.mem.out
+  '';
+
+  scripts.profile-requests-concurrency-block.exec = ''
+    set -e
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.block.out internal/requests/requests.test' EXIT
+    gum format "## BenchmarkExecuteWithWriter block profile (pprof :3112)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s \
+      -blockprofile BenchmarkExecuteWithWriter.block.out \
+      -outputdir /tmp
+    go tool pprof -http=:3112 /tmp/BenchmarkExecuteWithWriter.block.out
+  '';
+
+  scripts.profile-requests-concurrency-mutex.exec = ''
+    set -e
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mutex.out internal/requests/requests.test' EXIT
+    gum format "## BenchmarkExecuteWithWriter mutex profile (pprof :3112)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s \
+      -mutexprofile BenchmarkExecuteWithWriter.mutex.out \
+      -outputdir /tmp
+    go tool pprof -http=:3112 /tmp/BenchmarkExecuteWithWriter.mutex.out
+  '';
+
+  scripts.trace-requests-concurrency-goroutines.exec = ''
+    set -e
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.trace.out internal/requests/requests.test' EXIT
+    gum format "## BenchmarkExecuteWithWriter execution trace (:3112)"
+
+    go test ./internal/requests/ -run '^$' \
+      -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 1s \
+      -trace /tmp/BenchmarkExecuteWithWriter.trace.out \
+      -outputdir /tmp
+    go tool trace -http=:3112 /tmp/BenchmarkExecuteWithWriter.trace.out
+  '';
+
+  scripts.profile-requests-concurrency-all.exec = ''
+    set -e
+    gum format "## Running isolated profiles sequentially to avoid measurement cross-talk"
+    mkdir -p profiles
+    echo "1/4 Collecting CPU profile..."
+    go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -cpuprofile profiles/requests-cpu.prof
+    echo "2/4 Collecting Memory profile..."
+    go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -memprofile profiles/requests-mem.prof
+    echo "3/4 Collecting Block profile..."
+    go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -blockprofile profiles/requests-block.prof
+    echo "4/4 Collecting Mutex profile..."
+    go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -mutexprofile profiles/requests-mutex.prof
+    rm -f internal/requests/requests.test
+    gum format "### All profiles saved in profiles/. Inspect with: go tool pprof -http=:3112 profiles/<name>.prof"
+  '';
+
   enterShell = ''
     echo "https-wrench devenv ready"
     go version

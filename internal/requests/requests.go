@@ -15,11 +15,13 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xenos76/https-wrench/internal/certinfo"
 	"github.com/xenos76/https-wrench/internal/view"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -40,6 +42,9 @@ const (
 	proxyProtoDefaultSrcPort = 54321
 
 	emptyString = ""
+
+	// DefaultRequestsConcurrency is the default number of concurrent requests.
+	DefaultRequestsConcurrency = 10
 )
 
 // defaultCurvePreferences lists Go 1.27 TLS hybrids plus classical fallbacks.
@@ -180,6 +185,8 @@ type RequestsMetaConfig struct {
 	RequestVerbose bool
 	// CACertsPool is the certificate pool used for validating server certificates.
 	CACertsPool *x509.CertPool
+	// Concurrency limits the number of concurrent requests executing simultaneously.
+	Concurrency int `mapstructure:"concurrency"`
 	// Requests is the list of request configurations to execute.
 	Requests []RequestConfig `mapstructure:"requests"`
 }
@@ -207,6 +214,12 @@ func (r *RequestsMetaConfig) SetVerbose(b bool) *RequestsMetaConfig {
 // SetDebug sets the debug level for the requests.
 func (r *RequestsMetaConfig) SetDebug(b bool) *RequestsMetaConfig {
 	r.RequestDebug = b
+	return r
+}
+
+// SetConcurrency sets the maximum concurrency level for executing requests.
+func (r *RequestsMetaConfig) SetConcurrency(n int) *RequestsMetaConfig {
+	r.Concurrency = n
 	return r
 }
 
@@ -252,34 +265,152 @@ func (r *RequestsMetaConfig) Execute(ctx context.Context) (*Result, map[string][
 	return r.ExecuteWithWriter(ctx, io.Discard)
 }
 
+func validateUniqueRequestNames(requests []RequestConfig) error {
+	seenNames := make(map[string]struct{}, len(requests))
+	for _, reqCfg := range requests {
+		if _, exists := seenNames[reqCfg.Name]; exists {
+			return &DuplicateRequestNameError{Name: reqCfg.Name}
+		}
+
+		seenNames[reqCfg.Name] = struct{}{}
+	}
+
+	return nil
+}
+
+type indexedResult struct {
+	name string
+	data []ResponseData
+}
+
+func (r *RequestsMetaConfig) executeRequestsSequentially(
+	ctx context.Context,
+	w io.Writer,
+) (map[string][]ResponseData, error) {
+	responseDataMap := make(map[string][]ResponseData, len(r.Requests))
+
+	for _, reqCfg := range r.Requests {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		responseDataList, err := processHTTPRequestsByHost(ctx, w, reqCfg, r.CACertsPool, r.RequestVerbose)
+		if err != nil {
+			return nil, err
+		}
+
+		responseDataMap[reqCfg.Name] = responseDataList
+	}
+
+	return responseDataMap, nil
+}
+
+func (r *RequestsMetaConfig) executeRequestsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	concurrency int,
+) (map[string][]ResponseData, error) {
+	results := make([]indexedResult, len(r.Requests))
+
+	var writerMu sync.Mutex
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrency)
+
+	for i, reqCfg := range r.Requests {
+		g.Go(func() error {
+			return r.runConcurrentRequest(gCtx, w, &writerMu, reqCfg, &results[i])
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	responseDataMap := make(map[string][]ResponseData, len(r.Requests))
+
+	for _, res := range results {
+		if res.name != "" {
+			responseDataMap[res.name] = res.data
+		}
+	}
+
+	return responseDataMap, nil
+}
+
+func (r *RequestsMetaConfig) runConcurrentRequest(
+	ctx context.Context,
+	w io.Writer,
+	writerMu *sync.Mutex,
+	reqCfg RequestConfig,
+	res *indexedResult,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	reqW := io.Discard
+
+	var buf *bytes.Buffer
+
+	if w != io.Discard {
+		buf = &bytes.Buffer{}
+		reqW = buf
+	}
+
+	responseDataList, err := processHTTPRequestsByHost(ctx, reqW, reqCfg, r.CACertsPool, r.RequestVerbose)
+	if err != nil {
+		return err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if buf != nil && buf.Len() > 0 {
+		writerMu.Lock()
+		_, _ = w.Write(buf.Bytes())
+		writerMu.Unlock()
+	}
+
+	res.name = reqCfg.Name
+	res.data = responseDataList
+
+	return nil
+}
+
 // ExecuteWithWriter runs all configured HTTP requests, writing debug output to w.
 func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer) (*Result, map[string][]ResponseData, error) {
 	if w == nil {
 		w = io.Discard
 	}
 
-	seenNames := make(map[string]struct{}, len(r.Requests))
-	for _, reqCfg := range r.Requests {
-		if _, exists := seenNames[reqCfg.Name]; exists {
-			return nil, nil, &DuplicateRequestNameError{Name: reqCfg.Name}
-		}
-
-		seenNames[reqCfg.Name] = struct{}{}
+	if err := validateUniqueRequestNames(r.Requests); err != nil {
+		return nil, nil, err
 	}
 
-	responseDataMap := make(map[string][]ResponseData)
+	concurrency := r.Concurrency
+	if concurrency <= 0 {
+		concurrency = DefaultRequestsConcurrency
+	}
 
-	for _, reqCfg := range r.Requests {
-		if err := ctx.Err(); err != nil {
-			return nil, nil, err
-		}
+	var (
+		responseDataMap map[string][]ResponseData
+		err             error
+	)
 
-		responseDataList, err := processHTTPRequestsByHost(ctx, w, reqCfg, r.CACertsPool, r.RequestVerbose)
-		if err != nil {
-			return nil, nil, err
-		}
+	if concurrency == 1 || len(r.Requests) <= 1 {
+		responseDataMap, err = r.executeRequestsSequentially(ctx, w)
+	} else {
+		responseDataMap, err = r.executeRequestsConcurrently(ctx, w, concurrency)
+	}
 
-		responseDataMap[reqCfg.Name] = responseDataList
+	if err != nil {
+		return nil, nil, err
 	}
 
 	result, err := BuildResult(responseDataMap, r)
