@@ -19,6 +19,12 @@
           "type": "string",
           "description": "PEM-encoded CA certificate bundle used to verify server certificates. When omitted, the system trust store is used."
         },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Maximum number of concurrent HTTP requests (1 for sequential; defaults to 10 if omitted or <= 0)."
+        },
         "baseRequest": {
           "$ref": "#/definitions/RequestDefaults",
           "description": "YAML-only shared request template. Define an anchor (e.g. baseRequest: &base) and merge into requests with <<: *base. Ignored by https-wrench at runtime."

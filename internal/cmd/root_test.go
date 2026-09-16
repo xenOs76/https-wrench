@@ -84,6 +84,7 @@ func TestRootCmd_LoadConfig(t *testing.T) {
 		require.IsType(t, expectedRequestsConfigs, config.Requests)
 
 		// testing against the current values of the embedded config
+		require.Equal(t, 10, config.Concurrency)
 		require.Equal(t, "SampleRequestAgainstLocalWebserver", config.Requests[0].Name)
 		require.Equal(t, "https://127.0.0.1:9443", config.Requests[0].TransportOverrideURL)
 	})

@@ -10,6 +10,9 @@ debug: false
 ## verbose - Enables verbose output, showing more details during execution. Required option.
 verbose: true
 
+## concurrency - Maximum number of concurrent HTTP requests (1 for sequential, defaults to 10 if omitted or <= 0).
+concurrency: 10
+
 ## caBundle - A PEM-encoded CA certificate bundle as a multiline string to be used for verifying server certificates.
 ## When testing inside the devenv environment, the 'devenv up' command will create new self-signed certificates and
 ## start a local, HTTPS-enabled Nginx server.
