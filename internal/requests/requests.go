@@ -326,6 +326,14 @@ func (l *requestLimiter) writeOutput(w io.Writer, data []byte) {
 	_, _ = w.Write(data)
 }
 
+func (l *requestLimiter) limit() int {
+	if l == nil {
+		return 0
+	}
+
+	return cap(l.sem)
+}
+
 type indexedResult struct {
 	name string
 	data []ResponseData
@@ -925,8 +933,15 @@ func processHostsConcurrently(
 	hostResultsList := make([][]ResponseData, len(r.Hosts))
 
 	g, gCtx := errgroup.WithContext(ctx)
+	if limiter != nil && limiter.limit() > 0 {
+		g.SetLimit(limiter.limit())
+	}
 
 	for i, host := range r.Hosts {
+		if err := gCtx.Err(); err != nil {
+			break
+		}
+
 		g.Go(func() error {
 			results, err := processRequestsForHost(gCtx, w, r, host, caPool, isVerbose, limiter)
 			if err != nil {
@@ -998,14 +1013,14 @@ func processURIsSequentially(
 			return nil, err
 		}
 
-		resp, err := runSingleRequestWithLimiter(
-			ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
-		)
-		if err != nil {
+		if err := limiter.acquire(ctx); err != nil {
 			return nil, err
 		}
 
-		responseDataList[i] = resp
+		responseDataList[i] = executeSingleRequestWithLimiterOutput(
+			ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
+		)
+		limiter.release()
 	}
 
 	return responseDataList, nil
@@ -1027,15 +1042,18 @@ func processURIsConcurrently(
 	g, gCtx := errgroup.WithContext(ctx)
 
 	for i, reqURL := range urlList {
+		if err := limiter.acquire(gCtx); err != nil {
+			_ = g.Wait()
+
+			return nil, err
+		}
+
 		g.Go(func() error {
-			resp, err := runSingleRequestWithLimiter(
+			defer limiter.release()
+
+			responseDataList[i] = executeSingleRequestWithLimiterOutput(
 				gCtx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
 			)
-			if err != nil {
-				return err
-			}
-
-			responseDataList[i] = resp
 
 			return nil
 		})
@@ -1045,11 +1063,15 @@ func processURIsConcurrently(
 		return nil, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	return responseDataList, nil
 }
 
 //nolint:revive
-func runSingleRequestWithLimiter(
+func executeSingleRequestWithLimiterOutput(
 	ctx context.Context,
 	w io.Writer,
 	r RequestConfig,
@@ -1058,15 +1080,10 @@ func runSingleRequestWithLimiter(
 	requestBodyBytes []byte,
 	isVerbose bool,
 	limiter *requestLimiter,
-) (ResponseData, error) {
+) ResponseData {
 	if w == nil {
 		w = io.Discard
 	}
-
-	if err := limiter.acquire(ctx); err != nil {
-		return ResponseData{}, err
-	}
-	defer limiter.release()
 
 	if limiter != nil && w != io.Discard {
 		var buf bytes.Buffer
@@ -1076,10 +1093,10 @@ func runSingleRequestWithLimiter(
 			limiter.writeOutput(w, buf.Bytes())
 		}
 
-		return resp, nil
+		return resp
 	}
 
-	return executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose), nil
+	return executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
 }
 
 // executeSingleRequest performs a single HTTP request and returns the collected response data.

@@ -21,7 +21,6 @@
         },
         "concurrency": {
           "type": "integer",
-          "minimum": 0,
           "default": 10,
           "description": "Maximum number of concurrent HTTP requests (1 for sequential; defaults to 10 if omitted or <= 0)."
         },
