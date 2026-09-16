@@ -1037,7 +1037,7 @@ in
 
   scripts.profile-requests-concurrency-cpu.exec = ''
     set -e
-    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.cpu.out internal/requests/requests.test' EXIT
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.cpu.out requests.test' EXIT
     gum format "## BenchmarkExecuteWithWriter CPU profile (pprof :3112)"
 
     go test ./internal/requests/ -run '^$' \
@@ -1049,7 +1049,7 @@ in
 
   scripts.profile-requests-concurrency-mem.exec = ''
     set -e
-    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mem.out internal/requests/requests.test' EXIT
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mem.out requests.test' EXIT
     gum format "## BenchmarkExecuteWithWriter heap profile (pprof :3112, -alloc_objects)"
 
     go test ./internal/requests/ -run '^$' \
@@ -1061,7 +1061,7 @@ in
 
   scripts.profile-requests-concurrency-block.exec = ''
     set -e
-    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.block.out internal/requests/requests.test' EXIT
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.block.out requests.test' EXIT
     gum format "## BenchmarkExecuteWithWriter block profile (pprof :3112)"
 
     go test ./internal/requests/ -run '^$' \
@@ -1073,7 +1073,7 @@ in
 
   scripts.profile-requests-concurrency-mutex.exec = ''
     set -e
-    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mutex.out internal/requests/requests.test' EXIT
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.mutex.out requests.test' EXIT
     gum format "## BenchmarkExecuteWithWriter mutex profile (pprof :3112)"
 
     go test ./internal/requests/ -run '^$' \
@@ -1085,7 +1085,7 @@ in
 
   scripts.trace-requests-concurrency-goroutines.exec = ''
     set -e
-    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.trace.out internal/requests/requests.test' EXIT
+    trap 'rm -f /tmp/BenchmarkExecuteWithWriter.trace.out' EXIT
     gum format "## BenchmarkExecuteWithWriter execution trace (:3112)"
 
     go test ./internal/requests/ -run '^$' \
@@ -1097,6 +1097,7 @@ in
 
   scripts.profile-requests-concurrency-all.exec = ''
     set -e
+    trap 'rm -f requests.test' EXIT
     gum format "## Running isolated profiles sequentially to avoid measurement cross-talk"
     mkdir -p profiles
     echo "1/4 Collecting CPU profile..."
@@ -1107,7 +1108,6 @@ in
     go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -blockprofile profiles/requests-block.prof
     echo "4/4 Collecting Mutex profile..."
     go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -mutexprofile profiles/requests-mutex.prof
-    rm -f internal/requests/requests.test
     gum format "### All profiles saved in profiles/. Inspect with: go tool pprof -http=:3112 profiles/<name>.prof"
   '';
 
