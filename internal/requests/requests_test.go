@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1875,6 +1877,230 @@ func TestRequests_ExecuteWithWriter_SetupError(t *testing.T) {
 	_, _, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrInvalidURI)
+}
+
+func newBarrierTLSServer(targetConcurrency int64) (*httptest.Server, *atomic.Int64) {
+	var (
+		currentInFlight atomic.Int64
+		peakInFlight    atomic.Int64
+		releaseOnce     sync.Once
+	)
+
+	releaseCh := make(chan struct{})
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cur := currentInFlight.Add(1)
+		defer currentInFlight.Add(-1)
+
+		for {
+			peak := peakInFlight.Load()
+			if cur <= peak {
+				break
+			}
+
+			if peakInFlight.CompareAndSwap(peak, cur) {
+				break
+			}
+		}
+
+		if cur == targetConcurrency {
+			releaseOnce.Do(func() {
+				close(releaseCh)
+			})
+		}
+
+		select {
+		case <-releaseCh:
+		case <-time.After(5 * time.Second):
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	return ts, &peakInFlight
+}
+
+func testPeakInFlightSingleRequestConfig(t *testing.T) {
+	t.Parallel()
+
+	const targetConcurrency = 3
+
+	ts, peakInFlight := newBarrierTLSServer(targetConcurrency)
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	const numURIs = 10
+
+	uris := make([]URI, numURIs)
+	for i := 0; i < numURIs; i++ {
+		uris[i] = URI(fmt.Sprintf("/path-%d", i))
+	}
+
+	rmc := &RequestsMetaConfig{
+		Concurrency: targetConcurrency,
+		Requests: []RequestConfig{
+			{
+				Name: "multi-uri-request",
+				Hosts: []Host{
+					{
+						Name:    u.Host,
+						URIList: uris,
+					},
+				},
+				TransportOverrideURL: ts.URL,
+				Insecure:             true,
+			},
+		},
+	}
+
+	result, respMap, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(
+		t, int64(targetConcurrency), peakInFlight.Load(),
+		"peak in-flight requests should reach concurrency limit",
+	)
+	require.Contains(t, respMap, "multi-uri-request")
+	require.Len(t, respMap["multi-uri-request"], numURIs)
+
+	for i := 0; i < numURIs; i++ {
+		expectedURL := fmt.Sprintf("https://%s/path-%d", u.Host, i)
+		assert.Equal(t, expectedURL, respMap["multi-uri-request"][i].URL)
+	}
+}
+
+func testPeakInFlightMultipleRequestConfigs(t *testing.T) {
+	t.Parallel()
+
+	const targetConcurrency = 4
+
+	ts, peakInFlight := newBarrierTLSServer(targetConcurrency)
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	const (
+		numRequests = 4
+		urisPerReq  = 3
+	)
+
+	reqs := make([]RequestConfig, numRequests)
+	for i := 0; i < numRequests; i++ {
+		uris := make([]URI, urisPerReq)
+		for j := 0; j < urisPerReq; j++ {
+			uris[j] = URI(fmt.Sprintf("/req-%d-path-%d", i, j))
+		}
+
+		reqs[i] = RequestConfig{
+			Name: fmt.Sprintf("req-%d", i),
+			Hosts: []Host{
+				{
+					Name:    u.Host,
+					URIList: uris,
+				},
+			},
+			TransportOverrideURL: ts.URL,
+			Insecure:             true,
+		}
+	}
+
+	rmc := &RequestsMetaConfig{
+		Concurrency: targetConcurrency,
+		Requests:    reqs,
+	}
+
+	result, respMap, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(
+		t, int64(targetConcurrency), peakInFlight.Load(),
+		"peak in-flight requests should reach concurrency limit",
+	)
+	assert.Len(t, respMap, numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		reqName := fmt.Sprintf("req-%d", i)
+		require.Contains(t, respMap, reqName)
+		require.Len(t, respMap[reqName], urisPerReq)
+
+		for j := 0; j < urisPerReq; j++ {
+			expectedURL := fmt.Sprintf("https://%s/req-%d-path-%d", u.Host, i, j)
+			assert.Equal(t, expectedURL, respMap[reqName][j].URL)
+		}
+	}
+}
+
+func testPeakInFlightSequential(t *testing.T) {
+	t.Parallel()
+
+	var (
+		currentInFlight atomic.Int64
+		peakInFlight    atomic.Int64
+	)
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cur := currentInFlight.Add(1)
+		defer currentInFlight.Add(-1)
+
+		for {
+			peak := peakInFlight.Load()
+			if cur <= peak {
+				break
+			}
+
+			if peakInFlight.CompareAndSwap(peak, cur) {
+				break
+			}
+		}
+
+		time.Sleep(10 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	uris := []URI{"/p1", "/p2", "/p3", "/p4"}
+	rmc := &RequestsMetaConfig{
+		Concurrency: 1,
+		Requests: []RequestConfig{
+			{
+				Name: "seq-req",
+				Hosts: []Host{
+					{
+						Name:    u.Host,
+						URIList: uris,
+					},
+				},
+				TransportOverrideURL: ts.URL,
+				Insecure:             true,
+			},
+		},
+	}
+
+	result, respMap, err := rmc.ExecuteWithWriter(context.Background(), io.Discard)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(
+		t, int64(1), peakInFlight.Load(),
+		"concurrency 1 must never exceed 1 in-flight",
+	)
+	require.Len(t, respMap["seq-req"], 4)
+}
+
+func TestRequests_ExecuteWithWriter_PeakInFlight(t *testing.T) {
+	t.Parallel()
+
+	t.Run("single request config with multiple URIs", testPeakInFlightSingleRequestConfig)
+	t.Run("multiple request configs with multiple URIs", testPeakInFlightMultipleRequestConfigs)
+	t.Run("concurrency 1 executes strictly sequentially", testPeakInFlightSequential)
 }
 
 func BenchmarkExecuteWithWriter(b *testing.B) {

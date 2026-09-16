@@ -278,6 +278,54 @@ func validateUniqueRequestNames(requests []RequestConfig) error {
 	return nil
 }
 
+type requestLimiter struct {
+	sem      chan struct{}
+	writerMu sync.Mutex
+}
+
+func newRequestLimiter(limit int) *requestLimiter {
+	if limit <= 0 {
+		limit = DefaultRequestsConcurrency
+	}
+
+	return &requestLimiter{
+		sem: make(chan struct{}, limit),
+	}
+}
+
+func (l *requestLimiter) acquire(ctx context.Context) error {
+	if l == nil {
+		return nil
+	}
+
+	select {
+	case l.sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (l *requestLimiter) release() {
+	if l == nil {
+		return
+	}
+
+	<-l.sem
+}
+
+func (l *requestLimiter) writeOutput(w io.Writer, data []byte) {
+	if l == nil {
+		_, _ = w.Write(data)
+		return
+	}
+
+	l.writerMu.Lock()
+	defer l.writerMu.Unlock()
+
+	_, _ = w.Write(data)
+}
+
 type indexedResult struct {
 	name string
 	data []ResponseData
@@ -310,16 +358,24 @@ func (r *RequestsMetaConfig) executeRequestsConcurrently(
 	w io.Writer,
 	concurrency int,
 ) (map[string][]ResponseData, error) {
+	limiter := newRequestLimiter(concurrency)
 	results := make([]indexedResult, len(r.Requests))
 
-	var writerMu sync.Mutex
-
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(concurrency)
 
 	for i, reqCfg := range r.Requests {
 		g.Go(func() error {
-			return r.runConcurrentRequest(gCtx, w, &writerMu, reqCfg, &results[i])
+			data, err := processHTTPRequestsByHost(gCtx, w, reqCfg, r.CACertsPool, r.RequestVerbose, limiter)
+			if err != nil {
+				return err
+			}
+
+			results[i] = indexedResult{
+				name: reqCfg.Name,
+				data: data,
+			}
+
+			return nil
 		})
 	}
 
@@ -342,47 +398,6 @@ func (r *RequestsMetaConfig) executeRequestsConcurrently(
 	return responseDataMap, nil
 }
 
-func (r *RequestsMetaConfig) runConcurrentRequest(
-	ctx context.Context,
-	w io.Writer,
-	writerMu *sync.Mutex,
-	reqCfg RequestConfig,
-	res *indexedResult,
-) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	reqW := io.Discard
-
-	var buf *bytes.Buffer
-
-	if w != io.Discard {
-		buf = &bytes.Buffer{}
-		reqW = buf
-	}
-
-	responseDataList, err := processHTTPRequestsByHost(ctx, reqW, reqCfg, r.CACertsPool, r.RequestVerbose)
-	if err != nil {
-		return err
-	}
-
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	if buf != nil && buf.Len() > 0 {
-		writerMu.Lock()
-		_, _ = w.Write(buf.Bytes())
-		writerMu.Unlock()
-	}
-
-	res.name = reqCfg.Name
-	res.data = responseDataList
-
-	return nil
-}
-
 // ExecuteWithWriter runs all configured HTTP requests, writing debug output to w.
 func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer) (*Result, map[string][]ResponseData, error) {
 	if w == nil {
@@ -403,7 +418,7 @@ func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer)
 		err             error
 	)
 
-	if concurrency == 1 || len(r.Requests) <= 1 {
+	if concurrency == 1 || len(r.Requests) == 0 {
 		responseDataMap, err = r.executeRequestsSequentially(ctx, w)
 	} else {
 		responseDataMap, err = r.executeRequestsConcurrently(ctx, w, concurrency)
@@ -857,6 +872,28 @@ func processHTTPRequestsByHost(
 	r RequestConfig,
 	caPool *x509.CertPool,
 	isVerbose bool,
+	limiter ...*requestLimiter,
+) ([]ResponseData, error) {
+	var lim *requestLimiter
+	if len(limiter) > 0 {
+		lim = limiter[0]
+	}
+
+	if lim == nil || len(r.Hosts) <= 1 {
+		return processHostsSequentially(ctx, w, r, caPool, isVerbose, lim)
+	}
+
+	return processHostsConcurrently(ctx, w, r, caPool, isVerbose, lim)
+}
+
+//nolint:revive
+func processHostsSequentially(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	caPool *x509.CertPool,
+	isVerbose bool,
+	limiter *requestLimiter,
 ) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
@@ -865,7 +902,7 @@ func processHTTPRequestsByHost(
 			return nil, err
 		}
 
-		hostResults, err := processRequestsForHost(ctx, w, r, host, caPool, isVerbose)
+		hostResults, err := processRequestsForHost(ctx, w, r, host, caPool, isVerbose, limiter)
 		if err != nil {
 			return nil, err
 		}
@@ -876,7 +913,47 @@ func processHTTPRequestsByHost(
 	return responseDataList, nil
 }
 
+//nolint:revive
+func processHostsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	caPool *x509.CertPool,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	hostResultsList := make([][]ResponseData, len(r.Hosts))
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for i, host := range r.Hosts {
+		g.Go(func() error {
+			results, err := processRequestsForHost(gCtx, w, r, host, caPool, isVerbose, limiter)
+			if err != nil {
+				return err
+			}
+
+			hostResultsList[i] = results
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	var responseDataList []ResponseData
+	for _, res := range hostResultsList {
+		responseDataList = append(responseDataList, res...)
+	}
+
+	return responseDataList, nil
+}
+
 // processRequestsForHost initializes the HTTP client and executes all configured URIs for a single host.
+//
+//nolint:revive
 func processRequestsForHost(
 	ctx context.Context,
 	w io.Writer,
@@ -884,9 +961,8 @@ func processRequestsForHost(
 	host Host,
 	caPool *x509.CertPool,
 	isVerbose bool,
+	limiter *requestLimiter,
 ) ([]ResponseData, error) {
-	var responseDataList []ResponseData
-
 	reqClient, err := NewHTTPClientFromRequestConfig(r, host.Name, caPool)
 	if err != nil {
 		return nil, err
@@ -897,18 +973,113 @@ func processRequestsForHost(
 		return nil, err
 	}
 
-	requestBodyBytes := []byte(r.RequestBody)
+	if limiter == nil || len(urlList) <= 1 {
+		return processURIsSequentially(ctx, w, r, reqClient, urlList, isVerbose, limiter)
+	}
 
-	for _, reqURL := range urlList {
+	return processURIsConcurrently(ctx, w, r, reqClient, urlList, isVerbose, limiter)
+}
+
+//nolint:revive
+func processURIsSequentially(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	urlList []string,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	requestBodyBytes := []byte(r.RequestBody)
+	responseDataList := make([]ResponseData, len(urlList))
+
+	for i, reqURL := range urlList {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		responseData := executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
-		responseDataList = append(responseDataList, responseData)
+		resp, err := runSingleRequestWithLimiter(
+			ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		responseDataList[i] = resp
 	}
 
 	return responseDataList, nil
+}
+
+//nolint:revive
+func processURIsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	urlList []string,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	requestBodyBytes := []byte(r.RequestBody)
+	responseDataList := make([]ResponseData, len(urlList))
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for i, reqURL := range urlList {
+		g.Go(func() error {
+			resp, err := runSingleRequestWithLimiter(
+				gCtx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
+			)
+			if err != nil {
+				return err
+			}
+
+			responseDataList[i] = resp
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return responseDataList, nil
+}
+
+//nolint:revive
+func runSingleRequestWithLimiter(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	reqURL string,
+	requestBodyBytes []byte,
+	isVerbose bool,
+	limiter *requestLimiter,
+) (ResponseData, error) {
+	if w == nil {
+		w = io.Discard
+	}
+
+	if err := limiter.acquire(ctx); err != nil {
+		return ResponseData{}, err
+	}
+	defer limiter.release()
+
+	if limiter != nil && w != io.Discard {
+		var buf bytes.Buffer
+
+		resp := executeSingleRequest(ctx, &buf, r, reqClient, reqURL, requestBodyBytes, isVerbose)
+		if buf.Len() > 0 {
+			limiter.writeOutput(w, buf.Bytes())
+		}
+
+		return resp, nil
+	}
+
+	return executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose), nil
 }
 
 // executeSingleRequest performs a single HTTP request and returns the collected response data.
