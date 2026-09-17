@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=../../https-wrench.schema.json
+---
+debug: false
+verbose: false
+
+observability:
+  enabled: true
+  interval: 10s
+  timeout: 5s
+
+  # Pull Mode (embedded scrape server)
+  pull:
+    enabled: true
+    address: "127.0.0.1:9090"
+    path: "/metrics"
+
+  # Push Mode targeting local Grafana Alloy deployment
+  push:
+    # Prometheus remote_write receiver on Alloy (port 9999)
+    prometheus:
+      enabled: true
+      remoteWriteUrl: "http://127.0.0.1:9999/api/v1/metrics/write"
+      timeout: 5s
+      headers:
+        X-Source: "https-wrench-local"
+
+    # OpenTelemetry OTLP/HTTP receiver on Alloy (port 4318)
+    otlp:
+      enabled: true
+      endpoint: "http://127.0.0.1:4318/v1/metrics"
+      protocol: "http/protobuf"
+      timeout: 5s
+      headers:
+        X-Source: "https-wrench-local"
+
+  # Cardinality & Label Configuration
+  metrics:
+    includeTls: true
+    includeCertChain: false
+    stripQuery: true
+    customLabels:
+      job: "https-wrench"
+      instance: "localhost"
+      env: "devenv"
+
+requests:
+  - name: LocalNginxSSL
+    clientTimeout: 5
+    hosts:
+      - name: 127.0.0.1:9443
+        uriList:
+          - /
+    transportOverrideUrl: "https://127.0.0.1:9443"
+    insecure: true
+
+  - name: LocalHttpbin
+    clientTimeout: 5
+    hosts:
+      - name: 127.0.0.1:9443
+        uriList:
+          - /status/200
+          - /json
+    transportOverrideUrl: "https://127.0.0.1:9443"
+    insecure: true
+    responseBodyMatchRegexp: '"slideshow":'

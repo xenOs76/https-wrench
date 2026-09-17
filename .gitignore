@@ -1,6 +1,9 @@
 .direnv
 dist
-tests
+/tests/*
+!/tests/alloy
+/tests/certs
+internal/certinfo/tests
 internal/requests/testdata
 internal/certinfo/testdata/*Cert*
 manpages

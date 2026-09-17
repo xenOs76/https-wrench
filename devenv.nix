@@ -42,6 +42,7 @@ in
     curl
     jq
     httpie
+    grafana-alloy
   ];
 
   # git-hooks = {
@@ -178,9 +179,13 @@ in
     bind = [ "127.0.0.1:8081" ];
   };
 
+  processes.alloy = {
+    exec = "${pkgs.grafana-alloy}/bin/alloy run ${config.env.DEVENV_ROOT}/tests/alloy/config.alloy --storage.path=${config.env.DEVENV_STATE}/alloy --server.http.listen-addr=127.0.0.1:12345 --disable-reporting --stability.level=experimental";
+  };
+
   tasks."web:refreshCertsBeforeNginxStart" = {
     exec = ''
-      test -d ${config.env.DEVENV_ROOT}/tests && rm -rf ${config.env.DEVENV_ROOT}/tests
+      test -d ${config.env.DEVENV_ROOT}/${config.env.CAROOT} && rm -rf ${config.env.DEVENV_ROOT}/${config.env.CAROOT}
       create-certs
     '';
     before = [ "devenv:processes:nginx" ];
@@ -1109,6 +1114,26 @@ in
     echo "4/4 Collecting Mutex profile..."
     go test ./internal/requests/ -run '^$' -bench BenchmarkExecuteWithWriter/concurrency-10 -benchtime 2s -mutexprofile profiles/requests-mutex.prof
     gum format "### All profiles saved in profiles/. Inspect with: go tool pprof -http=:3112 profiles/<name>.prof"
+  '';
+
+  scripts.run-alloy.exec = ''
+    gum format "# Running Grafana Alloy in foreground (Ctrl+C to stop)..."
+    ${pkgs.grafana-alloy}/bin/alloy run ${config.env.DEVENV_ROOT}/tests/alloy/config.alloy --storage.path=''${DEVENV_STATE:-/tmp}/alloy --server.http.listen-addr=127.0.0.1:12345 --disable-reporting --stability.level=experimental
+  '';
+
+  scripts.test-alloy-standalone.exec = ''
+    gum format "# Testing Alloy receivers independently with curl..."
+    ${pkgs.bash}/bin/bash ${config.env.DEVENV_ROOT}/tests/alloy/test-standalone.sh
+  '';
+
+  scripts.test-alloy-receivers.exec = ''
+    gum format "# Testing Alloy receivers with https-wrench..."
+    go run main.go requests --config assets/examples/https-wrench-alloy-local.yaml --observe &
+    WRENCH_PID=$!
+    sleep 4
+    kill $WRENCH_PID 2>/dev/null || true
+    wait $WRENCH_PID 2>/dev/null || true
+    gum format "## Alloy receivers successfully received metrics from https-wrench."
   '';
 
   enterShell = ''
