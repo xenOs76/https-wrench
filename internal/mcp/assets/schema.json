@@ -24,6 +24,9 @@
           "default": 10,
           "description": "Maximum number of concurrent HTTP requests (1 for sequential; defaults to 10 if omitted or <= 0)."
         },
+        "observability": {
+          "$ref": "#/definitions/Observability"
+        },
         "baseRequest": {
           "$ref": "#/definitions/RequestDefaults",
           "description": "YAML-only shared request template. Define an anchor (e.g. baseRequest: &base) and merge into requests with <<: *base. Ignored by https-wrench at runtime."
@@ -236,6 +239,178 @@
         "value"
       ],
       "title": "RequestHeader"
+    },
+    "Observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Configuration for continuous observability mode, interval execution, and metrics export.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables continuous observability mode."
+        },
+        "interval": {
+          "type": "string",
+          "default": "30s",
+          "description": "Interval between probe execution cycles (e.g. '15s', '30s', '1m')."
+        },
+        "timeout": {
+          "type": "string",
+          "default": "25s",
+          "description": "Maximum execution duration for a single probe cycle (e.g. '10s', '25s')."
+        },
+        "pull": {
+          "$ref": "#/definitions/ObservabilityPull"
+        },
+        "push": {
+          "$ref": "#/definitions/ObservabilityPush"
+        },
+        "metrics": {
+          "$ref": "#/definitions/ObservabilityMetrics"
+        }
+      }
+    },
+    "ObservabilityPull": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Prometheus pull HTTP scrape server settings.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the Prometheus metrics HTTP scrape server is enabled."
+        },
+        "address": {
+          "type": "string",
+          "default": ":9090",
+          "description": "Network address to bind the HTTP scrape server to (e.g. ':9090', '0.0.0.0:9090')."
+        },
+        "path": {
+          "type": "string",
+          "default": "/metrics",
+          "description": "URL path for Prometheus metrics exposition."
+        }
+      }
+    },
+    "ObservabilityPush": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Push configuration for Prometheus remote_write and OpenTelemetry OTLP destinations.",
+      "properties": {
+        "prometheus": {
+          "$ref": "#/definitions/ObservabilityPushPrometheus"
+        },
+        "otlp": {
+          "$ref": "#/definitions/ObservabilityPushOTLP"
+        }
+      }
+    },
+    "ObservabilityPushPrometheus": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Prometheus remote_write push configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables pushing metrics to a Prometheus remote_write endpoint."
+        },
+        "remoteWriteUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Target Prometheus remote_write endpoint URL."
+        },
+        "timeout": {
+          "type": "string",
+          "default": "10s",
+          "description": "HTTP request timeout for remote_write push."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Custom HTTP headers to send with the remote_write request."
+        },
+        "basicAuthUser": {
+          "type": "string",
+          "description": "Username for HTTP Basic Authentication."
+        },
+        "basicAuthPassword": {
+          "type": "string",
+          "description": "Password for HTTP Basic Authentication."
+        },
+        "bearerToken": {
+          "type": "string",
+          "description": "Bearer token for HTTP Authorization header."
+        }
+      }
+    },
+    "ObservabilityPushOTLP": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OpenTelemetry OTLP push configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables pushing metrics to an OpenTelemetry OTLP endpoint."
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Target OpenTelemetry collector endpoint (e.g. 'https://otel:4318/v1/metrics')."
+        },
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "http/protobuf"
+          ],
+          "default": "http/protobuf",
+          "description": "OTLP transport protocol."
+        },
+        "timeout": {
+          "type": "string",
+          "default": "10s",
+          "description": "HTTP request timeout for OTLP push."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Custom HTTP headers to send with OTLP requests."
+        }
+      }
+    },
+    "ObservabilityMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Filtering and customization options for generated metrics.",
+      "properties": {
+        "includeTls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to generate TLS connection and certificate lifecycle metrics."
+        },
+        "includeCertChain": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to include intermediate/root certificates in certificate metrics (defaults to leaf only)."
+        },
+        "stripQuery": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to strip query strings from URL path labels to prevent cardinality explosion."
+        },
+        "customLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Static custom labels to append to all exported metrics."
+        }
+      }
     }
   }
 }

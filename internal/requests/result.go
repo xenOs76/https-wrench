@@ -36,6 +36,7 @@ type RequestResult struct {
 type ResponseResult struct {
 	URL               string              `json:"url"`
 	TransportAddress  string              `json:"transportAddress,omitempty"`
+	DurationMs        float64             `json:"durationMs,omitempty"`
 	StatusCode        int                 `json:"statusCode"`
 	Status            string              `json:"status,omitempty"`
 	Error             string              `json:"error,omitempty"`
@@ -101,6 +102,10 @@ func buildResponseResult(rd ResponseData) ResponseResult {
 	respRes := ResponseResult{
 		URL:              rd.URL,
 		TransportAddress: rd.TransportAddress,
+	}
+
+	if rd.Duration > 0 {
+		respRes.DurationMs = float64(rd.Duration.Microseconds()) / 1000.0
 	}
 
 	if rd.Error != nil {
