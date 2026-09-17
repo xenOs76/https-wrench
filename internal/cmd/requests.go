@@ -20,9 +20,10 @@ import (
 
 var (
 	//go:embed  embedded/config-example.yaml
-	sampleYamlConfig string
-	showSampleConfig bool
-	requestsFmt      string
+	sampleYamlConfig    string
+	showSampleConfig    bool
+	requestsFmt         string
+	requestsConcurrency int
 )
 
 var requestsCmd = &cobra.Command{
@@ -95,8 +96,14 @@ Examples:
 			return
 		}
 
+		concurrency := requestsConcurrency
+		if !cmd.Flags().Changed("concurrency") && cfg.Concurrency > 0 {
+			concurrency = cfg.Concurrency
+		}
+
 		requestsCfg.SetVerbose(cfg.Verbose).
 			SetDebug(cfg.Debug).
+			SetConcurrency(concurrency).
 			SetRequests(cfg.Requests)
 
 		if err := requestsCfg.SetCaPoolFromYAML(cfg.CaBundle); err != nil {
@@ -165,6 +172,13 @@ func init() {
 		"format",
 		"text",
 		"Output format: text (human-readable) or json (machine-readable, no ANSI)",
+	)
+	requestsCmd.Flags().IntVarP(
+		&requestsConcurrency,
+		"concurrency",
+		"c",
+		requests.DefaultRequestsConcurrency,
+		"Maximum number of concurrent HTTP requests (1 for sequential)",
 	)
 	rootCmd.AddCommand(requestsCmd)
 }

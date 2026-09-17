@@ -2,6 +2,44 @@
 
 # https-wrench - changelog
 
+## 0.16.0 (2026-09-17)
+
+### Dependencies
+
+    Deps: upgrade golang.org/x/sync to v0.23.0 and promote to direct dependency.
+
+### Feat
+
+    Requests: support concurrent HTTP requests execution via bounded worker pool (`--concurrency` / `-c` flag, default: 10).
+
+    Requests: add `concurrency` property to configuration schema and examples, defaulting to 10 if omitted or <= 0.
+
+    Requests: extend concurrency boundaries down to individual single requests, enabling multiple hosts and URIs within a single `RequestConfig` to execute concurrently.
+
+    Requests: bound active host goroutines in `processHostsConcurrently` using `errgroup.Group.SetLimit`, keeping the HTTP request limiter exclusively for URI requests.
+
+    Requests: acquire limiter slot before launching goroutines in `processURIsConcurrently` to eliminate unbounded goroutine allocation.
+
+    Requests: serialize debug output writing (`PrintRequestDebug`, `PrintResponseDebug`) via mutex to eliminate log tearing and data races across concurrent requests.
+
+    Requests: preserve deterministic slice ordering for hosts and URIs, aggregating response data by request name.
+
+### Fix
+
+    Devenv: update profiling cleanup traps to remove generated `requests.test` binary from the invocation directory instead of `internal/requests/requests.test`.
+
+    Devenv: add `EXIT` trap to aggregate profiling script to guarantee test binary cleanup on command failures, and remove redundant test binary cleanup from trace script.
+
+    Schema: remove `minimum: 0` constraint on `concurrency` in both `https-wrench.schema.json` and `internal/mcp/assets/schema.json` so negative values are accepted and fall back cleanly to 10.
+
+### Tests
+
+    Requests: add `TestRequests_ExecuteWithWriter_PeakInFlight` regression test measuring peak in-flight requests with barrier synchronization to eliminate timing jitter under race detection and coverage instrumentation.
+
+    Requests: add `BenchmarkExecuteWithWriter` benchmarking performance across concurrency tiers (`1`, `2`, `5`, `10`, `20`).
+
+    Devenv: add isolated profiling scripts (`profile-requests-concurrency-cpu`, `profile-requests-concurrency-mem`, `profile-requests-concurrency-block`, `profile-requests-concurrency-mutex`, `profile-requests-concurrency-all`, and `trace-requests-concurrency-goroutines`) to avoid measurement cross-talk.
+
 ## 0.15.4 (2026-09-15)
 
 ### Feat

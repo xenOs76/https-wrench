@@ -33,6 +33,7 @@ func TestRequestsCmd(t *testing.T) {
 				"Global Flags:",
 				"--config",
 				"--ca-bundle",
+				"--concurrency",
 				"--format",
 				"--show-sample-config",
 				"--version",
@@ -45,6 +46,7 @@ func TestRequestsCmd(t *testing.T) {
 			expectError: false,
 			expected: []string{
 				"https-wrench.schema.json",
+				"concurrency:",
 				"requests:",
 				"transportOverrideUrl:",
 				"requestHeaders:",

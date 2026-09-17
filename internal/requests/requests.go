@@ -15,11 +15,13 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xenos76/https-wrench/internal/certinfo"
 	"github.com/xenos76/https-wrench/internal/view"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -40,6 +42,9 @@ const (
 	proxyProtoDefaultSrcPort = 54321
 
 	emptyString = ""
+
+	// DefaultRequestsConcurrency is the default number of concurrent requests.
+	DefaultRequestsConcurrency = 10
 )
 
 // defaultCurvePreferences lists Go 1.27 TLS hybrids plus classical fallbacks.
@@ -180,6 +185,8 @@ type RequestsMetaConfig struct {
 	RequestVerbose bool
 	// CACertsPool is the certificate pool used for validating server certificates.
 	CACertsPool *x509.CertPool
+	// Concurrency limits the number of concurrent requests executing simultaneously.
+	Concurrency int `mapstructure:"concurrency"`
 	// Requests is the list of request configurations to execute.
 	Requests []RequestConfig `mapstructure:"requests"`
 }
@@ -207,6 +214,12 @@ func (r *RequestsMetaConfig) SetVerbose(b bool) *RequestsMetaConfig {
 // SetDebug sets the debug level for the requests.
 func (r *RequestsMetaConfig) SetDebug(b bool) *RequestsMetaConfig {
 	r.RequestDebug = b
+	return r
+}
+
+// SetConcurrency sets the maximum concurrency level for executing requests.
+func (r *RequestsMetaConfig) SetConcurrency(n int) *RequestsMetaConfig {
+	r.Concurrency = n
 	return r
 }
 
@@ -252,34 +265,175 @@ func (r *RequestsMetaConfig) Execute(ctx context.Context) (*Result, map[string][
 	return r.ExecuteWithWriter(ctx, io.Discard)
 }
 
+func validateUniqueRequestNames(requests []RequestConfig) error {
+	seenNames := make(map[string]struct{}, len(requests))
+	for _, reqCfg := range requests {
+		if _, exists := seenNames[reqCfg.Name]; exists {
+			return &DuplicateRequestNameError{Name: reqCfg.Name}
+		}
+
+		seenNames[reqCfg.Name] = struct{}{}
+	}
+
+	return nil
+}
+
+type requestLimiter struct {
+	sem      chan struct{}
+	writerMu sync.Mutex
+}
+
+func newRequestLimiter(limit int) *requestLimiter {
+	if limit <= 0 {
+		limit = DefaultRequestsConcurrency
+	}
+
+	return &requestLimiter{
+		sem: make(chan struct{}, limit),
+	}
+}
+
+func (l *requestLimiter) acquire(ctx context.Context) error {
+	if l == nil {
+		return nil
+	}
+
+	select {
+	case l.sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (l *requestLimiter) release() {
+	if l == nil {
+		return
+	}
+
+	<-l.sem
+}
+
+func (l *requestLimiter) writeOutput(w io.Writer, data []byte) {
+	if l == nil {
+		_, _ = w.Write(data)
+		return
+	}
+
+	l.writerMu.Lock()
+	defer l.writerMu.Unlock()
+
+	_, _ = w.Write(data)
+}
+
+func (l *requestLimiter) limit() int {
+	if l == nil {
+		return 0
+	}
+
+	return cap(l.sem)
+}
+
+type indexedResult struct {
+	name string
+	data []ResponseData
+}
+
+func (r *RequestsMetaConfig) executeRequestsSequentially(
+	ctx context.Context,
+	w io.Writer,
+) (map[string][]ResponseData, error) {
+	responseDataMap := make(map[string][]ResponseData, len(r.Requests))
+
+	for _, reqCfg := range r.Requests {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		responseDataList, err := processHTTPRequestsByHost(ctx, w, reqCfg, r.CACertsPool, r.RequestVerbose)
+		if err != nil {
+			return nil, err
+		}
+
+		responseDataMap[reqCfg.Name] = responseDataList
+	}
+
+	return responseDataMap, nil
+}
+
+func (r *RequestsMetaConfig) executeRequestsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	concurrency int,
+) (map[string][]ResponseData, error) {
+	limiter := newRequestLimiter(concurrency)
+	results := make([]indexedResult, len(r.Requests))
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for i, reqCfg := range r.Requests {
+		g.Go(func() error {
+			data, err := processHTTPRequestsByHost(gCtx, w, reqCfg, r.CACertsPool, r.RequestVerbose, limiter)
+			if err != nil {
+				return err
+			}
+
+			results[i] = indexedResult{
+				name: reqCfg.Name,
+				data: data,
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	responseDataMap := make(map[string][]ResponseData, len(r.Requests))
+
+	for _, res := range results {
+		if res.name != "" {
+			responseDataMap[res.name] = res.data
+		}
+	}
+
+	return responseDataMap, nil
+}
+
 // ExecuteWithWriter runs all configured HTTP requests, writing debug output to w.
 func (r *RequestsMetaConfig) ExecuteWithWriter(ctx context.Context, w io.Writer) (*Result, map[string][]ResponseData, error) {
 	if w == nil {
 		w = io.Discard
 	}
 
-	seenNames := make(map[string]struct{}, len(r.Requests))
-	for _, reqCfg := range r.Requests {
-		if _, exists := seenNames[reqCfg.Name]; exists {
-			return nil, nil, &DuplicateRequestNameError{Name: reqCfg.Name}
-		}
-
-		seenNames[reqCfg.Name] = struct{}{}
+	if err := validateUniqueRequestNames(r.Requests); err != nil {
+		return nil, nil, err
 	}
 
-	responseDataMap := make(map[string][]ResponseData)
+	concurrency := r.Concurrency
+	if concurrency <= 0 {
+		concurrency = DefaultRequestsConcurrency
+	}
 
-	for _, reqCfg := range r.Requests {
-		if err := ctx.Err(); err != nil {
-			return nil, nil, err
-		}
+	var (
+		responseDataMap map[string][]ResponseData
+		err             error
+	)
 
-		responseDataList, err := processHTTPRequestsByHost(ctx, w, reqCfg, r.CACertsPool, r.RequestVerbose)
-		if err != nil {
-			return nil, nil, err
-		}
+	if concurrency == 1 || len(r.Requests) == 0 {
+		responseDataMap, err = r.executeRequestsSequentially(ctx, w)
+	} else {
+		responseDataMap, err = r.executeRequestsConcurrently(ctx, w, concurrency)
+	}
 
-		responseDataMap[reqCfg.Name] = responseDataList
+	if err != nil {
+		return nil, nil, err
 	}
 
 	result, err := BuildResult(responseDataMap, r)
@@ -726,6 +880,28 @@ func processHTTPRequestsByHost(
 	r RequestConfig,
 	caPool *x509.CertPool,
 	isVerbose bool,
+	limiter ...*requestLimiter,
+) ([]ResponseData, error) {
+	var lim *requestLimiter
+	if len(limiter) > 0 {
+		lim = limiter[0]
+	}
+
+	if lim == nil || len(r.Hosts) <= 1 {
+		return processHostsSequentially(ctx, w, r, caPool, isVerbose, lim)
+	}
+
+	return processHostsConcurrently(ctx, w, r, caPool, isVerbose, lim)
+}
+
+//nolint:revive
+func processHostsSequentially(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	caPool *x509.CertPool,
+	isVerbose bool,
+	limiter *requestLimiter,
 ) ([]ResponseData, error) {
 	var responseDataList []ResponseData
 
@@ -734,7 +910,7 @@ func processHTTPRequestsByHost(
 			return nil, err
 		}
 
-		hostResults, err := processRequestsForHost(ctx, w, r, host, caPool, isVerbose)
+		hostResults, err := processRequestsForHost(ctx, w, r, host, caPool, isVerbose, limiter)
 		if err != nil {
 			return nil, err
 		}
@@ -745,7 +921,54 @@ func processHTTPRequestsByHost(
 	return responseDataList, nil
 }
 
+//nolint:revive
+func processHostsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	caPool *x509.CertPool,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	hostResultsList := make([][]ResponseData, len(r.Hosts))
+
+	g, gCtx := errgroup.WithContext(ctx)
+	if limiter != nil && limiter.limit() > 0 {
+		g.SetLimit(limiter.limit())
+	}
+
+	for i, host := range r.Hosts {
+		if err := gCtx.Err(); err != nil {
+			break
+		}
+
+		g.Go(func() error {
+			results, err := processRequestsForHost(gCtx, w, r, host, caPool, isVerbose, limiter)
+			if err != nil {
+				return err
+			}
+
+			hostResultsList[i] = results
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	var responseDataList []ResponseData
+	for _, res := range hostResultsList {
+		responseDataList = append(responseDataList, res...)
+	}
+
+	return responseDataList, nil
+}
+
 // processRequestsForHost initializes the HTTP client and executes all configured URIs for a single host.
+//
+//nolint:revive
 func processRequestsForHost(
 	ctx context.Context,
 	w io.Writer,
@@ -753,9 +976,8 @@ func processRequestsForHost(
 	host Host,
 	caPool *x509.CertPool,
 	isVerbose bool,
+	limiter *requestLimiter,
 ) ([]ResponseData, error) {
-	var responseDataList []ResponseData
-
 	reqClient, err := NewHTTPClientFromRequestConfig(r, host.Name, caPool)
 	if err != nil {
 		return nil, err
@@ -766,18 +988,115 @@ func processRequestsForHost(
 		return nil, err
 	}
 
-	requestBodyBytes := []byte(r.RequestBody)
+	if limiter == nil || len(urlList) <= 1 {
+		return processURIsSequentially(ctx, w, r, reqClient, urlList, isVerbose, limiter)
+	}
 
-	for _, reqURL := range urlList {
+	return processURIsConcurrently(ctx, w, r, reqClient, urlList, isVerbose, limiter)
+}
+
+//nolint:revive
+func processURIsSequentially(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	urlList []string,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	requestBodyBytes := []byte(r.RequestBody)
+	responseDataList := make([]ResponseData, len(urlList))
+
+	for i, reqURL := range urlList {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		responseData := executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
-		responseDataList = append(responseDataList, responseData)
+		if err := limiter.acquire(ctx); err != nil {
+			return nil, err
+		}
+
+		responseDataList[i] = executeSingleRequestWithLimiterOutput(
+			ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
+		)
+		limiter.release()
 	}
 
 	return responseDataList, nil
+}
+
+//nolint:revive
+func processURIsConcurrently(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	urlList []string,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ([]ResponseData, error) {
+	requestBodyBytes := []byte(r.RequestBody)
+	responseDataList := make([]ResponseData, len(urlList))
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for i, reqURL := range urlList {
+		if err := limiter.acquire(gCtx); err != nil {
+			_ = g.Wait()
+
+			return nil, err
+		}
+
+		g.Go(func() error {
+			defer limiter.release()
+
+			responseDataList[i] = executeSingleRequestWithLimiterOutput(
+				gCtx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose, limiter,
+			)
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	return responseDataList, nil
+}
+
+//nolint:revive
+func executeSingleRequestWithLimiterOutput(
+	ctx context.Context,
+	w io.Writer,
+	r RequestConfig,
+	reqClient *RequestHTTPClient,
+	reqURL string,
+	requestBodyBytes []byte,
+	isVerbose bool,
+	limiter *requestLimiter,
+) ResponseData {
+	if w == nil {
+		w = io.Discard
+	}
+
+	if limiter != nil && w != io.Discard {
+		var buf bytes.Buffer
+
+		resp := executeSingleRequest(ctx, &buf, r, reqClient, reqURL, requestBodyBytes, isVerbose)
+		if buf.Len() > 0 {
+			limiter.writeOutput(w, buf.Bytes())
+		}
+
+		return resp
+	}
+
+	return executeSingleRequest(ctx, w, r, reqClient, reqURL, requestBodyBytes, isVerbose)
 }
 
 // executeSingleRequest performs a single HTTP request and returns the collected response data.
