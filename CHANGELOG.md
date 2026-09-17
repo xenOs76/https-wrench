@@ -2,7 +2,7 @@
 
 # https-wrench - changelog
 
-## Unreleased
+## 0.16.0 (2026-09-17)
 
 ### Dependencies
 
