@@ -11,23 +11,7 @@ import (
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
-func TestMetrics_RecordRun(t *testing.T) {
-	t.Parallel()
-
-	cfg := MetricsFilterConfig{
-		IncludeTLS:       true,
-		IncludeCertChain: true,
-		StripQuery:       true,
-		CustomLabels: map[string]string{
-			"env": "test",
-		},
-	}
-
-	m := NewMetrics(cfg)
-	require.NotNil(t, m)
-	require.NotNil(t, m.Registry())
-
-	matched := true
+func buildTestProbeResult(matched *bool) (*requests.Result, map[string][]requests.ResponseData) {
 	res := &requests.Result{
 		Requests: []requests.RequestResult{
 			{
@@ -39,7 +23,7 @@ func TestMetrics_RecordRun(t *testing.T) {
 						DurationMs:        125.5,
 						StatusCode:        200,
 						Body:              "OK response",
-						BodyRegexpMatched: &matched,
+						BodyRegexpMatched: matched,
 						TLS: &requests.ResponseTLSResult{
 							Version:     "TLS 1.3",
 							CipherSuite: "TLS_AES_128_GCM_SHA256",
@@ -72,29 +56,39 @@ func TestMetrics_RecordRun(t *testing.T) {
 		},
 	}
 
-	m.RecordRun(res, responseMap, 150*time.Millisecond)
+	return res, responseMap
+}
 
-	mfs, err := m.Registry().Gather()
-	require.NoError(t, err)
-	require.NotEmpty(t, mfs)
+func assertRecordedMetricFamilies(t *testing.T, mfs []*dto.MetricFamily) {
+	t.Helper()
 
 	names := make(map[string]bool)
 	for _, mf := range mfs {
 		names[*mf.Name] = true
 	}
 
-	assert.True(t, names["https_wrench_probe_success"])
-	assert.True(t, names["https_wrench_probe_duration_seconds"])
-	assert.True(t, names["https_wrench_probe_last_duration_seconds"])
-	assert.True(t, names["https_wrench_probe_status_code"])
-	assert.True(t, names["https_wrench_probe_body_matches"])
-	assert.True(t, names["https_wrench_probe_response_size_bytes"])
-	assert.True(t, names["https_wrench_probe_requests_total"])
-	assert.True(t, names["https_wrench_ssl_earliest_cert_expiry_seconds"])
-	assert.True(t, names["https_wrench_ssl_cert_days_until_expiry"])
-	assert.True(t, names["https_wrench_ssl_cert_valid"])
-	assert.True(t, names["https_wrench_ssl_tls_version_info"])
-	assert.True(t, names["https_wrench_scrape_collector_duration_seconds"])
+	expected := []string{
+		"https_wrench_probe_success",
+		"https_wrench_probe_duration_seconds",
+		"https_wrench_probe_last_duration_seconds",
+		"https_wrench_probe_status_code",
+		"https_wrench_probe_body_matches",
+		"https_wrench_probe_response_size_bytes",
+		"https_wrench_probe_requests_total",
+		"https_wrench_ssl_earliest_cert_expiry_seconds",
+		"https_wrench_ssl_cert_days_until_expiry",
+		"https_wrench_ssl_cert_valid",
+		"https_wrench_ssl_tls_version_info",
+		"https_wrench_scrape_collector_duration_seconds",
+	}
+
+	for _, name := range expected {
+		assert.True(t, names[name], "metric %s should be present", name)
+	}
+}
+
+func assertRecordedMetricLabels(t *testing.T, mfs []*dto.MetricFamily) {
+	t.Helper()
 
 	probeSuccessMF := findMetricFamily(mfs, "https_wrench_probe_success")
 	require.NotNil(t, probeSuccessMF)
@@ -119,12 +113,42 @@ func TestMetrics_RecordRun(t *testing.T) {
 	assert.Equal(t, "matched", reqLabels["body_match"])
 }
 
+func TestMetrics_RecordRun(t *testing.T) {
+	t.Parallel()
+
+	cfg := MetricsFilterConfig{
+		IncludeTLS:       true,
+		IncludeCertChain: true,
+		StripQuery:       true,
+		CustomLabels: map[string]string{
+			"env": "test",
+		},
+	}
+
+	m := NewMetrics(cfg)
+	require.NotNil(t, m)
+	require.NotNil(t, m.Registry())
+
+	matched := true
+	res, responseMap := buildTestProbeResult(&matched)
+
+	m.RecordRun(res, responseMap, 150*time.Millisecond)
+
+	mfs, err := m.Registry().Gather()
+	require.NoError(t, err)
+	require.NotEmpty(t, mfs)
+
+	assertRecordedMetricFamilies(t, mfs)
+	assertRecordedMetricLabels(t, mfs)
+}
+
 func findMetricFamily(mfs []*dto.MetricFamily, name string) *dto.MetricFamily {
 	for _, mf := range mfs {
 		if mf != nil && mf.Name != nil && *mf.Name == name {
 			return mf
 		}
 	}
+
 	return nil
 }
 
@@ -133,6 +157,7 @@ func metricLabels(m *dto.Metric) map[string]string {
 	for _, lp := range m.Label {
 		labels[*lp.Name] = *lp.Value
 	}
+
 	return labels
 }
 

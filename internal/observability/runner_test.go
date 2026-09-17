@@ -81,17 +81,15 @@ func TestRunner_Lifecycle(t *testing.T) {
 	}
 }
 
-func TestRunner_Reload(t *testing.T) {
-	t.Parallel()
+func newTestRunnerWithConfig(t *testing.T, reqName string, interval time.Duration) *Runner {
+	t.Helper()
 
-	initialMeta := &requests.RequestsMetaConfig{
-		Requests: []requests.RequestConfig{
-			{Name: "req-v1"},
-		},
+	meta := &requests.RequestsMetaConfig{
+		Requests: []requests.RequestConfig{{Name: reqName}},
 	}
-	initialCfg := Config{
+	cfg := Config{
 		Enabled:  true,
-		Interval: 100 * time.Millisecond,
+		Interval: interval,
 		Timeout:  100 * time.Millisecond,
 		Pull: PullConfig{
 			Enabled: true,
@@ -100,18 +98,24 @@ func TestRunner_Reload(t *testing.T) {
 		},
 	}
 
-	runner, err := NewRunner(initialCfg, initialMeta)
+	runner, err := NewRunner(cfg, meta)
 	require.NoError(t, err)
 
+	return runner
+}
+
+func TestRunner_Reload(t *testing.T) {
+	t.Parallel()
+
+	runner := newTestRunnerWithConfig(t, "req-v1", 100*time.Millisecond)
+
 	// Reload before reloader is set should fail
-	err = runner.Reload()
+	err := runner.Reload()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no reload function configured")
 
 	updatedMeta := &requests.RequestsMetaConfig{
-		Requests: []requests.RequestConfig{
-			{Name: "req-v2"},
-		},
+		Requests: []requests.RequestConfig{{Name: "req-v2"}},
 	}
 	updatedCfg := &Config{
 		Enabled:  true,
@@ -125,10 +129,12 @@ func TestRunner_Reload(t *testing.T) {
 	}
 
 	shouldFail := false
+
 	runner.SetReloader("", func() (*Config, *requests.RequestsMetaConfig, error) {
 		if shouldFail {
 			return nil, nil, errors.New("simulated reload failure")
 		}
+
 		return updatedCfg, updatedMeta, nil
 	})
 
@@ -167,37 +173,24 @@ func TestRunner_FileModificationReload(t *testing.T) {
 	cfgFile := filepath.Join(dir, "probe-config.yaml")
 	require.NoError(t, os.WriteFile(cfgFile, []byte("version: 1\n"), 0o600))
 
-	initialMeta := &requests.RequestsMetaConfig{
-		Requests: []requests.RequestConfig{
-			{Name: "req-v1"},
-		},
-	}
-	cfg := Config{
-		Enabled:  true,
-		Interval: 100 * time.Millisecond,
-		Timeout:  50 * time.Millisecond,
-		Pull: PullConfig{
-			Enabled: true,
-			Address: "127.0.0.1:0",
-			Path:    "/metrics",
-		},
-	}
-
-	runner, err := NewRunner(cfg, initialMeta)
-	require.NoError(t, err)
+	runner := newTestRunnerWithConfig(t, "req-v1", 100*time.Millisecond)
 
 	reloadCalls := 0
 	currentReqName := "req-v1"
+
 	runner.SetReloader(cfgFile, func() (*Config, *requests.RequestsMetaConfig, error) {
 		reloadCalls++
+
 		content, readErr := os.ReadFile(cfgFile)
 		if readErr != nil {
 			return nil, nil, readErr
 		}
+
 		if string(content) == "invalid-syntax" {
 			return nil, nil, errors.New("yaml parse error")
 		}
-		return &Config{
+
+		cfg := &Config{
 			Enabled:  true,
 			Interval: 100 * time.Millisecond,
 			Timeout:  50 * time.Millisecond,
@@ -206,9 +199,12 @@ func TestRunner_FileModificationReload(t *testing.T) {
 				Address: "127.0.0.1:0",
 				Path:    "/metrics",
 			},
-		}, &requests.RequestsMetaConfig{
+		}
+		meta := &requests.RequestsMetaConfig{
 			Requests: []requests.RequestConfig{{Name: currentReqName}},
-		}, nil
+		}
+
+		return cfg, meta, nil
 	})
 
 	// 1. First check: file unmodified from initial hash recorded in SetReloader
@@ -217,6 +213,7 @@ func TestRunner_FileModificationReload(t *testing.T) {
 
 	// 2. Modify file on disk
 	currentReqName = "req-v2"
+
 	require.NoError(t, os.WriteFile(cfgFile, []byte("version: 2\n"), 0o600))
 
 	runner.checkFileModification()

@@ -266,6 +266,7 @@ func loadAndBuildObservabilityConfigs(
 ) (*observability.Config, *requests.RequestsMetaConfig, error) {
 	v := viper.New()
 	v.SetConfigFile(configFile)
+
 	if err := v.ReadInConfig(); err != nil {
 		return nil, nil, fmt.Errorf("unable to read config file %q: %w", configFile, err)
 	}

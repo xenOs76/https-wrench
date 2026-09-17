@@ -71,7 +71,9 @@ func TestPullServer_ReloadHandler(t *testing.T) {
 	}, m.Registry())
 
 	reloadCalls := 0
+
 	var reloadErr error
+
 	srv.RegisterReloadHandler(func() error {
 		reloadCalls++
 		return reloadErr
@@ -88,13 +90,17 @@ func TestPullServer_ReloadHandler(t *testing.T) {
 	// 1. GET /-/reload should return 405 Method Not Allowed
 	respGet, err := client.Get("http://" + addr + "/-/reload")
 	require.NoError(t, err)
+
 	defer respGet.Body.Close()
+
 	assert.Equal(t, http.StatusMethodNotAllowed, respGet.StatusCode)
 
 	// 2. POST /-/reload with successful reload
 	respPost, err := client.Post("http://"+addr+"/-/reload", "text/plain", nil)
 	require.NoError(t, err)
+
 	defer respPost.Body.Close()
+
 	assert.Equal(t, http.StatusOK, respPost.StatusCode)
 	assert.Equal(t, 1, reloadCalls)
 
@@ -102,7 +108,9 @@ func TestPullServer_ReloadHandler(t *testing.T) {
 	reloadErr = assert.AnError
 	respErr, err := client.Post("http://"+addr+"/-/reload", "text/plain", nil)
 	require.NoError(t, err)
+
 	defer respErr.Body.Close()
+
 	assert.Equal(t, http.StatusInternalServerError, respErr.StatusCode)
 	assert.Equal(t, 2, reloadCalls)
 }

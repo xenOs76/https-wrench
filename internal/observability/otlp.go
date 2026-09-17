@@ -101,6 +101,7 @@ func (e *OTLPExporter) Export(ctx context.Context, metricFamilies []*dto.MetricF
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+
 		return fmt.Errorf(
 			"observability: OTLP endpoint returned HTTP %d: %s",
 			resp.StatusCode,
@@ -189,6 +190,7 @@ func metricTimestamp(m *dto.Metric, fallbackNano uint64) uint64 {
 	if m.TimestampMs != nil && *m.TimestampMs > 0 {
 		return uint64(*m.TimestampMs) * 1_000_000
 	}
+
 	return fallbackNano
 }
 

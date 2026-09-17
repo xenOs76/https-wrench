@@ -2,7 +2,6 @@ package observability
 
 import (
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -160,7 +159,7 @@ func (c *Config) validatePushOTLP() error {
 
 func (c *Config) validateModes() error {
 	if c.Enabled && !c.Pull.Enabled && !c.Push.Prometheus.Enabled && !c.Push.OTLP.Enabled {
-		return fmt.Errorf(
+		return errors.New(
 			"observability: at least one propagation mode (pull, push.prometheus, push.otlp) must be enabled",
 		)
 	}

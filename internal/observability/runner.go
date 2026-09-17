@@ -115,6 +115,7 @@ func (r *Runner) Reload() error {
 	}
 
 	fmt.Fprintln(r.output(), "observability: configuration reloaded successfully")
+
 	return nil
 }
 
@@ -200,6 +201,7 @@ func (r *Runner) Exporters() []Exporter {
 
 	result := make([]Exporter, len(r.exporters))
 	copy(result, r.exporters)
+
 	return result
 }
 
@@ -244,6 +246,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	defer ticker.Stop()
 
 	hupCh := make(chan os.Signal, 1)
+
 	signal.Notify(hupCh, syscall.SIGHUP)
 	defer signal.Stop(hupCh)
 
@@ -252,6 +255,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			fmt.Fprintln(r.output(), "observability: stopping runner...")
 			r.shutdown()
+
 			return nil
 
 		case <-hupCh:
@@ -311,8 +315,10 @@ func (r *Runner) dispatchPushes(
 	timeout time.Duration,
 ) {
 	var wg sync.WaitGroup
+
 	for _, exp := range exporters {
 		e := exp
+
 		wg.Go(func() {
 			exportCtx, expCancel := context.WithTimeout(ctx, timeout)
 			defer expCancel()

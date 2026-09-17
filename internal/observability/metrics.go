@@ -245,7 +245,7 @@ func (m *Metrics) recordSingleResponse(
 	respRes requests.ResponseResult,
 	rd requests.ResponseData,
 ) {
-	parsedHost, parsedURI := parseURLComponents(respRes.URL, m.cfg.StripQuery)
+	parsedHost, parsedURI := m.parseURLComponents(respRes.URL)
 
 	method := rd.Request.RequestMethod
 	if method == "" {
@@ -395,9 +395,11 @@ func parseCertExpiry(cert certinfo.CertInfo) int64 {
 	if notAfter, err := time.Parse(time.RFC3339, cert.NotAfter); err == nil {
 		return notAfter.Unix()
 	}
+
 	if cert.DaysUntilExpiry > 0 {
 		return time.Now().Add(time.Duration(cert.DaysUntilExpiry*24) * time.Hour).Unix()
 	}
+
 	return 0
 }
 
@@ -411,7 +413,7 @@ func (m *Metrics) RecordPushError(exporter string) {
 	m.pushErrorsTotal.WithLabelValues(exporter).Inc()
 }
 
-func parseURLComponents(rawURL string, stripQuery bool) (host, uri string) {
+func (m *Metrics) parseURLComponents(rawURL string) (host, uri string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return rawURL, ""
@@ -420,7 +422,7 @@ func parseURLComponents(rawURL string, stripQuery bool) (host, uri string) {
 	host = parsed.Host
 
 	uri = parsed.RequestURI()
-	if stripQuery {
+	if m.cfg.StripQuery {
 		if idx := strings.Index(uri, "?"); idx != -1 {
 			uri = uri[:idx]
 		}

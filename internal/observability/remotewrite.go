@@ -100,6 +100,7 @@ func (e *RemoteWriteExporter) Export(ctx context.Context, metricFamilies []*dto.
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+
 		return fmt.Errorf(
 			"observability: remote_write server returned HTTP %d: %s",
 			resp.StatusCode,
