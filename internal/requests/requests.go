@@ -175,6 +175,8 @@ type ResponseData struct {
 	Response *http.Response
 	// Error is any error encountered during the request.
 	Error error
+	// Duration is the round-trip duration of the HTTP request.
+	Duration time.Duration
 }
 
 // RequestsMetaConfig holds the global configuration and the list of requests to execute.
@@ -1138,7 +1140,10 @@ func executeSingleRequest(
 		fmt.Fprintf(os.Stderr, "Warning: PrintRequestDebug failed: %v\n", err)
 	}
 
+	start := time.Now()
 	resp, err := reqClient.client.Do(req)
+
+	responseData.Duration = time.Since(start)
 	if err != nil {
 		responseData.Error = err
 		return responseData

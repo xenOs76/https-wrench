@@ -8,11 +8,14 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gookit/goutil/dump"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/xenos76/https-wrench/internal/certinfo"
 	"github.com/xenos76/https-wrench/internal/errdisp"
+	"github.com/xenos76/https-wrench/internal/observability"
 	"github.com/xenos76/https-wrench/internal/requests"
 	"github.com/xenos76/https-wrench/internal/view"
 	"golang.org/x/term"
@@ -20,10 +23,15 @@ import (
 
 var (
 	//go:embed  embedded/config-example.yaml
-	sampleYamlConfig    string
-	showSampleConfig    bool
-	requestsFmt         string
-	requestsConcurrency int
+	sampleYamlConfig      string
+	showSampleConfig      bool
+	requestsFmt           string
+	requestsConcurrency   int
+	observeMode           bool
+	observeInterval       time.Duration
+	observeListen         string
+	observeRemoteWriteURL string
+	observeOTLPEndpoint   string
 )
 
 var requestsCmd = &cobra.Command{
@@ -48,6 +56,14 @@ Examples:
 	`,
 
 	Run: func(cmd *cobra.Command, _ []string) {
+		defer func() {
+			observeMode = false
+			observeInterval = 0
+			observeListen = ""
+			observeRemoteWriteURL = ""
+			observeOTLPEndpoint = ""
+		}()
+
 		versionRequested := viper.GetBool("version")
 
 		if versionRequested {
@@ -112,6 +128,36 @@ Examples:
 
 		if err := requestsCfg.SetCaPoolFromFile(caBundlePath, fileReader); err != nil {
 			cmd.Print(errdisp.Format(err))
+		}
+
+		isObservability := observeMode || cfg.Observability.Enabled
+		if isObservability {
+			obsCfg := applyObservabilityOverrides(cfg.Observability, cmd)
+
+			runner, err := observability.NewRunner(obsCfg, requestsCfg)
+			if err != nil {
+				cmd.Print(errdisp.Format(err))
+				return
+			}
+
+			cfgFilePath := viper.ConfigFileUsed()
+			runner.SetReloader(cfgFilePath, func() (*observability.Config, *requests.RequestsMetaConfig, error) {
+				return loadAndBuildObservabilityConfigs(cfgFilePath, cmd, fileReader)
+			})
+
+			runner.SetOutput(cmd.OutOrStdout())
+
+			runCtx := cmd.Context()
+			if cmd.HasParent() && cmd.Parent().Context() != nil {
+				runCtx = cmd.Parent().Context()
+			}
+
+			if err := runner.Run(runCtx); err != nil {
+				cmd.Print(errdisp.Format(err))
+				return
+			}
+
+			return
 		}
 
 		debugOut := cmd.OutOrStdout()
@@ -180,5 +226,108 @@ func init() {
 		requests.DefaultRequestsConcurrency,
 		"Maximum number of concurrent HTTP requests (1 for sequential)",
 	)
+	requestsCmd.Flags().BoolVar(
+		&observeMode,
+		"observe",
+		false,
+		"Run in continuous observability mode (executing requests by interval and exporting metrics)",
+	)
+	requestsCmd.Flags().DurationVar(
+		&observeInterval,
+		"interval",
+		0,
+		"Probe execution interval in observability mode (e.g. 15s, 30s, 1m; overrides config)",
+	)
+	requestsCmd.Flags().StringVar(
+		&observeListen,
+		"listen",
+		"",
+		"Address for the Prometheus metrics scrape server (e.g. :9090; overrides config)",
+	)
+	requestsCmd.Flags().StringVar(
+		&observeRemoteWriteURL,
+		"remote-write-url",
+		"",
+		"Prometheus remote_write endpoint URL to push metrics to (overrides config)",
+	)
+	requestsCmd.Flags().StringVar(
+		&observeOTLPEndpoint,
+		"otlp-endpoint",
+		"",
+		"OpenTelemetry OTLP endpoint URL to push metrics to (overrides config)",
+	)
 	rootCmd.AddCommand(requestsCmd)
+}
+
+func loadAndBuildObservabilityConfigs(
+	configFile string,
+	cmd *cobra.Command,
+	reader certinfo.Reader,
+) (*observability.Config, *requests.RequestsMetaConfig, error) {
+	v := viper.New()
+	v.SetConfigFile(configFile)
+	if err := v.ReadInConfig(); err != nil {
+		return nil, nil, fmt.Errorf("unable to read config file %q: %w", configFile, err)
+	}
+
+	cfg := NewHTTPSWrenchConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, nil, fmt.Errorf("unable to decode config: %w", err)
+	}
+
+	reqsCfg, err := requests.NewRequestsMetaConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	concurrency := requestsConcurrency
+	if !cmd.Flags().Changed("concurrency") && cfg.Concurrency > 0 {
+		concurrency = cfg.Concurrency
+	}
+
+	reqsCfg.SetVerbose(cfg.Verbose).
+		SetDebug(cfg.Debug).
+		SetConcurrency(concurrency).
+		SetRequests(cfg.Requests)
+
+	if err := reqsCfg.SetCaPoolFromYAML(cfg.CaBundle); err != nil {
+		return nil, nil, err
+	}
+
+	if err := reqsCfg.SetCaPoolFromFile(caBundlePath, reader); err != nil {
+		return nil, nil, err
+	}
+
+	obsCfg := applyObservabilityOverrides(cfg.Observability, cmd)
+	if err := obsCfg.Validate(); err != nil {
+		return nil, nil, err
+	}
+
+	return &obsCfg, reqsCfg, nil
+}
+
+func applyObservabilityOverrides(base observability.Config, cmd *cobra.Command) observability.Config {
+	obsCfg := base
+	obsCfg.Enabled = true
+
+	if cmd.Flags().Changed("interval") && observeInterval > 0 {
+		obsCfg.Interval = observeInterval
+	}
+
+	if cmd.Flags().Changed("listen") && observeListen != "" {
+		obsCfg.Pull.Enabled = true
+		obsCfg.Pull.Address = observeListen
+	}
+
+	if cmd.Flags().Changed("remote-write-url") && observeRemoteWriteURL != "" {
+		obsCfg.Push.Prometheus.Enabled = true
+		obsCfg.Push.Prometheus.RemoteWriteURL = observeRemoteWriteURL
+	}
+
+	if cmd.Flags().Changed("otlp-endpoint") && observeOTLPEndpoint != "" {
+		obsCfg.Push.OTLP.Enabled = true
+		obsCfg.Push.OTLP.Endpoint = observeOTLPEndpoint
+	}
+
+	return obsCfg
 }
