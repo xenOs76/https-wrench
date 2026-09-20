@@ -12,8 +12,7 @@ It enables executing YAML-defined HTTPS requests, inspecting x.509 certificates,
 private keys, JSON Web Tokens (JWT), and generating JSON Web Key Sets (JWKS).\
 **HTTPS Wrench** was born from the desire of a disposable Bash script to become
 a reliable companion for mechanics of the World Wide Web.\
-`https-wrench` will, one day, take the place of `curl` in the hearts and the
-eyes of whoever is about to migrate a DNS record from a webserver to a load
+`https-wrench` will, one day, have a place in the toolbox of whoever is about to migrate a DNS record from a webserver to a load
 balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 ## How to use
@@ -162,7 +161,7 @@ Examples:
   https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --cert-bundle ./bundle.pem
   https-wrench certinfo --key-file ./key.pem
-  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem 
 
   # Print info about remote certificates 
   # with optional CA and public key match validation
