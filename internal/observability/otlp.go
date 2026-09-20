@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
+	otlpcollectormetricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	otlpcommonv1 "go.opentelemetry.io/proto/otlp/common/v1"
 	otlpmetricsv1 "go.opentelemetry.io/proto/otlp/metrics/v1"
 	otlpresourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
@@ -109,7 +110,39 @@ func (e *OTLPExporter) Export(ctx context.Context, metricFamilies []*dto.MetricF
 		)
 	}
 
-	return nil
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+
+	return checkOTLPResponse(body)
+}
+
+func checkOTLPResponse(body []byte) error {
+	if len(body) == 0 {
+		return nil
+	}
+
+	var respProto otlpcollectormetricsv1.ExportMetricsServiceResponse
+
+	if err := proto.Unmarshal(body, &respProto); err != nil {
+		return nil
+	}
+
+	ps := respProto.GetPartialSuccess()
+	if ps == nil || ps.GetRejectedDataPoints() <= 0 {
+		return nil
+	}
+
+	if msg := ps.GetErrorMessage(); msg != "" {
+		return fmt.Errorf(
+			"observability: OTLP export partially rejected (%d data points): %s",
+			ps.GetRejectedDataPoints(),
+			msg,
+		)
+	}
+
+	return fmt.Errorf(
+		"observability: OTLP export partially rejected (%d data points)",
+		ps.GetRejectedDataPoints(),
+	)
 }
 
 func buildOTLPRequest(metricFamilies []*dto.MetricFamily) *otlpmetricsv1.MetricsData {

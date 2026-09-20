@@ -11,6 +11,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	otlpcollectormetricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	otlpmetricsv1 "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -112,4 +113,64 @@ func TestExtractHistogramBuckets_IncludesInfBucket(t *testing.T) {
 	// delta 0: 2, delta 1: 5-2=3, +Inf: 9-5=4
 	assert.Equal(t, []uint64{2, 3, 4}, counts)
 	assert.Len(t, counts, len(bounds)+1)
+}
+
+func TestOTLPExporter_PartialSuccess(t *testing.T) {
+	t.Parallel()
+
+	t.Run("partial rejection returns error", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			resp := &otlpcollectormetricsv1.ExportMetricsServiceResponse{
+				PartialSuccess: &otlpcollectormetricsv1.ExportMetricsPartialSuccess{
+					RejectedDataPoints: 3,
+					ErrorMessage:       "unsupported metric type",
+				},
+			}
+			data, _ := proto.Marshal(resp)
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(data)
+		}))
+		defer ts.Close()
+
+		m := NewMetrics(MetricsFilterConfig{})
+		mfs, _ := m.Registry().Gather()
+
+		exp := NewOTLPExporter(PushOTLPConfig{
+			Enabled:  true,
+			Endpoint: ts.URL + "/v1/metrics",
+		})
+		defer exp.Close()
+
+		err := exp.Export(context.Background(), mfs)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "partially rejected (3 data points): unsupported metric type")
+	})
+
+	t.Run("partial rejection zero count succeeds", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			resp := &otlpcollectormetricsv1.ExportMetricsServiceResponse{
+				PartialSuccess: &otlpcollectormetricsv1.ExportMetricsPartialSuccess{
+					RejectedDataPoints: 0,
+				},
+			}
+			data, _ := proto.Marshal(resp)
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(data)
+		}))
+		defer ts.Close()
+
+		m := NewMetrics(MetricsFilterConfig{})
+		mfs, _ := m.Registry().Gather()
+
+		exp := NewOTLPExporter(PushOTLPConfig{
+			Enabled:  true,
+			Endpoint: ts.URL + "/v1/metrics",
+		})
+		defer exp.Close()
+
+		err := exp.Export(context.Background(), mfs)
+		require.NoError(t, err)
+	})
 }
