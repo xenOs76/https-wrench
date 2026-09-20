@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -112,5 +113,54 @@ func TestPullServer_ReloadHandler(t *testing.T) {
 	defer respErr.Body.Close()
 
 	assert.Equal(t, http.StatusInternalServerError, respErr.StatusCode)
+	assert.Equal(t, 2, reloadCalls)
+}
+
+func TestPullServer_ReloadAuthorization(t *testing.T) {
+	t.Parallel()
+
+	m := NewMetrics(MetricsFilterConfig{})
+	srv := NewServer(PullConfig{
+		Enabled: true,
+		Address: "127.0.0.1:0",
+		Path:    "/metrics",
+	}, m.Registry())
+
+	reloadCalls := 0
+
+	srv.RegisterReloadHandler(func() error {
+		reloadCalls++
+		return nil
+	})
+
+	// 1. Untrusted remote address without Authorization is rejected with 403 Forbidden
+	reqRemote := httptest.NewRequest(http.MethodPost, "/-/reload", nil)
+	reqRemote.RemoteAddr = "192.168.1.100:54321"
+
+	recRemote := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recRemote, reqRemote)
+
+	assert.Equal(t, http.StatusForbidden, recRemote.Code)
+	assert.Equal(t, 0, reloadCalls)
+
+	// 2. Untrusted remote address with Authorization header is accepted
+	reqAuth := httptest.NewRequest(http.MethodPost, "/-/reload", nil)
+	reqAuth.RemoteAddr = "192.168.1.100:54321"
+	reqAuth.Header.Set("Authorization", "Bearer reload-secret")
+
+	recAuth := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recAuth, reqAuth)
+
+	assert.Equal(t, http.StatusOK, recAuth.Code)
+	assert.Equal(t, 1, reloadCalls)
+
+	// 3. Trusted loopback remote address is accepted without Authorization
+	reqLoopback := httptest.NewRequest(http.MethodPost, "/-/reload", nil)
+	reqLoopback.RemoteAddr = "127.0.0.1:54321"
+
+	recLoopback := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recLoopback, reqLoopback)
+
+	assert.Equal(t, http.StatusOK, recLoopback.Code)
 	assert.Equal(t, 2, reloadCalls)
 }

@@ -73,6 +73,11 @@ func (s *Server) RegisterReloadHandler(fn func() error) {
 			return
 		}
 
+		if !isAuthorizedReload(r) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
 		if err := fn(); err != nil {
 			http.Error(w, fmt.Sprintf("Reload failed: %v", err), http.StatusInternalServerError)
 			return
@@ -81,6 +86,24 @@ func (s *Server) RegisterReloadHandler(fn func() error) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Configuration reloaded successfully\n"))
 	})
+}
+
+func isAuthorizedReload(r *http.Request) bool {
+	if r.Header.Get("Authorization") != "" {
+		return true
+	}
+
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return host == "localhost" || host == "127.0.0.1" || host == "::1"
+	}
+
+	return ip.IsLoopback()
 }
 
 // Start binds the listener and begins serving HTTP requests in the background.

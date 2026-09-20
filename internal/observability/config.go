@@ -15,7 +15,7 @@ const (
 	// DefaultTimeout is the default maximum duration for a single probe cycle.
 	DefaultTimeout = 25 * time.Second
 	// DefaultPullAddress is the default address for the pull HTTP scrape server.
-	DefaultPullAddress = ":9090"
+	DefaultPullAddress = "127.0.0.1:9090"
 	// DefaultPullPath is the default path for Prometheus metrics exposition.
 	DefaultPullPath = "/metrics"
 	// DefaultPushTimeout is the default HTTP request timeout for push exporters.
