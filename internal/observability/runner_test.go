@@ -166,6 +166,130 @@ func TestRunner_Reload(t *testing.T) {
 	runner.mu.RUnlock()
 }
 
+func TestRunner_Reload_RejectNonReloadablePull(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		modifyCfg func(cfg *Config)
+	}{
+		{
+			name: "reject pull address change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Pull.Address = "127.0.0.1:9099"
+			},
+		},
+		{
+			name: "reject pull path change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Pull.Path = "/other-metrics"
+			},
+		},
+		{
+			name: "reject pull enabled state change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Pull.Enabled = false
+				cfg.Push.OTLP.Enabled = true
+				cfg.Push.OTLP.Endpoint = "http://127.0.0.1:4318"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			runner := newTestRunnerWithConfig(t, "req-v1", 100*time.Millisecond)
+
+			initialCfg := runner.cfg
+			targetCfg := runner.cfg
+			tt.modifyCfg(&targetCfg)
+
+			runner.SetReloader("", func() (*Config, *requests.RequestsMetaConfig, error) {
+				cfgCopy := targetCfg
+
+				return &cfgCopy, &requests.RequestsMetaConfig{
+					Requests: []requests.RequestConfig{{Name: "req-rejected"}},
+				}, nil
+			})
+
+			err := runner.Reload()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "pull configuration (address, path, enabled)")
+
+			runner.mu.RLock()
+			assert.Equal(t, initialCfg.Pull.Address, runner.cfg.Pull.Address)
+			assert.Equal(t, initialCfg.Pull.Path, runner.cfg.Pull.Path)
+			assert.Equal(t, initialCfg.Pull.Enabled, runner.cfg.Pull.Enabled)
+			assert.Equal(t, "req-v1", runner.reqMeta.Requests[0].Name)
+			runner.mu.RUnlock()
+		})
+	}
+}
+
+func TestRunner_Reload_RejectNonReloadableMetrics(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		modifyCfg func(cfg *Config)
+	}{
+		{
+			name: "reject metrics custom labels change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Metrics.CustomLabels = map[string]string{"env": "test"}
+			},
+		},
+		{
+			name: "reject metrics includeTls filter change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Metrics.IncludeTLS = !cfg.Metrics.IncludeTLS
+			},
+		},
+		{
+			name: "reject metrics includeCertChain filter change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Metrics.IncludeCertChain = !cfg.Metrics.IncludeCertChain
+			},
+		},
+		{
+			name: "reject metrics stripQuery filter change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Metrics.StripQuery = !cfg.Metrics.StripQuery
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			runner := newTestRunnerWithConfig(t, "req-v1", 100*time.Millisecond)
+
+			initialCfg := runner.cfg
+			targetCfg := runner.cfg
+			tt.modifyCfg(&targetCfg)
+
+			runner.SetReloader("", func() (*Config, *requests.RequestsMetaConfig, error) {
+				cfgCopy := targetCfg
+
+				return &cfgCopy, &requests.RequestsMetaConfig{
+					Requests: []requests.RequestConfig{{Name: "req-rejected"}},
+				}, nil
+			})
+
+			err := runner.Reload()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "metrics configuration (labels, filters)")
+
+			runner.mu.RLock()
+			assert.Equal(t, initialCfg.Metrics, runner.cfg.Metrics)
+			assert.Equal(t, "req-v1", runner.reqMeta.Requests[0].Name)
+			runner.mu.RUnlock()
+		})
+	}
+}
+
 func TestRunner_FileModificationReload(t *testing.T) {
 	t.Parallel()
 

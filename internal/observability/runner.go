@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/signal"
 	"sync"
@@ -106,7 +107,10 @@ func (r *Runner) Reload() error {
 		return err
 	}
 
-	r.applyNewConfig(newCfg, newReqMeta)
+	if err := r.applyNewConfig(newCfg, newReqMeta); err != nil {
+		fmt.Fprintf(r.output(), "observability: reload failed: %v\n", err)
+		return err
+	}
 
 	if r.configPath != "" {
 		if content, err := os.ReadFile(r.configPath); err == nil {
@@ -119,8 +123,24 @@ func (r *Runner) Reload() error {
 	return nil
 }
 
-func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMetaConfig) {
+func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMetaConfig) error {
 	if newCfg != nil {
+		if err := newCfg.Validate(); err != nil {
+			return fmt.Errorf("observability: invalid reload config: %w", err)
+		}
+
+		if !isPullConfigEqual(r.cfg.Pull, newCfg.Pull) {
+			return errors.New(
+				"observability: reload does not support modifying pull configuration (address, path, enabled)",
+			)
+		}
+
+		if !isMetricsConfigEqual(r.cfg.Metrics, newCfg.Metrics) {
+			return errors.New(
+				"observability: reload does not support modifying metrics configuration (labels, filters)",
+			)
+		}
+
 		oldInterval := r.cfg.Interval
 		r.cfg = *newCfg
 		r.updateExporters(newCfg.Push)
@@ -136,6 +156,30 @@ func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMet
 	if newReqMeta != nil {
 		r.reqMeta = newReqMeta
 	}
+
+	return nil
+}
+
+func isPullConfigEqual(a, b PullConfig) bool {
+	if a.Enabled != b.Enabled {
+		return false
+	}
+
+	if !a.Enabled {
+		return true
+	}
+
+	return a.Address == b.Address && a.Path == b.Path
+}
+
+func isMetricsConfigEqual(a, b MetricsFilterConfig) bool {
+	if a.IncludeTLS != b.IncludeTLS ||
+		a.IncludeCertChain != b.IncludeCertChain ||
+		a.StripQuery != b.StripQuery {
+		return false
+	}
+
+	return maps.Equal(a.CustomLabels, b.CustomLabels)
 }
 
 func (r *Runner) updateExporters(push PushConfig) {
