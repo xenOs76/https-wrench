@@ -128,7 +128,6 @@ func TestConfig_ValidateCustomLabels(t *testing.T) {
 		"transport_address",
 		"body_match",
 		"chain_index",
-		"subject",
 		"tls_version",
 	}
 
@@ -144,6 +143,16 @@ func TestConfig_ValidateCustomLabels(t *testing.T) {
 			assert.Contains(t, err.Error(), "conflicts with reserved collector label")
 		})
 	}
+
+	t.Run("allows subject and matched_value as custom labels", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Metrics.CustomLabels = map[string]string{
+			"subject":       "custom-subject",
+			"matched_value": "custom-val",
+		}
+		require.NoError(t, cfg.Validate())
+	})
 
 	t.Run("NewRunner rejects conflicting custom labels without panicking", func(t *testing.T) {
 		cfg := DefaultConfig()

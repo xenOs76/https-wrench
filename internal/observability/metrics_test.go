@@ -103,8 +103,22 @@ func assertRecordedMetricLabels(t *testing.T, mfs []*dto.MetricFamily) {
 	require.NotEmpty(t, probeBodyMF.Metric)
 	bodyLabels := metricLabels(probeBodyMF.Metric[0])
 	assert.Equal(t, "OK (response)", bodyLabels["regexp"])
-	assert.Equal(t, "response", bodyLabels["matched_value"])
+	assert.NotContains(t, bodyLabels, "matched_value")
 	assert.InDelta(t, 1.0, *probeBodyMF.Metric[0].Gauge.Value, 0.0001)
+
+	sslDaysMF := findMetricFamily(mfs, "https_wrench_ssl_cert_days_until_expiry")
+	require.NotNil(t, sslDaysMF)
+	require.NotEmpty(t, sslDaysMF.Metric)
+	sslDaysLabels := metricLabels(sslDaysMF.Metric[0])
+	assert.Equal(t, "0", sslDaysLabels["chain_index"])
+	assert.NotContains(t, sslDaysLabels, "subject")
+
+	sslValidMF := findMetricFamily(mfs, "https_wrench_ssl_cert_valid")
+	require.NotNil(t, sslValidMF)
+	require.NotEmpty(t, sslValidMF.Metric)
+	sslValidLabels := metricLabels(sslValidMF.Metric[0])
+	assert.Equal(t, "0", sslValidLabels["chain_index"])
+	assert.NotContains(t, sslValidLabels, "subject")
 
 	probeRequestsMF := findMetricFamily(mfs, "https_wrench_probe_requests_total")
 	require.NotNil(t, probeRequestsMF)

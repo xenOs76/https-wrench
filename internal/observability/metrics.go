@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -105,7 +106,7 @@ func (m *Metrics) initProbeMetrics() {
 			Name: "https_wrench_probe_body_matches",
 			Help: "Whether response body matched regex (1 for match, 0 for mismatch).",
 		},
-		[]string{"request_name", "host", "uri", "regexp", "matched_value"},
+		[]string{"request_name", "host", "uri", "regexp"},
 	)
 
 	m.probeResponseSize = prometheus.NewGaugeVec(
@@ -139,7 +140,7 @@ func (m *Metrics) initSSLMetrics() {
 			Name: "https_wrench_ssl_cert_days_until_expiry",
 			Help: "Number of days until certificate expires.",
 		},
-		[]string{"request_name", "host", "subject", "chain_index"},
+		[]string{"request_name", "host", "chain_index"},
 	)
 
 	m.sslCertValid = prometheus.NewGaugeVec(
@@ -147,7 +148,7 @@ func (m *Metrics) initSSLMetrics() {
 			Name: "https_wrench_ssl_cert_valid",
 			Help: "Whether certificate is currently valid (1 for valid, 0 for expired/invalid).",
 		},
-		[]string{"request_name", "host", "subject", "chain_index"},
+		[]string{"request_name", "host", "chain_index"},
 	)
 
 	m.sslTLSVersionInfo = prometheus.NewGaugeVec(
@@ -297,7 +298,17 @@ func (m *Metrics) recordSingleResponse(
 		regexpPattern := rd.Request.ResponseBodyMatchRegexp
 		matchedValue := extractMatchedValue(regexpPattern, rd.ResponseBody, respRes.Body)
 
-		m.probeBodyMatches.WithLabelValues(reqName, parsedHost, parsedURI, regexpPattern, matchedValue).Set(matchVal)
+		m.probeBodyMatches.WithLabelValues(reqName, parsedHost, parsedURI, regexpPattern).Set(matchVal)
+
+		slog.Info(
+			"probe body regex match",
+			"request_name", reqName,
+			"host", parsedHost,
+			"uri", parsedURI,
+			"regexp", regexpPattern,
+			"matched", *respRes.BodyRegexpMatched,
+			"matched_value", matchedValue,
+		)
 	}
 
 	if m.cfg.IncludeTLS && respRes.TLS != nil {
@@ -377,8 +388,9 @@ func (m *Metrics) recordCertificates(reqName, host string, certs []certinfo.Cert
 
 func (m *Metrics) recordSingleCertificate(reqName, host string, cert certinfo.CertInfo) {
 	chainIndexStr := strconv.Itoa(cert.Index)
+
 	m.sslDaysUntilExpiry.WithLabelValues(
-		reqName, host, cert.Subject, chainIndexStr,
+		reqName, host, chainIndexStr,
 	).Set(cert.DaysUntilExpiry)
 
 	validVal := 0.0
@@ -387,8 +399,17 @@ func (m *Metrics) recordSingleCertificate(reqName, host string, cert certinfo.Ce
 	}
 
 	m.sslCertValid.WithLabelValues(
-		reqName, host, cert.Subject, chainIndexStr,
+		reqName, host, chainIndexStr,
 	).Set(validVal)
+
+	slog.Info(
+		"certificate subject details",
+		"request_name", reqName,
+		"host", host,
+		"chain_index", cert.Index,
+		"subject", cert.Subject,
+		"days_until_expiry", cert.DaysUntilExpiry,
+	)
 }
 
 func parseCertExpiry(cert certinfo.CertInfo) int64 {

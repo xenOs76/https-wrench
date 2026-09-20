@@ -32,7 +32,7 @@
 
     Observability: generate comprehensive probe, TLS, and collector metrics (`https_wrench_probe_success`, `https_wrench_probe_duration_seconds`, `https_wrench_probe_last_duration_seconds`, `https_wrench_probe_status_code`, `https_wrench_probe_requests_total`, `https_wrench_probe_response_size_bytes`, `https_wrench_ssl_earliest_cert_expiry_seconds`, `https_wrench_ssl_cert_days_until_expiry`, `https_wrench_ssl_cert_valid`, `https_wrench_ssl_tls_version_info`, `https_wrench_scrape_collector_duration_seconds`, `https_wrench_push_last_timestamp_seconds`, and `https_wrench_push_errors_total`).
 
-    Observability: add regex pattern (`regexp`) and matched value (`matched_value`) labels to `https_wrench_probe_body_matches` metric when `responseBodyMatchRegexp` matches.
+    Observability: add regex pattern (`regexp`) label to `https_wrench_probe_body_matches` metric and record matched values and certificate subjects in structured logs.
 
     Observability: add metrics cardinality and label controls (`includeTls`, `includeCertChain`, `stripQuery`, `customLabels`).
 

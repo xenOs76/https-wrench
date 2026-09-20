@@ -79,8 +79,8 @@ requests:
     # When configured, https-wrench exports:
     #   - https_wrench_probe_body_matches (1 for match, 0 for mismatch) with labels:
     #     - regexp: the pattern
-    #     - matched_value: the captured submatch (if () capture group used) or match substring (up to 64 chars)
     #   - https_wrench_probe_requests_total includes label body_match="matched|mismatched|none"
+    #   (The matched value and certificate subject are recorded in structured logs to preserve bounded metric cardinality)
     responseBodyMatchRegexp: "\"status\":\\s*\"([a-zA-Z]+)\""
     hosts:
       - name: api.example.com
