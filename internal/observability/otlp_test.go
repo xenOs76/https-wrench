@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	otlpmetricsv1 "go.opentelemetry.io/proto/otlp/metrics/v1"
@@ -85,4 +86,30 @@ func TestOTLPExporter(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 400")
 	})
+}
+
+func TestExtractHistogramBuckets_IncludesInfBucket(t *testing.T) {
+	t.Parallel()
+
+	bound1 := 0.1
+	count1 := uint64(2)
+	bound2 := 0.5
+	count2 := uint64(5)
+	sampleCount := uint64(9)
+
+	h := &dto.Histogram{
+		SampleCount: &sampleCount,
+		Bucket: []*dto.Bucket{
+			{UpperBound: &bound1, CumulativeCount: &count1},
+			{UpperBound: &bound2, CumulativeCount: &count2},
+		},
+	}
+
+	bounds, counts := extractHistogramBuckets(h)
+
+	assert.Equal(t, []float64{0.1, 0.5}, bounds)
+	// BucketCounts has one more entry than ExplicitBounds:
+	// delta 0: 2, delta 1: 5-2=3, +Inf: 9-5=4
+	assert.Equal(t, []uint64{2, 3, 4}, counts)
+	assert.Len(t, counts, len(bounds)+1)
 }

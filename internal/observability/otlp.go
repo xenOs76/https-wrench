@@ -298,6 +298,18 @@ func extractHistogramBuckets(h *dto.Histogram) ([]float64, []uint64) {
 		}
 	}
 
+	sampleCount := uint64(0)
+	if h.SampleCount != nil {
+		sampleCount = *h.SampleCount
+	}
+
+	var infCount uint64
+	if sampleCount > lastCount {
+		infCount = sampleCount - lastCount
+	}
+
+	counts = append(counts, infCount)
+
 	return bounds, counts
 }
 

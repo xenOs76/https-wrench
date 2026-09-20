@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,4 +87,32 @@ func TestRemoteWriteExporter(t *testing.T) {
 		require.Error(t, exportErr)
 		assert.Contains(t, exportErr.Error(), "internal database error")
 	})
+}
+
+func TestExtractHistogramSeries_IncludesInfBucket(t *testing.T) {
+	t.Parallel()
+
+	bound1 := 0.1
+	count1 := uint64(2)
+	bound2 := 0.5
+	count2 := uint64(5)
+	sampleCount := uint64(7)
+	sampleSum := 1.25
+
+	h := &dto.Histogram{
+		SampleCount: &sampleCount,
+		SampleSum:   &sampleSum,
+		Bucket: []*dto.Bucket{
+			{UpperBound: &bound1, CumulativeCount: &count1},
+			{UpperBound: &bound2, CumulativeCount: &count2},
+		},
+	}
+
+	series := extractHistogramSeries("test_latency", h, nil, 1000)
+	// 2 finite buckets + 1 "+Inf" bucket + 1 sum + 1 count = 5 series
+	require.Len(t, series, 5)
+
+	// Verify the third series is the +Inf bucket
+	assert.Contains(t, string(series[2]), "le")
+	assert.Contains(t, string(series[2]), "+Inf")
 }

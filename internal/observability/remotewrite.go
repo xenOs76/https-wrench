@@ -176,7 +176,10 @@ func extractLabels(name string, labelPairs []*dto.LabelPair) [][2]string {
 }
 
 func extractHistogramSeries(name string, h *dto.Histogram, labelPairs []*dto.LabelPair, ts int64) [][]byte {
-	var result [][]byte
+	var (
+		result [][]byte
+		hasInf bool
+	)
 
 	// 1. Buckets: name + "_bucket" with label "le"
 	for _, b := range h.Bucket {
@@ -184,13 +187,28 @@ func extractHistogramSeries(name string, h *dto.Histogram, labelPairs []*dto.Lab
 			continue
 		}
 
+		boundStr := strconv.FormatFloat(*b.UpperBound, 'f', -1, 64)
+		if boundStr == "+Inf" {
+			hasInf = true
+		}
+
 		bucketLabels := extractLabels(name+"_bucket", labelPairs)
-		bucketLabels = append(bucketLabels, [2]string{"le", strconv.FormatFloat(*b.UpperBound, 'f', -1, 64)})
+		bucketLabels = append(bucketLabels, [2]string{"le", boundStr})
 		slices.SortFunc(bucketLabels, func(a, b [2]string) int {
 			return strings.Compare(a[0], b[0])
 		})
 
 		result = append(result, encodeTimeSeries(bucketLabels, float64(*b.CumulativeCount), ts))
+	}
+
+	if !hasInf && h.SampleCount != nil {
+		infLabels := extractLabels(name+"_bucket", labelPairs)
+		infLabels = append(infLabels, [2]string{"le", "+Inf"})
+		slices.SortFunc(infLabels, func(a, b [2]string) int {
+			return strings.Compare(a[0], b[0])
+		})
+
+		result = append(result, encodeTimeSeries(infLabels, float64(*h.SampleCount), ts))
 	}
 
 	// 2. Sum: name + "_sum"
