@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -93,6 +94,10 @@ func (c *Config) Validate() error {
 	}
 
 	if err := c.validatePushOTLP(); err != nil {
+		return err
+	}
+
+	if err := c.validateCustomLabels(); err != nil {
 		return err
 	}
 
@@ -204,6 +209,47 @@ func (c *Config) validateModes() error {
 		return errors.New(
 			"observability: at least one propagation mode (pull, push.prometheus, push.otlp) must be enabled",
 		)
+	}
+
+	return nil
+}
+
+var reservedCollectorLabels = map[string]struct{}{
+	"body_match":        {},
+	"chain_index":       {},
+	"cipher_suite":      {},
+	"exporter":          {},
+	"host":              {},
+	"key_exchange":      {},
+	"matched_value":     {},
+	"method":            {},
+	"regexp":            {},
+	"request_name":      {},
+	"result":            {},
+	"status_code":       {},
+	"subject":           {},
+	"tls_version":       {},
+	"transport_address": {},
+	"uri":               {},
+}
+
+func (c *Config) validateCustomLabels() error {
+	if len(c.Metrics.CustomLabels) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(c.Metrics.CustomLabels))
+
+	for k := range c.Metrics.CustomLabels {
+		keys = append(keys, k)
+	}
+
+	slices.Sort(keys)
+
+	for _, name := range keys {
+		if _, exists := reservedCollectorLabels[name]; exists {
+			return fmt.Errorf("observability: metrics.customLabels %q conflicts with reserved collector label", name)
+		}
 	}
 
 	return nil

@@ -103,3 +103,57 @@ func TestConfig_ValidatePullPath(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_ValidateCustomLabels(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid custom labels succeed", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Metrics.CustomLabels = map[string]string{
+			"env":     "production",
+			"cluster": "us-east-1",
+			"app":     "test",
+		}
+		require.NoError(t, cfg.Validate())
+	})
+
+	conflictingLabels := []string{
+		"host",
+		"uri",
+		"request_name",
+		"method",
+		"status_code",
+		"exporter",
+		"transport_address",
+		"body_match",
+		"chain_index",
+		"subject",
+		"tls_version",
+	}
+
+	for _, label := range conflictingLabels {
+		t.Run("rejects conflicting custom label "+label, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Enabled = true
+			cfg.Metrics.CustomLabels = map[string]string{
+				label: "invalid-value",
+			}
+			err := cfg.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "conflicts with reserved collector label")
+		})
+	}
+
+	t.Run("NewRunner rejects conflicting custom labels without panicking", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Metrics.CustomLabels = map[string]string{
+			"host": "conflict-value",
+		}
+		runner, err := NewRunner(cfg, nil)
+		require.Error(t, err)
+		assert.Nil(t, runner)
+		assert.Contains(t, err.Error(), "conflicts with reserved collector label")
+	})
+}
