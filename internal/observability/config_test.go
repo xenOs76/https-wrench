@@ -61,3 +61,45 @@ func TestConfig_DefaultsAndValidation(t *testing.T) {
 		assert.Contains(t, err.Error(), "at least one propagation mode")
 	})
 }
+
+func TestConfig_ValidatePullPath(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty path falls back to default pull path", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Pull.Path = ""
+		require.NoError(t, cfg.Validate())
+		assert.Equal(t, DefaultPullPath, cfg.Pull.Path)
+	})
+
+	t.Run("valid custom path succeeds", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Pull.Path = "/custom/metrics"
+		require.NoError(t, cfg.Validate())
+		assert.Equal(t, "/custom/metrics", cfg.Pull.Path)
+	})
+
+	for _, reserved := range []string{"/healthz", "/readyz", "/-/reload", "GET /healthz", "POST /-/reload"} {
+		t.Run("rejects reserved path "+reserved, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Enabled = true
+			cfg.Pull.Path = reserved
+			err := cfg.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "conflicts with reserved endpoint")
+		})
+	}
+
+	for _, malformed := range []string{"invalid-no-leading-slash", "/metrics/{bad"} {
+		t.Run("rejects malformed pattern "+malformed, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Enabled = true
+			cfg.Pull.Path = malformed
+			err := cfg.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid pull.path")
+		})
+	}
+}

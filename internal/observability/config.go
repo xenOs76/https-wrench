@@ -2,6 +2,9 @@ package observability
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -80,7 +83,10 @@ func DefaultConfig() Config {
 // Validate verifies and sets sensible defaults for Config.
 func (c *Config) Validate() error {
 	c.validateIntervalAndTimeout()
-	c.validatePull()
+
+	if err := c.validatePull(); err != nil {
+		return err
+	}
 
 	if err := c.validatePushPrometheus(); err != nil {
 		return err
@@ -107,9 +113,11 @@ func (c *Config) validateIntervalAndTimeout() {
 	}
 }
 
-func (c *Config) validatePull() {
+var reservedPullPaths = [...]string{"/healthz", "/readyz", "/-/reload"}
+
+func (c *Config) validatePull() error {
 	if !c.Pull.Enabled {
-		return
+		return nil
 	}
 
 	if c.Pull.Address == "" {
@@ -119,6 +127,40 @@ func (c *Config) validatePull() {
 	if c.Pull.Path == "" {
 		c.Pull.Path = DefaultPullPath
 	}
+
+	return validatePullPath(c.Pull.Path)
+}
+
+func validatePullPath(path string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("observability: invalid pull.path %q: %v", path, r)
+		}
+	}()
+
+	patternPath := path
+	if idx := strings.IndexByte(path, ' '); idx != -1 {
+		patternPath = path[idx+1:]
+	}
+
+	if hostIdx := strings.IndexByte(patternPath, '/'); hostIdx != -1 {
+		patternPath = patternPath[hostIdx:]
+	}
+
+	for _, reserved := range reservedPullPaths {
+		if patternPath == reserved {
+			return fmt.Errorf("observability: pull.path %q conflicts with reserved endpoint %s", path, reserved)
+		}
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(path, http.NotFoundHandler())
+
+	for _, reserved := range reservedPullPaths {
+		mux.Handle(reserved, http.NotFoundHandler())
+	}
+
+	return nil
 }
 
 func (c *Config) validatePushPrometheus() error {
