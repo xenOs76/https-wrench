@@ -169,7 +169,8 @@ func isPullConfigEqual(a, b PullConfig) bool {
 		return true
 	}
 
-	return a.Address == b.Address && a.Path == b.Path
+	return a.Address == b.Address && a.Path == b.Path &&
+		a.ReloadToken == b.ReloadToken && a.ReloadSecret == b.ReloadSecret
 }
 
 func isMetricsConfigEqual(a, b MetricsFilterConfig) bool {

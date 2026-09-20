@@ -34,9 +34,20 @@ type Config struct {
 
 // PullConfig configures the Prometheus pull HTTP scrape server.
 type PullConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Address string `mapstructure:"address"`
-	Path    string `mapstructure:"path"`
+	Enabled      bool   `mapstructure:"enabled"`
+	Address      string `mapstructure:"address"`
+	Path         string `mapstructure:"path"`
+	ReloadToken  string `mapstructure:"reloadToken"`
+	ReloadSecret string `mapstructure:"reloadSecret"`
+}
+
+// ReloadAuthToken returns the configured reload credential if any, trimmed of whitespace.
+func (p PullConfig) ReloadAuthToken() string {
+	if p.ReloadToken != "" {
+		return strings.TrimSpace(p.ReloadToken)
+	}
+
+	return strings.TrimSpace(p.ReloadSecret)
 }
 
 // PushConfig configures push destinations (Prometheus remote_write and/or OpenTelemetry OTLP).

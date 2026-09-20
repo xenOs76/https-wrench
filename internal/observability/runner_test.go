@@ -193,6 +193,12 @@ func TestRunner_Reload_RejectNonReloadablePull(t *testing.T) {
 				cfg.Push.OTLP.Endpoint = "http://127.0.0.1:4318"
 			},
 		},
+		{
+			name: "reject pull reload token change",
+			modifyCfg: func(cfg *Config) {
+				cfg.Pull.ReloadToken = "new-token"
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -294,6 +294,14 @@
           "type": "string",
           "default": "/metrics",
           "description": "URL path for Prometheus metrics exposition."
+        },
+        "reloadToken": {
+          "type": "string",
+          "description": "Optional secret token required to authorize POST /-/reload requests from non-loopback addresses."
+        },
+        "reloadSecret": {
+          "type": "string",
+          "description": "Alias for reloadToken."
         }
       }
     },

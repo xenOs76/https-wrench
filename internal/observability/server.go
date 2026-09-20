@@ -2,10 +2,12 @@ package observability
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,7 +75,7 @@ func (s *Server) RegisterReloadHandler(fn func() error) {
 			return
 		}
 
-		if !isAuthorizedReload(r) {
+		if !s.isAuthorizedReload(r) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
@@ -88,9 +90,22 @@ func (s *Server) RegisterReloadHandler(fn func() error) {
 	})
 }
 
-func isAuthorizedReload(r *http.Request) bool {
-	if r.Header.Get("Authorization") != "" {
-		return true
+func (s *Server) isAuthorizedReload(r *http.Request) bool {
+	return isAuthorizedReload(r, s.cfg)
+}
+
+func isAuthorizedReload(r *http.Request, cfg ...PullConfig) bool {
+	var pullCfg PullConfig
+	if len(cfg) > 0 {
+		pullCfg = cfg[0]
+	}
+
+	expected := pullCfg.ReloadAuthToken()
+	if expected != "" {
+		authHeader := r.Header.Get("Authorization")
+		if verifyReloadCredential(authHeader, expected) {
+			return true
+		}
 	}
 
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -104,6 +119,26 @@ func isAuthorizedReload(r *http.Request) bool {
 	}
 
 	return ip.IsLoopback()
+}
+
+func verifyReloadCredential(authHeader, expected string) bool {
+	if authHeader == "" || expected == "" {
+		return false
+	}
+
+	trimmed := strings.TrimSpace(authHeader)
+	if subtle.ConstantTimeCompare([]byte(trimmed), []byte(expected)) == 1 {
+		return true
+	}
+
+	if len(trimmed) > 7 && strings.EqualFold(trimmed[:7], "bearer ") {
+		token := strings.TrimSpace(trimmed[7:])
+		if subtle.ConstantTimeCompare([]byte(token), []byte(expected)) == 1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Start binds the listener and begins serving HTTP requests in the background.
