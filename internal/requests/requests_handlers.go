@@ -229,6 +229,14 @@ func HandleRequests(
 // ImportResponseBody reads the response body, handles regex matching, and stores clean body text.
 func (rd *ResponseData) ImportResponseBody() {
 	if len(rd.ResponseBody) > 0 {
+		if rd.TransferredBytes == 0 {
+			rd.TransferredBytes = int64(len(rd.ResponseBody))
+		}
+
+		return
+	}
+
+	if rd.Response == nil || rd.Response.Body == nil {
 		return
 	}
 
@@ -238,6 +246,8 @@ func (rd *ResponseData) ImportResponseBody() {
 
 		return
 	}
+
+	rd.TransferredBytes = int64(len(body))
 
 	// Early evaluation of regexp match against raw body bytes.
 	// It will fail if evaluated against a syntax highlighted body.
@@ -250,8 +260,10 @@ func (rd *ResponseData) ImportResponseBody() {
 		}
 	}
 
-	contentType := rd.Response.Header.Get("Content-Type")
+	rd.ResponseContentType, rd.ResponseBody = formatResponseBody(body, rd.Response.Header.Get("Content-Type"))
+}
 
+func formatResponseBody(body []byte, contentType string) (language, formatted string) {
 	for _, item := range contentTypeMatchingItems {
 		rex := regexp.MustCompile(item.regexp)
 
@@ -269,14 +281,11 @@ func (rd *ResponseData) ImportResponseBody() {
 		}
 
 		if matched := rex.MatchString(contentType); matched {
-			rd.ResponseContentType = item.language
-			rd.ResponseBody = code
-
-			return
+			return item.language, code
 		}
 	}
 
-	rd.ResponseBody = string(body)
+	return "", string(body)
 }
 
 // PrintResponseData prints the collected response data (status, headers, body) if verbose mode is enabled.

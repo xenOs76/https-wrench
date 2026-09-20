@@ -171,6 +171,8 @@ type ResponseData struct {
 	ResponseContentType string
 	// ResponseBodyRegexpMatched indicates if the response body matched the configured regexp.
 	ResponseBodyRegexpMatched bool
+	// TransferredBytes is the actual number of response body bytes read from the connection.
+	TransferredBytes int64
 	// Response is the raw HTTP response object.
 	Response *http.Response
 	// Error is any error encountered during the request.
@@ -1141,11 +1143,12 @@ func executeSingleRequest(
 	}
 
 	start := time.Now()
-	resp, err := reqClient.client.Do(req)
 
-	responseData.Duration = time.Since(start)
+	resp, err := reqClient.client.Do(req)
 	if err != nil {
+		responseData.Duration = time.Since(start)
 		responseData.Error = err
+
 		return responseData
 	}
 
@@ -1153,9 +1156,9 @@ func executeSingleRequest(
 
 	responseData.Response = resp
 
-	if r.ResponseBodyMatchRegexp != emptyString || responseData.Request.PrintResponseBody {
-		responseData.ImportResponseBody()
-	}
+	responseData.ImportResponseBody()
+
+	responseData.Duration = time.Since(start)
 
 	if err := resp.Body.Close(); err != nil {
 		fmt.Printf("unable to close response Body: %v\n", err)

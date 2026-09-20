@@ -60,6 +60,7 @@ func sampleResultData() (*RequestsMetaConfig, map[string][]ResponseData) {
 				ResponseBody:              "{\"status\":\"ok\"}",
 				ResponseContentType:       "json",
 				ResponseBodyRegexpMatched: matched,
+				TransferredBytes:          15,
 			},
 			{
 				URL:              "https://example.com/fail",
@@ -101,6 +102,7 @@ func TestRequests_BuildResult(t *testing.T) {
 	assert.True(t, *okResp.BodyRegexpMatched)
 	assert.JSONEq(t, "{\"status\":\"ok\"}", okResp.Body)
 	assert.Equal(t, "json", okResp.ContentType)
+	assert.Equal(t, int64(15), okResp.TransferredBytes)
 	require.NotNil(t, okResp.TLS)
 	assert.Equal(t, "TLS 1.3", okResp.TLS.Version)
 	assert.Equal(t, "TLS_AES_128_GCM_SHA256", okResp.TLS.CipherSuite)

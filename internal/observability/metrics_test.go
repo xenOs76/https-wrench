@@ -24,6 +24,7 @@ func buildTestProbeResult(matched *bool) (*requests.Result, map[string][]request
 						StatusCode:        200,
 						Body:              "OK response",
 						BodyRegexpMatched: matched,
+						TransferredBytes:  11,
 						TLS: &requests.ResponseTLSResult{
 							Version:     "TLS 1.3",
 							CipherSuite: "TLS_AES_128_GCM_SHA256",
@@ -51,6 +52,7 @@ func buildTestProbeResult(matched *bool) (*requests.Result, map[string][]request
 					ResponseBodyMatchRegexp: "OK (response)",
 				},
 				ResponseBody:     "OK response",
+				TransferredBytes: 11,
 				TransportAddress: "127.0.0.1:8443",
 			},
 		},
@@ -125,6 +127,11 @@ func assertRecordedMetricLabels(t *testing.T, mfs []*dto.MetricFamily) {
 	require.NotEmpty(t, probeRequestsMF.Metric)
 	reqLabels := metricLabels(probeRequestsMF.Metric[0])
 	assert.Equal(t, "matched", reqLabels["body_match"])
+
+	probeSizeMF := findMetricFamily(mfs, "https_wrench_probe_response_size_bytes")
+	require.NotNil(t, probeSizeMF)
+	require.NotEmpty(t, probeSizeMF.Metric)
+	assert.InDelta(t, 11.0, *probeSizeMF.Metric[0].Gauge.Value, 0.0001)
 }
 
 func TestMetrics_RecordRun(t *testing.T) {

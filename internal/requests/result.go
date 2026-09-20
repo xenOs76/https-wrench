@@ -44,6 +44,7 @@ type ResponseResult struct {
 	Body              string              `json:"body,omitempty"`
 	ContentType       string              `json:"contentType,omitempty"`
 	BodyRegexpMatched *bool               `json:"bodyRegexpMatched,omitempty"`
+	TransferredBytes  int64               `json:"transferredBytes,omitempty"`
 	TLS               *ResponseTLSResult  `json:"tls,omitempty"`
 }
 
@@ -102,6 +103,7 @@ func buildResponseResult(rd ResponseData) ResponseResult {
 	respRes := ResponseResult{
 		URL:              rd.URL,
 		TransportAddress: rd.TransportAddress,
+		TransferredBytes: rd.TransferredBytes,
 	}
 
 	if rd.Duration > 0 {

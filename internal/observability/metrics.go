@@ -286,7 +286,7 @@ func (m *Metrics) recordSingleResponse(
 	m.probeDuration.WithLabelValues(reqName, parsedHost, parsedURI, method).Observe(durationSec)
 	m.probeLastDuration.WithLabelValues(reqName, parsedHost, parsedURI, method).Set(durationSec)
 	m.probeStatusCode.WithLabelValues(reqName, parsedHost, parsedURI).Set(float64(statusCode))
-	m.probeResponseSize.WithLabelValues(reqName, parsedHost, parsedURI).Set(float64(len(respRes.Body)))
+	m.probeResponseSize.WithLabelValues(reqName, parsedHost, parsedURI).Set(float64(respRes.TransferredBytes))
 	m.probeRequestsTotal.WithLabelValues(reqName, parsedHost, parsedURI, statusCodeStr, resultStr, bodyMatchStr).Inc()
 
 	if respRes.BodyRegexpMatched != nil {
