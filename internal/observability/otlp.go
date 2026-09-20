@@ -22,7 +22,6 @@ type PushOTLPConfig struct {
 	Enabled  bool              `mapstructure:"enabled"`
 	Endpoint string            `mapstructure:"endpoint"`
 	Protocol string            `mapstructure:"protocol"`
-	Insecure bool              `mapstructure:"insecure"`
 	Timeout  time.Duration     `mapstructure:"timeout"`
 	Headers  map[string]string `mapstructure:"headers"`
 }
