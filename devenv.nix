@@ -1130,9 +1130,41 @@ in
     gum format "# Testing Alloy receivers with https-wrench..."
     go run main.go requests --config assets/examples/https-wrench-alloy-local.yaml --observe &
     WRENCH_PID=$!
-    sleep 4
-    kill $WRENCH_PID 2>/dev/null || true
-    wait $WRENCH_PID 2>/dev/null || true
+
+    cleanup() {
+      if [ -n "$WRENCH_PID" ] && kill -0 $WRENCH_PID 2>/dev/null; then
+        kill $WRENCH_PID 2>/dev/null || true
+        wait $WRENCH_PID 2>/dev/null || true
+      fi
+    }
+    trap cleanup EXIT
+
+    DELIVERY_OBSERVED=false
+    for i in $(seq 1 30); do
+      if curl -s http://127.0.0.1:12345/metrics 2>/dev/null | grep -qE "(otelcol_receiver_accepted_metric_points_total|prometheus_receive_http_request_duration_seconds_count)"; then
+        DELIVERY_OBSERVED=true
+        break
+      fi
+      if ! kill -0 $WRENCH_PID 2>/dev/null; then
+        wait $WRENCH_PID 2>/dev/null
+        EXIT_CODE=$?
+        if [ "$EXIT_CODE" -eq 0 ]; then EXIT_CODE=1; fi
+        echo "ERROR: https-wrench process exited prematurely with code $EXIT_CODE before delivery was observed." >&2
+        cleanup
+        trap - EXIT
+        exit $EXIT_CODE
+      fi
+      sleep 0.5
+    done
+
+    cleanup
+    trap - EXIT
+
+    if [ "$DELIVERY_OBSERVED" != "true" ]; then
+      echo "ERROR: Timed out waiting for Alloy metric delivery." >&2
+      exit 1
+    fi
+
     gum format "## Alloy receivers successfully received metrics from https-wrench."
   '';
 
