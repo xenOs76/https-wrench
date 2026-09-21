@@ -36,8 +36,7 @@ observability:
     # Prometheus remote_write receiver on Alloy (port 9999)
     prometheus:
       enabled: true
-      # remoteWriteUrl: "http://127.0.0.1:9999/api/v1/metrics/write"
-      remoteWriteUrl: "https://prometheus.k3s.os76.xyz/api/v1/write"
+      remoteWriteUrl: "http://127.0.0.1:9999/api/v1/metrics/write"
       timeout: 5s
       headers:
         X-Source: "https-wrench-local"
@@ -67,7 +66,7 @@ observability:
     customLabels:
       job: "https-wrench"
       instance: "localhost"
-      target: "franti"
+      target: "httpbin-os76"
 
 ## requests - List of HTTPS requests to probe periodically
 requests:
@@ -81,6 +80,7 @@ requests:
     #     - regexp: the pattern
     #   - https_wrench_probe_requests_total includes label body_match="matched|mismatched|none"
     #   (The matched value and certificate subject are recorded in structured logs to preserve bounded metric cardinality)
+    responseBodyMatchRegexp: noMatchRegexp
     hosts:
       - name: httpbin.os76.xyz
         uriList:
@@ -104,10 +104,11 @@ requests:
     transportOverrideUrl: https://httpbin.os76.xyz:445
     enableProxyProtocolV2: true
     userAgent: https-wrench-o11y-test-445
+    responseBodyMatchRegexp: teapot
     hosts:
       - name: httpbin.os76.xyz
         uriList:
           - /status/200
           - /status/302
-          - /status/404
-          - /status/503
+          - /status/418
+          - /status/501

@@ -150,7 +150,7 @@ https-wrench requests --config https-wrench-sample-config.yaml --format json
 `https-wrench` can run in continuous observability mode, periodically executing synthetic probe cycles and exposing metrics for scraping or pushing to remote telemetry backends:
 
 ```shell
-https-wrench requests --config https-wrench-observability.yaml --observe --interval 30s
+https-wrench requests --config https-wrench-observability-httpbin.yaml --observe --interval 30s
 ```
 
 - **Prometheus Scrape Server (Pull)**: Exposes metrics at `:9090/metrics` (configurable address and path).
@@ -170,7 +170,6 @@ https-wrench requests --config https-wrench-observability.yaml --observe --inter
   - `SIGHUP` signal trapping for process reload without restart.
   - Safe reload fallback preserving the last known valid configuration if reload validation fails.
 - **Example Configurations**:
-  - [`assets/examples/https-wrench-observability.yaml`](./assets/examples/https-wrench-observability.yaml): Complete standalone observability configuration.
   - [`assets/examples/https-wrench-observability-httpbin.yaml`](./assets/examples/https-wrench-observability-httpbin.yaml): Example probes with regex matching, TLS, and Proxy Protocol v2.
   - [`assets/examples/https-wrench-alloy-local.yaml`](./assets/examples/https-wrench-alloy-local.yaml): Local Grafana Alloy push configuration.
 - **Grafana Dashboard**:
