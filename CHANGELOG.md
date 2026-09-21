@@ -36,13 +36,27 @@
 
     Observability: add metrics cardinality and label controls (`includeTls`, `includeCertChain`, `stripQuery`, `customLabels`).
 
+    Dashboards: add production-grade Grafana dashboard (`assets/examples/dashboards/https-wrench.json`) and documentation (`assets/examples/dashboards/README.md`) visualizing synthetic probe latency, availability, HTTP status codes, TLS parameters, and certificate expiry.
+
     Schema: add JSON schema validation for top-level `observability` configuration block in `https-wrench.schema.json` and `internal/mcp/assets/schema.json`.
 
     Devenv: configure Grafana Alloy receiver service in `devenv.nix` with OTLP HTTP (4318), OTLP gRPC (4317), and Prometheus remote_write (9999) receivers bridging into debug logging, plus test scripts and helper commands (`run-alloy`, `test-alloy-standalone`, `test-alloy-receivers`).
 
+    Examples: add `assets/examples/https-wrench-observability-httpbin.yaml` testing live endpoints with response body regex matching, TLS, and Proxy Protocol v2.
+
     Examples: add `assets/examples/https-wrench-observability.yaml` and `assets/examples/https-wrench-alloy-local.yaml` demonstrating full pull and push observability pipelines.
 
 ### Fix
+
+    Observability: automatically capture TLS connection parameters and certificate lifecycle metrics when `includeTls: true` by extracting TLS state directly from response, eliminating the need to set `printResponseCertificates: true` on individual requests.
+
+    Observability: update `PullConfig.ReloadAuthToken` to trim `ReloadToken` before checking whether it is non-empty, properly falling back to `ReloadSecret`.
+
+    Dashboards: update `https_wrench_ssl_earliest_cert_expiry_seconds` query expression in Grafana dashboard to multiply epoch seconds by 1000 for compatibility with `dateTimeAsIso` millisecond formatting.
+
+    Observability: verify pull reload credentials against `ReloadAuthToken` and reject arbitrary authorization headers.
+
+    Observability: ensure remote write and OTLP histograms include `+Inf` bucket, inspect OTLP responses for partial success rejections, and consume response bodies to record transferred bytes.
 
     Observability: resolve revive static analysis issues (`unnecessary-format` in config validation, `flag-parameter` in URL parsing, and `function-length` in metrics and runner tests).
 
