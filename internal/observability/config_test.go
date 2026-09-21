@@ -166,3 +166,64 @@ func TestConfig_ValidateCustomLabels(t *testing.T) {
 		assert.Contains(t, err.Error(), "conflicts with reserved collector label")
 	})
 }
+
+func TestPullConfig_ReloadAuthToken(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		cfg      PullConfig
+		expected string
+	}{
+		{
+			name:     "both empty",
+			cfg:      PullConfig{},
+			expected: "",
+		},
+		{
+			name: "reload token trimmed when present",
+			cfg: PullConfig{
+				ReloadToken: "  my-token  ",
+			},
+			expected: "my-token",
+		},
+		{
+			name: "reload token takes precedence over reload secret",
+			cfg: PullConfig{
+				ReloadToken:  "  my-token  ",
+				ReloadSecret: "  my-secret ",
+			},
+			expected: "my-token",
+		},
+		{
+			name: "whitespace reload token falls back to trimmed reload secret",
+			cfg: PullConfig{
+				ReloadToken:  "   \t  \n ",
+				ReloadSecret: "  fallback-secret  ",
+			},
+			expected: "fallback-secret",
+		},
+		{
+			name: "empty reload token falls back to trimmed reload secret",
+			cfg: PullConfig{
+				ReloadSecret: "  secret-value  ",
+			},
+			expected: "secret-value",
+		},
+		{
+			name: "both whitespace only returns empty",
+			cfg: PullConfig{
+				ReloadToken:  "   ",
+				ReloadSecret: "   ",
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, tt.cfg.ReloadAuthToken())
+		})
+	}
+}

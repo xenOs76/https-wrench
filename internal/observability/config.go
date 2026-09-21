@@ -43,8 +43,8 @@ type PullConfig struct {
 
 // ReloadAuthToken returns the configured reload credential if any, trimmed of whitespace.
 func (p PullConfig) ReloadAuthToken() string {
-	if p.ReloadToken != "" {
-		return strings.TrimSpace(p.ReloadToken)
+	if token := strings.TrimSpace(p.ReloadToken); token != "" {
+		return token
 	}
 
 	return strings.TrimSpace(p.ReloadSecret)
