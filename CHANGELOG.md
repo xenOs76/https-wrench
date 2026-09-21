@@ -16,6 +16,18 @@
 
 ### Feat
 
+    Requests: add `validStatusCodes` configuration to define acceptable HTTP status codes for probe success (falling back to 200..399 when omitted).
+
+    Requests: add `responseBodyFailRegexp` to fail probes when matching regex patterns against response bodies (negative body matching).
+
+    Requests: add `responseHeaderMatchRegexp` and `responseHeaderFailRegexp` (`map[string]string`) to validate or fail probes against response headers.
+
+    Observability: evaluate probe success (`https_wrench_probe_success` and `https_wrench_probe_requests_total`) against `validStatusCodes`, negative body matches, and header regex rules.
+
+    View: update terminal view and status code styling to reflect `validStatusCodes`, body fail regex matches, and header validation rules.
+
+    Schema: add JSON schema validation for `validStatusCodes`, `responseBodyFailRegexp`, `responseHeaderMatchRegexp`, and `responseHeaderFailRegexp` in `https-wrench.schema.json` and MCP schema assets.
+
     Observability: add continuous observability mode (`observability` configuration block and `--observe` flag) executing periodic synthetic HTTPS probe cycles at a configurable interval (`--interval`) with timeout (`--timeout`).
 
     Observability: add embedded HTTP scrape server exposing Prometheus metrics at configurable address (`address`, default `:9090`) and path (`path`, default `/metrics`).
