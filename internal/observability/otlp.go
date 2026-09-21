@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (
@@ -19,11 +21,16 @@ import (
 
 // PushOTLPConfig configures OpenTelemetry OTLP push.
 type PushOTLPConfig struct {
-	Enabled  bool              `mapstructure:"enabled"`
-	Endpoint string            `mapstructure:"endpoint"`
-	Protocol string            `mapstructure:"protocol"`
-	Timeout  time.Duration     `mapstructure:"timeout"`
-	Headers  map[string]string `mapstructure:"headers"`
+	// Enabled toggles pushing metrics to an OpenTelemetry collector.
+	Enabled bool `mapstructure:"enabled"`
+	// Endpoint is the destination OTLP/HTTP base or metrics endpoint URL (e.g., http://host:4318/v1/metrics).
+	Endpoint string `mapstructure:"endpoint"`
+	// Protocol specifies the encoding protocol (defaults to "http/protobuf").
+	Protocol string `mapstructure:"protocol"`
+	// Timeout specifies the maximum HTTP request duration for push requests.
+	Timeout time.Duration `mapstructure:"timeout"`
+	// Headers defines custom HTTP request headers sent with each push.
+	Headers map[string]string `mapstructure:"headers"`
 }
 
 // OTLPExporter pushes metrics to an OpenTelemetry OTLP/HTTP endpoint.
@@ -114,6 +121,7 @@ func (e *OTLPExporter) Export(ctx context.Context, metricFamilies []*dto.MetricF
 	return checkOTLPResponse(body)
 }
 
+// checkOTLPResponse checks the response body for partial export failures reported by an OTLP collector.
 func checkOTLPResponse(body []byte) error {
 	if len(body) == 0 {
 		return nil
@@ -144,6 +152,7 @@ func checkOTLPResponse(body []byte) error {
 	)
 }
 
+// buildOTLPRequest constructs an OTLP MetricsData payload containing all converted metric families.
 func buildOTLPRequest(metricFamilies []*dto.MetricFamily) *otlpmetricsv1.MetricsData {
 	var otlpMetrics []*otlpmetricsv1.Metric
 
@@ -191,6 +200,7 @@ func buildOTLPRequest(metricFamilies []*dto.MetricFamily) *otlpmetricsv1.Metrics
 	}
 }
 
+// convertMetricFamilyToOTLP translates a Prometheus MetricFamily into an OTLP Metric descriptor and data points.
 func convertMetricFamilyToOTLP(mf *dto.MetricFamily, fallbackNano uint64) *otlpmetricsv1.Metric {
 	name := *mf.Name
 
@@ -218,6 +228,7 @@ func convertMetricFamilyToOTLP(mf *dto.MetricFamily, fallbackNano uint64) *otlpm
 	return otlpMetric
 }
 
+// metricTimestamp extracts the timestamp from a Prometheus metric in nanoseconds or returns fallbackNano.
 func metricTimestamp(m *dto.Metric, fallbackNano uint64) uint64 {
 	if m.TimestampMs != nil && *m.TimestampMs > 0 {
 		return uint64(*m.TimestampMs) * 1_000_000
@@ -226,6 +237,7 @@ func metricTimestamp(m *dto.Metric, fallbackNano uint64) uint64 {
 	return fallbackNano
 }
 
+// convertGaugeToOTLP transforms Prometheus Gauge and Untyped metrics into an OTLP Gauge representation.
 func convertGaugeToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmetricsv1.Metric_Gauge {
 	var dps []*otlpmetricsv1.NumberDataPoint
 
@@ -249,6 +261,7 @@ func convertGaugeToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmetrics
 	}
 }
 
+// convertCounterToOTLP transforms Prometheus Counter metrics into a cumulative OTLP Sum representation.
 func convertCounterToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmetricsv1.Metric_Sum {
 	var dps []*otlpmetricsv1.NumberDataPoint
 
@@ -274,6 +287,7 @@ func convertCounterToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmetri
 	}
 }
 
+// convertHistogramToOTLP transforms Prometheus Histogram metrics into a cumulative OTLP Histogram representation.
 func convertHistogramToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmetricsv1.Metric_Histogram {
 	var dps []*otlpmetricsv1.HistogramDataPoint
 
@@ -313,6 +327,8 @@ func convertHistogramToOTLP(metrics []*dto.Metric, fallbackNano uint64) *otlpmet
 	}
 }
 
+// extractHistogramBuckets computes explicit bucket bounds and delta counts
+// from cumulative Prometheus histogram buckets.
 func extractHistogramBuckets(h *dto.Histogram) ([]float64, []uint64) {
 	var (
 		bounds    []float64
@@ -345,6 +361,7 @@ func extractHistogramBuckets(h *dto.Histogram) ([]float64, []uint64) {
 	return bounds, counts
 }
 
+// toOTLPAttributes converts a slice of Prometheus label pairs into OTLP key-value string attributes.
 func toOTLPAttributes(labelPairs []*dto.LabelPair) []*otlpcommonv1.KeyValue {
 	if len(labelPairs) == 0 {
 		return nil

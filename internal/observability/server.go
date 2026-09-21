@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (
@@ -90,10 +92,12 @@ func (s *Server) RegisterReloadHandler(fn func() error) {
 	})
 }
 
+// isAuthorizedReload checks whether an HTTP reload request is permitted by the server's configuration.
 func (s *Server) isAuthorizedReload(r *http.Request) bool {
 	return isAuthorizedReload(r, s.cfg)
 }
 
+// isAuthorizedReload validates the reload request against the configured reload token or allows loopback callers.
 func isAuthorizedReload(r *http.Request, cfg ...PullConfig) bool {
 	var pullCfg PullConfig
 	if len(cfg) > 0 {
@@ -121,6 +125,8 @@ func isAuthorizedReload(r *http.Request, cfg ...PullConfig) bool {
 	return ip.IsLoopback()
 }
 
+// verifyReloadCredential compares the Authorization header against the expected
+// credential using constant-time comparison.
 func verifyReloadCredential(authHeader, expected string) bool {
 	if authHeader == "" || expected == "" {
 		return false

@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (

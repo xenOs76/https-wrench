@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (
@@ -19,13 +21,20 @@ import (
 
 // PushPrometheusConfig configures Prometheus remote_write push.
 type PushPrometheusConfig struct {
-	Enabled        bool              `mapstructure:"enabled"`
-	RemoteWriteURL string            `mapstructure:"remoteWriteUrl"`
-	Timeout        time.Duration     `mapstructure:"timeout"`
-	Headers        map[string]string `mapstructure:"headers"`
-	BasicAuthUser  string            `mapstructure:"basicAuthUser"`
-	BasicAuthPass  string            `mapstructure:"basicAuthPassword"`
-	BearerToken    string            `mapstructure:"bearerToken"`
+	// Enabled toggles pushing metrics to a Prometheus remote_write receiver.
+	Enabled bool `mapstructure:"enabled"`
+	// RemoteWriteURL is the destination HTTP endpoint URL (e.g., http://host:9090/api/v1/write).
+	RemoteWriteURL string `mapstructure:"remoteWriteUrl"`
+	// Timeout specifies the maximum HTTP request duration for push requests.
+	Timeout time.Duration `mapstructure:"timeout"`
+	// Headers defines custom HTTP request headers sent with each push.
+	Headers map[string]string `mapstructure:"headers"`
+	// BasicAuthUser is the username for HTTP Basic Authentication.
+	BasicAuthUser string `mapstructure:"basicAuthUser"`
+	// BasicAuthPass is the password for HTTP Basic Authentication.
+	BasicAuthPass string `mapstructure:"basicAuthPassword"`
+	// BearerToken is the token for HTTP Authorization Bearer authentication.
+	BearerToken string `mapstructure:"bearerToken"`
 }
 
 // RemoteWriteExporter pushes metrics to a Prometheus remote_write compatible endpoint.
@@ -111,10 +120,12 @@ func (e *RemoteWriteExporter) Export(ctx context.Context, metricFamilies []*dto.
 	return nil
 }
 
+// stringsTrim converts a string through a buffer to ensure a clean copy.
 func stringsTrim(s string) string {
 	return bytes.NewBufferString(s).String()
 }
 
+// extractTimeSeries iterates over metric families and extracts protobuf-encoded time series for each metric.
 func extractTimeSeries(metricFamilies []*dto.MetricFamily, fallbackTimestampMs int64) [][]byte {
 	var seriesList [][]byte
 
@@ -136,6 +147,7 @@ func extractTimeSeries(metricFamilies []*dto.MetricFamily, fallbackTimestampMs i
 	return seriesList
 }
 
+// extractMetricSeries converts a single metric to one or more protobuf-encoded time series based on its type.
 func extractMetricSeries(name string, m *dto.Metric, fallbackTimestampMs int64) [][]byte {
 	ts := fallbackTimestampMs
 	if m.TimestampMs != nil && *m.TimestampMs > 0 {
@@ -158,6 +170,7 @@ func extractMetricSeries(name string, m *dto.Metric, fallbackTimestampMs int64) 
 	}
 }
 
+// extractLabels constructs a sorted list of label pairs including the __name__ label.
 func extractLabels(name string, labelPairs []*dto.LabelPair) [][2]string {
 	labels := make([][2]string, 0, len(labelPairs)+1)
 	labels = append(labels, [2]string{"__name__", name})
@@ -175,6 +188,7 @@ func extractLabels(name string, labelPairs []*dto.LabelPair) [][2]string {
 	return labels
 }
 
+// extractHistogramSeries generates time series for histogram buckets (including +Inf), sum, and count.
 func extractHistogramSeries(name string, h *dto.Histogram, labelPairs []*dto.LabelPair, ts int64) [][]byte {
 	var (
 		result [][]byte
@@ -226,6 +240,7 @@ func extractHistogramSeries(name string, h *dto.Histogram, labelPairs []*dto.Lab
 	return result
 }
 
+// encodeLabel serializes a Prometheus label pair into protobuf wire format.
 func encodeLabel(name, value string) []byte {
 	var b []byte
 
@@ -237,6 +252,7 @@ func encodeLabel(name, value string) []byte {
 	return b
 }
 
+// encodeSample serializes a floating point value and millisecond timestamp into protobuf wire format.
 func encodeSample(value float64, timestampMs int64) []byte {
 	var b []byte
 
@@ -248,6 +264,7 @@ func encodeSample(value float64, timestampMs int64) []byte {
 	return b
 }
 
+// encodeTimeSeries serializes a collection of labels and a sample into a protobuf TimeSeries message.
 func encodeTimeSeries(labels [][2]string, value float64, timestampMs int64) []byte {
 	var b []byte
 	for _, lbl := range labels {
@@ -261,6 +278,7 @@ func encodeTimeSeries(labels [][2]string, value float64, timestampMs int64) []by
 	return b
 }
 
+// encodeWriteRequest serializes a collection of encoded time series into a top-level Prometheus WriteRequest.
 func encodeWriteRequest(series [][]byte) []byte {
 	var b []byte
 	for _, s := range series {

@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (
@@ -67,6 +69,8 @@ func NewMetrics(cfg MetricsFilterConfig) *Metrics {
 	return m
 }
 
+// initProbeMetrics initializes Prometheus metrics for synthetic HTTP probe results, latency histograms,
+// status codes, payload sizes, and request counters.
 func (m *Metrics) initProbeMetrics() {
 	m.probeSuccess = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -126,6 +130,8 @@ func (m *Metrics) initProbeMetrics() {
 	)
 }
 
+// initSSLMetrics initializes Prometheus metrics for TLS parameters, certificate validity,
+// expiration countdowns, and earliest expiration timestamps.
 func (m *Metrics) initSSLMetrics() {
 	m.sslEarliestExpiry = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -160,6 +166,7 @@ func (m *Metrics) initSSLMetrics() {
 	)
 }
 
+// initInternalMetrics initializes internal metrics for scraper duration and remote push exporter health.
 func (m *Metrics) initInternalMetrics() {
 	m.collectorDuration = prometheus.NewGauge(
 		prometheus.GaugeOpts{
@@ -185,6 +192,8 @@ func (m *Metrics) initInternalMetrics() {
 	)
 }
 
+// registerAll registers the standard Go/process collectors and all probe metrics
+// with the provided Prometheus registerer.
 func (m *Metrics) registerAll(reg prometheus.Registerer) {
 	reg.MustRegister(
 		collectors.NewGoCollector(),
@@ -241,6 +250,7 @@ func (m *Metrics) RecordRun(
 	}
 }
 
+// recordSingleResponse updates probe metrics for a single HTTP response result.
 func (m *Metrics) recordSingleResponse(
 	reqName string,
 	respRes requests.ResponseResult,
@@ -293,6 +303,8 @@ func (m *Metrics) recordSingleResponse(
 	m.recordResponseTLS(reqName, parsedHost, respRes, rd)
 }
 
+// recordBodyMatch evaluates regex matching against the response body, updates the probeBodyMatches metric,
+// and records matched details in structured logs.
 func (m *Metrics) recordBodyMatch(
 	reqName, host, uri string,
 	respRes requests.ResponseResult,
@@ -323,6 +335,8 @@ func (m *Metrics) recordBodyMatch(
 	)
 }
 
+// recordResponseTLS resolves TLS details from response results or fallback HTTP connection state
+// and records TLS parameters and certificate lifecycles.
 func (m *Metrics) recordResponseTLS(
 	reqName, host string,
 	respRes requests.ResponseResult,
@@ -342,8 +356,11 @@ func (m *Metrics) recordResponseTLS(
 	}
 }
 
+// maxMatchedValueLength is the upper bound on the number of runes captured and logged from a response body match.
 const maxMatchedValueLength = 64
 
+// extractMatchedValue extracts regex capture groups or full match substrings
+// from the body, bounded to a maximum length.
 func extractMatchedValue(pattern, body, fallbackBody string) string {
 	if pattern == "" {
 		return ""
@@ -380,6 +397,7 @@ func extractMatchedValue(pattern, body, fallbackBody string) string {
 	return string(runes)
 }
 
+// recordTLSMetrics records negotiated TLS parameters and iterates over certificates to track earliest expiration.
 func (m *Metrics) recordTLSMetrics(reqName, host string, tlsRes *requests.ResponseTLSResult) {
 	if tlsRes.Version != "" {
 		m.sslTLSVersionInfo.WithLabelValues(
@@ -393,6 +411,7 @@ func (m *Metrics) recordTLSMetrics(reqName, host string, tlsRes *requests.Respon
 	}
 }
 
+// recordCertificates records metrics for each certificate in the chain and returns the earliest expiration timestamp.
 func (m *Metrics) recordCertificates(reqName, host string, certs []certinfo.CertInfo) int64 {
 	var earliestExpiryUnix int64
 
@@ -412,6 +431,7 @@ func (m *Metrics) recordCertificates(reqName, host string, certs []certinfo.Cert
 	return earliestExpiryUnix
 }
 
+// recordSingleCertificate records days until expiration and validity status for an individual certificate in the chain.
 func (m *Metrics) recordSingleCertificate(reqName, host string, cert certinfo.CertInfo) {
 	chainIndexStr := strconv.Itoa(cert.Index)
 
@@ -438,6 +458,7 @@ func (m *Metrics) recordSingleCertificate(reqName, host string, cert certinfo.Ce
 	)
 }
 
+// parseCertExpiry extracts the expiration Unix timestamp from a certificate's NotAfter time or days remaining.
 func parseCertExpiry(cert certinfo.CertInfo) int64 {
 	if notAfter, err := time.Parse(time.RFC3339, cert.NotAfter); err == nil {
 		return notAfter.Unix()
@@ -460,6 +481,7 @@ func (m *Metrics) RecordPushError(exporter string) {
 	m.pushErrorsTotal.WithLabelValues(exporter).Inc()
 }
 
+// parseURLComponents parses a raw URL into its host and request URI components, optionally stripping query strings.
 func (m *Metrics) parseURLComponents(rawURL string) (host, uri string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {

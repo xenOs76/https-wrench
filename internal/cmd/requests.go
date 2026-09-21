@@ -259,6 +259,8 @@ func init() {
 	rootCmd.AddCommand(requestsCmd)
 }
 
+// loadAndBuildObservabilityConfigs reads a YAML configuration file from disk and parses both the
+// observability configuration and requests metadata configuration for dynamic reload cycles.
 func loadAndBuildObservabilityConfigs(
 	configFile string,
 	cmd *cobra.Command,
@@ -307,6 +309,7 @@ func loadAndBuildObservabilityConfigs(
 	return &obsCfg, reqsCfg, nil
 }
 
+// applyObservabilityOverrides merges CLI flag overrides into the base observability configuration.
 func applyObservabilityOverrides(base observability.Config, cmd *cobra.Command) observability.Config {
 	obsCfg := base
 	obsCfg.Enabled = true

@@ -1,3 +1,5 @@
+// Package observability implements continuous synthetic HTTPS probing and metrics
+// exposition via Prometheus pull, Prometheus remote_write push, and OpenTelemetry OTLP/HTTP.
 package observability
 
 import (
@@ -64,6 +66,7 @@ func NewRunner(cfg Config, reqMeta *requests.RequestsMetaConfig) (*Runner, error
 	}, nil
 }
 
+// output returns the designated output writer or falls back to os.Stdout.
 func (r *Runner) output() io.Writer {
 	if r.out != nil {
 		return r.out
@@ -123,6 +126,7 @@ func (r *Runner) Reload() error {
 	return nil
 }
 
+// applyNewConfig validates and applies reloaded configuration, rejecting runtime modifications to immutable settings.
 func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMetaConfig) error {
 	if newCfg != nil {
 		if err := newCfg.Validate(); err != nil {
@@ -160,6 +164,7 @@ func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMet
 	return nil
 }
 
+// isPullConfigEqual compares two PullConfig instances for value equality.
 func isPullConfigEqual(a, b PullConfig) bool {
 	if a.Enabled != b.Enabled {
 		return false
@@ -173,6 +178,7 @@ func isPullConfigEqual(a, b PullConfig) bool {
 		a.ReloadToken == b.ReloadToken && a.ReloadSecret == b.ReloadSecret
 }
 
+// isMetricsConfigEqual compares two MetricsFilterConfig instances for value and custom label equality.
 func isMetricsConfigEqual(a, b MetricsFilterConfig) bool {
 	if a.IncludeTLS != b.IncludeTLS ||
 		a.IncludeCertChain != b.IncludeCertChain ||
@@ -183,6 +189,7 @@ func isMetricsConfigEqual(a, b MetricsFilterConfig) bool {
 	return maps.Equal(a.CustomLabels, b.CustomLabels)
 }
 
+// updateExporters replaces active push exporters with new instances based on updated PushConfig.
 func (r *Runner) updateExporters(push PushConfig) {
 	var newExporters []Exporter
 	if push.Prometheus.Enabled {
@@ -200,6 +207,7 @@ func (r *Runner) updateExporters(push PushConfig) {
 	r.exporters = newExporters
 }
 
+// checkFileModification computes the SHA256 hash of the watched config file and reloads if changed.
 func (r *Runner) checkFileModification() {
 	r.mu.RLock()
 	path := r.configPath
@@ -353,6 +361,7 @@ func (r *Runner) ExecuteCycle(ctx context.Context) {
 	r.dispatchPushes(ctx, exporters, mfs, timeout)
 }
 
+// dispatchPushes concurrently exports metric families to all registered push destinations with a per-exporter timeout.
 func (r *Runner) dispatchPushes(
 	ctx context.Context,
 	exporters []Exporter,
@@ -380,6 +389,7 @@ func (r *Runner) dispatchPushes(
 	wg.Wait()
 }
 
+// shutdown gracefully stops the pull scrape server and closes all active push exporters.
 func (r *Runner) shutdown() {
 	if r.server != nil {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -263,6 +263,7 @@ func (rd *ResponseData) ImportResponseBody() {
 	rd.ResponseContentType, rd.ResponseBody = formatResponseBody(body, rd.Response.Header.Get("Content-Type"))
 }
 
+// formatResponseBody detects structured content types (e.g. JSON, YAML, XML) and formats the body accordingly.
 func formatResponseBody(body []byte, contentType string) (language, formatted string) {
 	for _, item := range contentTypeMatchingItems {
 		rex := regexp.MustCompile(item.regexp)
