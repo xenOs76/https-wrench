@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=../../https-wrench.schema.json
+---
+##
+##   HTTPS Wrench - Observability Mode Configuration
+##
+##   Runs continuous synthetic probes at a configured interval and exports
+##   Prometheus and OpenTelemetry metrics via:
+##     1. Pull: Embedded HTTP scrape server (/metrics)
+##     2. Push: Prometheus remote_write endpoint
+##     3. Push: OpenTelemetry OTLP/HTTP endpoint
+##
+
+debug: false
+verbose: false
+concurrency: 10
+
+## observability - Configuration for continuous monitoring and metrics propagation
+observability:
+  ## enabled - Enables continuous observability mode (can also be enabled via CLI flag --observe)
+  enabled: true
+
+  ## interval - Frequency of probe cycles (e.g. 15s, 30s, 1m)
+  interval: 30s
+
+  ## timeout - Maximum duration allowed for a single probe cycle
+  timeout: 25s
+
+  ## pull - Embedded HTTP server exposing Prometheus metrics for scraping
+  pull:
+    enabled: true
+    address: ":9090"
+    path: "/metrics"
+
+  # Push Mode targeting local Grafana Alloy deployment
+  push:
+    # Prometheus remote_write receiver on Alloy (port 9999)
+    prometheus:
+      enabled: true
+      # remoteWriteUrl: "http://127.0.0.1:9999/api/v1/metrics/write"
+      remoteWriteUrl: "https://prometheus.k3s.os76.xyz/api/v1/write"
+      timeout: 5s
+      headers:
+        X-Source: "https-wrench-local"
+
+    # OpenTelemetry OTLP/HTTP receiver on Alloy (port 4318)
+    otlp:
+      enabled: false
+      endpoint: "http://127.0.0.1:4318/v1/metrics"
+      protocol: "http/protobuf"
+      timeout: 5s
+      headers:
+        X-Source: "https-wrench-local"
+
+  ## metrics - Fine-tune exported metrics and cardinality controls
+  metrics:
+    ## includeTls - Generate TLS parameters and certificate expiration metrics
+    includeTls: true
+
+    ## includeCertChain - Export metrics for full certificate chain (false = leaf certificate only)
+    includeCertChain: true
+
+    ## stripQuery - Strip URL query strings from 'uri' metric labels to prevent cardinality explosion
+    stripQuery: true
+
+    ## customLabels - Static key/value labels attached to every exported metric
+    ## job and instance labels must be always specified
+    customLabels:
+      job: "https-wrench"
+      instance: "localhost"
+      target: "franti"
+
+## requests - List of HTTPS requests to probe periodically
+requests:
+  - name: HttpBinOs76
+    clientTimeout: 5
+    insecure: false
+    userAgent: https-wrench-o11y-test-443
+    # responseBodyMatchRegexp evaluates a regex against the response body.
+    # When configured, https-wrench exports:
+    #   - https_wrench_probe_body_matches (1 for match, 0 for mismatch) with labels:
+    #     - regexp: the pattern
+    #   - https_wrench_probe_requests_total includes label body_match="matched|mismatched|none"
+    #   (The matched value and certificate subject are recorded in structured logs to preserve bounded metric cardinality)
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /status/200
+          - /status/302
+          - /status/404
+          - /status/503
+
+  - name: HttpBinOs76Alt
+    clientTimeout: 5
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    userAgent: https-wrench-o11y-test-444
+    responseBodyMatchRegexp: go-httpbin
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - name: HttpBinOs76ProvxV2
+    clientTimeout: 5
+    transportOverrideUrl: https://httpbin.os76.xyz:445
+    enableProxyProtocolV2: true
+    userAgent: https-wrench-o11y-test-445
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /status/200
+          - /status/302
+          - /status/404
+          - /status/503
