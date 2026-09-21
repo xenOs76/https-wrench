@@ -229,6 +229,14 @@ func HandleRequests(
 // ImportResponseBody reads the response body, handles regex matching, and stores clean body text.
 func (rd *ResponseData) ImportResponseBody() {
 	if len(rd.ResponseBody) > 0 {
+		if rd.TransferredBytes == 0 {
+			rd.TransferredBytes = int64(len(rd.ResponseBody))
+		}
+
+		return
+	}
+
+	if rd.Response == nil || rd.Response.Body == nil {
 		return
 	}
 
@@ -238,6 +246,8 @@ func (rd *ResponseData) ImportResponseBody() {
 
 		return
 	}
+
+	rd.TransferredBytes = int64(len(body))
 
 	// Early evaluation of regexp match against raw body bytes.
 	// It will fail if evaluated against a syntax highlighted body.
@@ -250,8 +260,20 @@ func (rd *ResponseData) ImportResponseBody() {
 		}
 	}
 
-	contentType := rd.Response.Header.Get("Content-Type")
+	if rd.Request.ResponseBodyFailRegexp != "" {
+		re, err := regexp.Compile(rd.Request.ResponseBodyFailRegexp)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseBodyFailRegexp: %w", err))
+		} else if re.Match(body) {
+			rd.ResponseBodyFailRegexpMatched = true
+		}
+	}
 
+	rd.ResponseContentType, rd.ResponseBody = formatResponseBody(body, rd.Response.Header.Get("Content-Type"))
+}
+
+// formatResponseBody detects structured content types (e.g. JSON, YAML, XML) and formats the body accordingly.
+func formatResponseBody(body []byte, contentType string) (language, formatted string) {
 	for _, item := range contentTypeMatchingItems {
 		rex := regexp.MustCompile(item.regexp)
 
@@ -269,14 +291,11 @@ func (rd *ResponseData) ImportResponseBody() {
 		}
 
 		if matched := rex.MatchString(contentType); matched {
-			rd.ResponseContentType = item.language
-			rd.ResponseBody = code
-
-			return
+			return item.language, code
 		}
 	}
 
-	rd.ResponseBody = string(body)
+	return "", string(body)
 }
 
 // PrintResponseData prints the collected response data (status, headers, body) if verbose mode is enabled.
@@ -353,4 +372,83 @@ func RenderTLSData(w io.Writer, r *http.Response, filter ...[]map[int][]string) 
 	}
 
 	_ = view.Render(w, doc, view.Options{ForceColor: true})
+}
+
+// getHeaderValues retrieves all values for a header key, checking both canonical key and case-insensitively.
+func getHeaderValues(h http.Header, key string) []string {
+	if vals := h.Values(key); len(vals) > 0 {
+		return vals
+	}
+
+	for k, v := range h {
+		if strings.EqualFold(k, key) {
+			return v
+		}
+	}
+
+	return nil
+}
+
+func headerValuesMatch(re *regexp.Regexp, values []string) bool {
+	for _, v := range values {
+		if re.MatchString(v) {
+			return true
+		}
+	}
+
+	return re.MatchString(strings.Join(values, ", "))
+}
+
+func evaluateHeaderMatch(header http.Header, rules map[string]string) bool {
+	for headerKey, pattern := range rules {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseHeaderMatchRegexp for header %q: %w", headerKey, err))
+
+			return false
+		}
+
+		values := getHeaderValues(header, headerKey)
+		if len(values) == 0 || !headerValuesMatch(re, values) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func evaluateHeaderFail(header http.Header, rules map[string]string) bool {
+	for headerKey, pattern := range rules {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseHeaderFailRegexp for header %q: %w", headerKey, err))
+
+			continue
+		}
+
+		values := getHeaderValues(header, headerKey)
+		if len(values) > 0 && headerValuesMatch(re, values) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// EvaluateResponseHeaders checks configured ResponseHeaderMatchRegexp
+// and ResponseHeaderFailRegexp against response headers.
+func (rd *ResponseData) EvaluateResponseHeaders() {
+	if rd.Response == nil {
+		return
+	}
+
+	if len(rd.Request.ResponseHeaderMatchRegexp) > 0 {
+		matchedAll := evaluateHeaderMatch(rd.Response.Header, rd.Request.ResponseHeaderMatchRegexp)
+		rd.ResponseHeaderMatchRegexpMatched = &matchedAll
+	}
+
+	if len(rd.Request.ResponseHeaderFailRegexp) > 0 {
+		matchedAny := evaluateHeaderFail(rd.Response.Header, rd.Request.ResponseHeaderFailRegexp)
+		rd.ResponseHeaderFailRegexpMatched = &matchedAny
+	}
 }

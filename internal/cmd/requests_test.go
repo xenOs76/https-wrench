@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "github.com/breml/rootcerts"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -283,4 +287,65 @@ func TestRequestsCmd_FormatJSONAndText(t *testing.T) {
 		require.Contains(t, out, "Request: test-cmd-req")
 		require.Contains(t, out, "StatusCode: 200 OK")
 	})
+}
+
+func TestRequestsCmd_Observability(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer ts.Close()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "requests.yaml")
+
+	yamlContent := fmt.Sprintf("verbose: false\nrequests:\n"+
+		"  - name: obs-test\n    insecure: true\n    clientTimeout: 1\n"+
+		"    transportOverrideUrl: %s\n    hosts:\n      - name: 127.0.0.1\n        uriList:\n          - /\n", ts.URL)
+	require.NoError(t, os.WriteFile(cfgPath, []byte(yamlContent), 0o600))
+
+	t.Cleanup(func() {
+		resetViper()
+
+		cfgFile = ""
+		_ = requestsCmd.Flags().Set("observe", "false")
+		_ = requestsCmd.Flags().Set("interval", "0s")
+		_ = requestsCmd.Flags().Set("listen", "")
+
+		rootCmd.SetArgs(nil)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	reqCmd := rootCmd
+	reqCmd.SetOut(stdout)
+	reqCmd.SetErr(stderr)
+	reqCmd.SetArgs([]string{
+		"requests",
+		"--config", cfgPath,
+		"--observe",
+		"--interval", "50ms",
+		"--listen", "127.0.0.1:0",
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- reqCmd.ExecuteContext(ctx)
+	}()
+
+	time.Sleep(120 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for requestsCmd to exit")
+	}
+
+	assert.Contains(t, stdout.String(), "observability: scrape server listening on")
 }

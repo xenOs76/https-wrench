@@ -12,8 +12,7 @@ It enables executing YAML-defined HTTPS requests, inspecting x.509 certificates,
 private keys, JSON Web Tokens (JWT), and generating JSON Web Key Sets (JWKS).\
 **HTTPS Wrench** was born from the desire of a disposable Bash script to become
 a reliable companion for mechanics of the World Wide Web.\
-`https-wrench` will, one day, take the place of `curl` in the hearts and the
-eyes of whoever is about to migrate a DNS record from a webserver to a load
+`https-wrench` will, one day, have a place in the toolbox of whoever is about to migrate a DNS record from a webserver to a load
 balancer, reverse proxy, Ingress Gateway, CloudFront distribution.
 
 ## How to use
@@ -95,15 +94,23 @@ https://github.com/xenOs76/https-wrench/blob/main/https-wrench.schema.json
 Examples:
  https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
  https-wrench requests --config https-wrench-sample-config.yaml
+ https-wrench requests --config https-wrench-sample-config.yaml --format json
 
 Usage:
   https-wrench requests [flags]
 
 Flags:
-      --ca-bundle string     Path to bundle file with CA certificates 
-                             to use for validation
-  -h, --help                 help for requests
-      --show-sample-config   Show a sample YAML configuration
+      --ca-bundle string          Path to bundle file with CA certificates 
+                                  to use for validation
+  -c, --concurrency int           Maximum number of concurrent HTTP requests (1 for sequential) (default 10)
+      --format string             Output format: text (human-readable) or json (machine-readable, no ANSI) (default "text")
+  -h, --help                      help for requests
+      --interval duration         Probe execution interval in observability mode (e.g. 15s, 30s, 1m; overrides config)
+      --listen string             Address for the Prometheus metrics scrape server (e.g. :9090; overrides config)
+      --observe                   Run in continuous observability mode (executing requests by interval and exporting metrics)
+      --otlp-endpoint string      OpenTelemetry OTLP endpoint URL to push metrics to (overrides config)
+      --remote-write-url string   Prometheus remote_write endpoint URL to push metrics to (overrides config)
+      --show-sample-config        Show a sample YAML configuration
 
 Global Flags:
       --config string   config file (default is $HOME/.https-wrench.yaml)
@@ -131,6 +138,42 @@ Make the HTTPS requests defined in the YAML file:
 ```shell
 https-wrench requests --config https-wrench-sample-config.yaml
 ```
+
+Output results as machine-readable JSON (with ANSI escape sequences stripped):
+
+```shell
+https-wrench requests --config https-wrench-sample-config.yaml --format json
+```
+
+#### Continuous Observability & Synthetic Probing
+
+`https-wrench` can run in continuous observability mode, periodically executing synthetic probe cycles and exposing metrics for scraping or pushing to remote telemetry backends:
+
+```shell
+https-wrench requests --config https-wrench-observability-httpbin.yaml --observe --interval 30s
+```
+
+- **Prometheus Scrape Server (Pull)**: Exposes metrics at `:9090/metrics` (configurable address and path).
+- **Push Exporters**:
+  - **Prometheus `remote_write`**: Pushes Snappy-compressed metrics directly to Prometheus, VictoriaMetrics or Grafana Alloy.
+  - **OpenTelemetry (OTLP/HTTP)**: Pushes Protobuf metrics to an OpenTelemetry collector (`/v1/metrics`).
+- **Exported Metrics**:
+  - `https_wrench_probe_success`, `https_wrench_probe_duration_seconds`, `https_wrench_probe_last_duration_seconds`
+  - `https_wrench_probe_status_code`, `https_wrench_probe_requests_total`, `https_wrench_probe_response_size_bytes`
+  - `https_wrench_probe_body_matches` (with `regexp` label and match state)
+  - `https_wrench_ssl_tls_version_info`, `https_wrench_ssl_earliest_cert_expiry_seconds`
+  - `https_wrench_ssl_cert_days_until_expiry`, `https_wrench_ssl_cert_valid`
+  - `https_wrench_scrape_collector_duration_seconds`, `https_wrench_push_last_timestamp_seconds`, `https_wrench_push_errors_total`
+- **Dynamic Configuration Reloading**:
+  - Pre-cycle SHA256 config checksum detection (seamlessly handles Kubernetes ConfigMap symlink updates).
+  - HTTP `POST /-/reload` endpoint on the scrape server (with credential authorization).
+  - `SIGHUP` signal trapping for process reload without restart.
+  - Safe reload fallback preserving the last known valid configuration if reload validation fails.
+- **Example Configurations**:
+  - [`assets/examples/https-wrench-observability-httpbin.yaml`](./assets/examples/https-wrench-observability-httpbin.yaml): Example probes with regex matching, TLS, and Proxy Protocol v2.
+  - [`assets/examples/https-wrench-alloy-local.yaml`](./assets/examples/https-wrench-alloy-local.yaml): Local Grafana Alloy push configuration.
+- **Grafana Dashboard**:
+  - Production-ready Grafana dashboard available in [`assets/examples/dashboards/https-wrench.json`](./assets/examples/dashboards/https-wrench.json) (see the [Dashboards Guide](./assets/examples/dashboards/README.md)).
 
 ### HTTPS Wrench certinfo
 
@@ -162,7 +205,7 @@ Examples:
   https-wrench certinfo --cert-bundle ./bundle.pem --key-file ./key.pem
   https-wrench certinfo --cert-bundle ./bundle.pem
   https-wrench certinfo --key-file ./key.pem
-  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem	
+  https-wrench certinfo --ca-bundle ./ca-bundle.pem --cert-bundle ./bundle.pem --key-file ./key.pem 
 
   # Print info about remote certificates 
   # with optional CA and public key match validation

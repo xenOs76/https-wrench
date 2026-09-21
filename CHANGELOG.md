@@ -2,6 +2,68 @@
 
 # https-wrench - changelog
 
+## Unreleased
+
+### Dependencies
+
+    Observability: add prometheus/client_golang (v1.24.1) and prometheus/client_model (v0.6.2) for Prometheus metric collection and exposition.
+
+    Observability: add opentelemetry.io/proto/otlp (v1.11.0) and google.golang.org/protobuf (v1.36.12) for OpenTelemetry OTLP/HTTP metric export.
+
+    Observability: add golang/snappy (v1.0.0) for Prometheus remote_write payload compression.
+
+    Devenv: add grafana-alloy package to devenv environment.
+
+### Feat
+
+    Observability: add continuous observability mode (`observability` configuration block and `--observe` flag) executing periodic synthetic HTTPS probe cycles at a configurable interval (`--interval`) with timeout (`--timeout`).
+
+    Observability: add embedded HTTP scrape server exposing Prometheus metrics at configurable address (`address`, default `:9090`) and path (`path`, default `/metrics`).
+
+    Observability: add push exporter for Prometheus `remote_write` with Snappy-compressed protobuf payloads and custom HTTP headers.
+
+    Observability: add push exporter for OpenTelemetry OTLP/HTTP (`/v1/metrics` with protobuf payload) and custom HTTP headers.
+
+    Observability: add Kubernetes-compliant dynamic configuration reloading via pre-cycle SHA256 checksum comparison on config file to seamlessly handle ConfigMap symlink updates without process restart.
+
+    Observability: add HTTP `POST /-/reload` endpoint on the embedded pull server and `SIGHUP` signal trapping for on-demand configuration reloading.
+
+    Observability: provide resilient configuration reloading with defensive fallback retaining the last known good configuration on reload errors.
+
+    Observability: generate comprehensive probe, TLS, and collector metrics (`https_wrench_probe_success`, `https_wrench_probe_duration_seconds`, `https_wrench_probe_last_duration_seconds`, `https_wrench_probe_status_code`, `https_wrench_probe_requests_total`, `https_wrench_probe_response_size_bytes`, `https_wrench_ssl_earliest_cert_expiry_seconds`, `https_wrench_ssl_cert_days_until_expiry`, `https_wrench_ssl_cert_valid`, `https_wrench_ssl_tls_version_info`, `https_wrench_scrape_collector_duration_seconds`, `https_wrench_push_last_timestamp_seconds`, and `https_wrench_push_errors_total`).
+
+    Observability: add regex pattern (`regexp`) label to `https_wrench_probe_body_matches` metric and record matched values and certificate subjects in structured logs.
+
+    Observability: add metrics cardinality and label controls (`includeTls`, `includeCertChain`, `stripQuery`, `customLabels`).
+
+    Dashboards: add production-grade Grafana dashboard (`assets/examples/dashboards/https-wrench.json`) and documentation (`assets/examples/dashboards/README.md`) visualizing synthetic probe latency, availability, HTTP status codes, TLS parameters, and certificate expiry.
+
+    Schema: add JSON schema validation for top-level `observability` configuration block in `https-wrench.schema.json` and `internal/mcp/assets/schema.json`.
+
+    Devenv: configure Grafana Alloy receiver service in `devenv.nix` with OTLP HTTP (4318), OTLP gRPC (4317), and Prometheus remote_write (9999) receivers bridging into debug logging, plus test scripts and helper commands (`run-alloy`, `test-alloy-standalone`, `test-alloy-receivers`).
+
+    Examples: add `assets/examples/https-wrench-observability-httpbin.yaml` testing live endpoints with response body regex matching, TLS, and Proxy Protocol v2.
+
+    Examples: add `assets/examples/https-wrench-observability.yaml` and `assets/examples/https-wrench-alloy-local.yaml` demonstrating full pull and push observability pipelines.
+
+### Fix
+
+    Observability: automatically capture TLS connection parameters and certificate lifecycle metrics when `includeTls: true` by extracting TLS state directly from response, eliminating the need to set `printResponseCertificates: true` on individual requests.
+
+    Observability: update `PullConfig.ReloadAuthToken` to trim `ReloadToken` before checking whether it is non-empty, properly falling back to `ReloadSecret`.
+
+    Dashboards: update `https_wrench_ssl_earliest_cert_expiry_seconds` query expression in Grafana dashboard to multiply epoch seconds by 1000 for compatibility with `dateTimeAsIso` millisecond formatting.
+
+    Observability: verify pull reload credentials against `ReloadAuthToken` and reject arbitrary authorization headers.
+
+    Observability: ensure remote write and OTLP histograms include `+Inf` bucket, inspect OTLP responses for partial success rejections, and consume response bodies to record transferred bytes.
+
+    Observability: resolve revive static analysis issues (`unnecessary-format` in config validation, `flag-parameter` in URL parsing, and `function-length` in metrics and runner tests).
+
+    Observability: align codebase with `gofumpt` and `gci` formatting standards.
+
+    Examples: fix local Alloy example request configuration to route through local Nginx TLS port 9443 for plaintext httpbin backend.
+
 ## 0.16.0 (2026-09-17)
 
 ### Dependencies

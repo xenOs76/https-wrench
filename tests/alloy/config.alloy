@@ -1,0 +1,49 @@
+// OpenTelemetry OTLP Receiver (gRPC and HTTP)
+otelcol.receiver.otlp "default" {
+	grpc {
+		endpoint = "0.0.0.0:4317"
+	}
+
+	http {
+		endpoint = "0.0.0.0:4318"
+	}
+
+	output {
+		metrics = [otelcol.exporter.debug.default.input]
+		logs    = []
+		traces  = []
+	}
+}
+
+// Prometheus remote_write Receiver (HTTP on /api/v1/metrics/write)
+prometheus.receive_http "default" {
+	http {
+		listen_address = "0.0.0.0"
+		listen_port    = 9999
+	}
+	forward_to = [prometheus.relabel.default.receiver]
+}
+
+// Ensure job label exists to satisfy OpenTelemetry resource metric conversion
+prometheus.relabel "default" {
+	forward_to = [otelcol.receiver.prometheus.default.receiver]
+
+	rule {
+		source_labels = ["job"]
+		regex         = "^$"
+		target_label  = "job"
+		replacement   = "https-wrench"
+	}
+}
+
+// Bridge Prometheus metrics into OpenTelemetry format for debug export
+otelcol.receiver.prometheus "default" {
+	output {
+		metrics = [otelcol.exporter.debug.default.input]
+	}
+}
+
+// Detailed Debug Exporter (prints all metric data points locally)
+otelcol.exporter.debug "default" {
+	verbosity = "detailed"
+}
