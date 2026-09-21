@@ -92,6 +92,18 @@ func responseNodes(resp ResponseResult) []view.Node {
 		kids = append(kids, node)
 	}
 
+	if node := bodyFailRegexpNode(resp); node != nil {
+		kids = append(kids, node)
+	}
+
+	if node := headerMatchRegexpNode(resp); node != nil {
+		kids = append(kids, node)
+	}
+
+	if node := headerFailRegexpNode(resp); node != nil {
+		kids = append(kids, node)
+	}
+
 	if resp.Body != "" {
 		kids = append(kids, view.Section{
 			Title: "Body:",
@@ -108,6 +120,27 @@ func responseNodes(resp ResponseResult) []view.Node {
 	return kids
 }
 
+func resolveStatusTone(statusCode int, validCodes []int) view.Tone {
+	if len(validCodes) > 0 {
+		if slices.Contains(validCodes, statusCode) {
+			return view.ToneStatus2xx
+		}
+
+		return view.ToneStatus5xx
+	}
+
+	switch {
+	case statusCode >= 200 && statusCode < 300:
+		return view.ToneStatus2xx
+	case statusCode >= 300 && statusCode < 400:
+		return view.ToneStatus3xx
+	case statusCode >= 400 && statusCode < 500:
+		return view.ToneStatus4xx
+	default:
+		return view.ToneStatus5xx
+	}
+}
+
 func statusNodes(resp ResponseResult) []view.Node {
 	if resp.Error != "" {
 		return []view.Node{
@@ -121,26 +154,11 @@ func statusNodes(resp ResponseResult) []view.Node {
 		statusStr = resp.Status
 	}
 
-	var statusTone view.Tone
-
-	switch {
-	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		statusTone = view.ToneStatus2xx
-	case resp.StatusCode >= 300 && resp.StatusCode < 400:
-		statusTone = view.ToneStatus3xx
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		statusTone = view.ToneStatus4xx
-	case resp.StatusCode >= 500 && resp.StatusCode < 600:
-		statusTone = view.ToneStatus5xx
-	default:
-		statusTone = view.ToneStatus5xx
-	}
-
 	return []view.Node{
 		view.KV{
 			Key:   "StatusCode",
 			Value: statusStr,
-			Tone:  statusTone,
+			Tone:  resolveStatusTone(resp.StatusCode, resp.ValidStatusCodes),
 		},
 	}
 }
@@ -206,6 +224,66 @@ func bodyRegexpNode(resp ResponseResult) view.Node {
 
 	return view.KV{
 		Key:   "BodyRegexpMatch",
+		Value: matchVal,
+		Tone:  matchTone,
+	}
+}
+
+func bodyFailRegexpNode(resp ResponseResult) view.Node {
+	if resp.BodyFailRegexpMatched == nil {
+		return nil
+	}
+
+	matchTone := view.ToneBoolTrue
+	matchVal := "false"
+
+	if *resp.BodyFailRegexpMatched {
+		matchTone = view.ToneCrit
+		matchVal = "true"
+	}
+
+	return view.KV{
+		Key:   "BodyFailRegexpMatch",
+		Value: matchVal,
+		Tone:  matchTone,
+	}
+}
+
+func headerMatchRegexpNode(resp ResponseResult) view.Node {
+	if resp.HeaderMatchRegexpMatched == nil {
+		return nil
+	}
+
+	matchTone := view.ToneCrit
+	matchVal := "false"
+
+	if *resp.HeaderMatchRegexpMatched {
+		matchTone = view.ToneBoolTrue
+		matchVal = "true"
+	}
+
+	return view.KV{
+		Key:   "HeaderMatchRegexp",
+		Value: matchVal,
+		Tone:  matchTone,
+	}
+}
+
+func headerFailRegexpNode(resp ResponseResult) view.Node {
+	if resp.HeaderFailRegexpMatched == nil {
+		return nil
+	}
+
+	matchTone := view.ToneBoolTrue
+	matchVal := "false"
+
+	if *resp.HeaderFailRegexpMatched {
+		matchTone = view.ToneCrit
+		matchVal = "true"
+	}
+
+	return view.KV{
+		Key:   "HeaderFailRegexp",
 		Value: matchVal,
 		Tone:  matchTone,
 	}

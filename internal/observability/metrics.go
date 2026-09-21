@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -267,10 +268,7 @@ func (m *Metrics) recordSingleResponse(
 	statusCode := respRes.StatusCode
 	statusCodeStr := strconv.Itoa(statusCode)
 
-	isHealthy := respRes.Error == "" && (statusCode >= 200 && statusCode < 400)
-	if respRes.BodyRegexpMatched != nil && !*respRes.BodyRegexpMatched {
-		isHealthy = false
-	}
+	isHealthy := isResponseHealthy(statusCode, respRes, rd)
 
 	successVal := 0.0
 	resultStr := "failure"
@@ -300,7 +298,41 @@ func (m *Metrics) recordSingleResponse(
 	m.probeRequestsTotal.WithLabelValues(reqName, parsedHost, parsedURI, statusCodeStr, resultStr, bodyMatchStr).Inc()
 
 	m.recordBodyMatch(reqName, parsedHost, parsedURI, respRes, rd)
+	recordBodyFailMatch(reqName, parsedHost, parsedURI, respRes, rd)
+	recordHeaderMatches(reqName, parsedHost, parsedURI, respRes, rd)
 	m.recordResponseTLS(reqName, parsedHost, respRes, rd)
+}
+
+func isResponseHealthy(statusCode int, respRes requests.ResponseResult, rd requests.ResponseData) bool {
+	if respRes.Error != "" {
+		return false
+	}
+
+	if len(rd.Request.ValidStatusCodes) > 0 {
+		if !slices.Contains(rd.Request.ValidStatusCodes, statusCode) {
+			return false
+		}
+	} else if statusCode < 200 || statusCode >= 400 {
+		return false
+	}
+
+	if respRes.BodyRegexpMatched != nil && !*respRes.BodyRegexpMatched {
+		return false
+	}
+
+	if respRes.BodyFailRegexpMatched != nil && *respRes.BodyFailRegexpMatched {
+		return false
+	}
+
+	if respRes.HeaderMatchRegexpMatched != nil && !*respRes.HeaderMatchRegexpMatched {
+		return false
+	}
+
+	if respRes.HeaderFailRegexpMatched != nil && *respRes.HeaderFailRegexpMatched {
+		return false
+	}
+
+	return true
 }
 
 // recordBodyMatch evaluates regex matching against the response body, updates the probeBodyMatches metric,
@@ -333,6 +365,59 @@ func (m *Metrics) recordBodyMatch(
 		"matched", *respRes.BodyRegexpMatched,
 		"matched_value", matchedValue,
 	)
+}
+
+// recordBodyFailMatch logs details when responseBodyFailRegexp is evaluated.
+func recordBodyFailMatch(
+	reqName, host, uri string,
+	respRes requests.ResponseResult,
+	rd requests.ResponseData,
+) {
+	if respRes.BodyFailRegexpMatched == nil {
+		return
+	}
+
+	regexpPattern := rd.Request.ResponseBodyFailRegexp
+	matchedValue := extractMatchedValue(regexpPattern, rd.ResponseBody, respRes.Body)
+
+	slog.Info(
+		"probe body fail regex match",
+		"request_name", reqName,
+		"host", host,
+		"uri", uri,
+		"regexp", regexpPattern,
+		"matched", *respRes.BodyFailRegexpMatched,
+		"matched_value", matchedValue,
+	)
+}
+
+// recordHeaderMatches logs details when header match or fail regexps are evaluated.
+func recordHeaderMatches(
+	reqName, host, uri string,
+	respRes requests.ResponseResult,
+	rd requests.ResponseData,
+) {
+	if respRes.HeaderMatchRegexpMatched != nil {
+		slog.Info(
+			"probe header match regex",
+			"request_name", reqName,
+			"host", host,
+			"uri", uri,
+			"rules", rd.Request.ResponseHeaderMatchRegexp,
+			"matched", *respRes.HeaderMatchRegexpMatched,
+		)
+	}
+
+	if respRes.HeaderFailRegexpMatched != nil {
+		slog.Info(
+			"probe header fail regex",
+			"request_name", reqName,
+			"host", host,
+			"uri", uri,
+			"rules", rd.Request.ResponseHeaderFailRegexp,
+			"matched", *respRes.HeaderFailRegexpMatched,
+		)
+	}
 }
 
 // recordResponseTLS resolves TLS details from response results or fallback HTTP connection state

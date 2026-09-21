@@ -80,6 +80,33 @@
           "type": "string",
           "description": "Regular expression that the response body must match."
         },
+        "responseBodyFailRegexp": {
+          "type": "string",
+          "description": "Regular expression that causes the probe to fail if it matches the response body."
+        },
+        "responseHeaderMatchRegexp": {
+          "type": "object",
+          "description": "Map of response header names to regular expressions that must match.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "responseHeaderFailRegexp": {
+          "type": "object",
+          "description": "Map of response header names to regular expressions that fail the probe if matched.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "validStatusCodes": {
+          "type": "array",
+          "description": "List of HTTP status codes considered successful. When omitted or empty, defaults to 200..399.",
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
+        },
         "printResponseBody": {
           "type": "boolean",
           "description": "If true, prints the HTTP response body."
@@ -133,6 +160,10 @@
         "insecure": {
           "type": "boolean",
           "description": "If true, skips TLS server certificate verification (InsecureSkipVerify)."
+        },
+        "followRedirects": {
+          "type": "boolean",
+          "description": "If true, follows HTTP redirects. Defaults to false."
         },
         "responseHeadersFilter": {
           "type": "array",

@@ -133,6 +133,15 @@ type RequestConfig struct {
 	ResponseHeadersFilter []string `mapstructure:"responseHeadersFilter"`
 	// ResponseBodyMatchRegexp is a regular expression to match against the response body.
 	ResponseBodyMatchRegexp string `mapstructure:"responseBodyMatchRegexp"`
+	// ResponseBodyFailRegexp is a regular expression that causes the probe to fail if it matches the response body.
+	ResponseBodyFailRegexp string `mapstructure:"responseBodyFailRegexp"`
+	// ResponseHeaderMatchRegexp is a map of header names to regular expressions that must match response headers.
+	ResponseHeaderMatchRegexp map[string]string `mapstructure:"responseHeaderMatchRegexp"`
+	// ResponseHeaderFailRegexp is a map of header names to regular expressions that fail the probe if matched.
+	ResponseHeaderFailRegexp map[string]string `mapstructure:"responseHeaderFailRegexp"`
+	// ValidStatusCodes is an optional list of HTTP status codes considered successful.
+	// When omitted or empty, defaults to 200..399.
+	ValidStatusCodes []int `mapstructure:"validStatusCodes"`
 	// PrintResponseBody indicates if the response body should be printed to the output.
 	PrintResponseBody bool `mapstructure:"printResponseBody"`
 	// PrintResponseHeaders indicates if the response headers should be printed to the output.
@@ -171,6 +180,12 @@ type ResponseData struct {
 	ResponseContentType string
 	// ResponseBodyRegexpMatched indicates if the response body matched the configured regexp.
 	ResponseBodyRegexpMatched bool
+	// ResponseBodyFailRegexpMatched indicates if the response body matched the configured fail regexp.
+	ResponseBodyFailRegexpMatched bool
+	// ResponseHeaderMatchRegexpMatched indicates if response headers matched configured regexps.
+	ResponseHeaderMatchRegexpMatched *bool
+	// ResponseHeaderFailRegexpMatched indicates if response headers matched configured fail regexps.
+	ResponseHeaderFailRegexpMatched *bool
 	// TransferredBytes is the actual number of response body bytes read from the connection.
 	TransferredBytes int64
 	// Response is the raw HTTP response object.
@@ -1157,6 +1172,7 @@ func executeSingleRequest(
 	responseData.Response = resp
 
 	responseData.ImportResponseBody()
+	responseData.EvaluateResponseHeaders()
 
 	responseData.Duration = time.Since(start)
 

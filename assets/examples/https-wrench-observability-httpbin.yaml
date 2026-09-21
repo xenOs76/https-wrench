@@ -43,7 +43,7 @@ observability:
 
     # OpenTelemetry OTLP/HTTP receiver on Alloy (port 4318)
     otlp:
-      enabled: false
+      enabled: true
       endpoint: "http://127.0.0.1:4318/v1/metrics"
       protocol: "http/protobuf"
       timeout: 5s
@@ -70,17 +70,10 @@ observability:
 
 ## requests - List of HTTPS requests to probe periodically
 requests:
-  - name: HttpBinOs76
+  - name: HttpBinOs76AllValidCodes
     clientTimeout: 5
     insecure: false
     userAgent: https-wrench-o11y-test-443
-    # responseBodyMatchRegexp evaluates a regex against the response body.
-    # When configured, https-wrench exports:
-    #   - https_wrench_probe_body_matches (1 for match, 0 for mismatch) with labels:
-    #     - regexp: the pattern
-    #   - https_wrench_probe_requests_total includes label body_match="matched|mismatched|none"
-    #   (The matched value and certificate subject are recorded in structured logs to preserve bounded metric cardinality)
-    responseBodyMatchRegexp: noMatchRegexp
     hosts:
       - name: httpbin.os76.xyz
         uriList:
@@ -88,12 +81,57 @@ requests:
           - /status/302
           - /status/404
           - /status/503
+    validStatusCodes:
+      - 200
+      - 302
+      - 404
+      - 503
 
-  - name: HttpBinOs76Alt
+  - name: HttpBinOs76AltBodyRexMatch
     clientTimeout: 5
     transportOverrideUrl: https://httpbin-alt.os76.xyz:444
     userAgent: https-wrench-o11y-test-444
+
+    # responseBodyMatchRegexp evaluates a regex against the response body.
+    # When configured, https-wrench exports:
+    #   - https_wrench_probe_body_matches (1 for match, 0 for mismatch) with labels:
+    #     - regexp: the pattern
+    #   - https_wrench_probe_requests_total includes label body_match="matched|mismatched|none"
+    #   (The matched value and certificate subject are recorded in structured logs to preserve bounded metric cardinality)
     responseBodyMatchRegexp: go-httpbin
+
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - name: HttpBinOs76AltBodyRexFail
+    clientTimeout: 5
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    userAgent: https-wrench-o11y-test-444
+    responseBodyFailRegexp: go-httpbin
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - name: HttpBinOs76AltHeaderRexMatch
+    clientTimeout: 5
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    userAgent: https-wrench-o11y-test-444
+    responseHeaderMatchRegexp:
+      server: HttpbinOs76
+    hosts:
+      - name: httpbin.os76.xyz
+        uriList:
+          - /
+
+  - name: HttpBinOs76AltHeaderRexFail
+    clientTimeout: 5
+    transportOverrideUrl: https://httpbin-alt.os76.xyz:444
+    userAgent: https-wrench-o11y-test-444
+    responseHeaderFailRegexp:
+      server: HttpbinOs76
     hosts:
       - name: httpbin.os76.xyz
         uriList:
@@ -104,7 +142,6 @@ requests:
     transportOverrideUrl: https://httpbin.os76.xyz:445
     enableProxyProtocolV2: true
     userAgent: https-wrench-o11y-test-445
-    responseBodyMatchRegexp: teapot
     hosts:
       - name: httpbin.os76.xyz
         uriList:

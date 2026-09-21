@@ -35,18 +35,22 @@ type RequestResult struct {
 
 // ResponseResult holds the results and metadata of a single HTTP response.
 type ResponseResult struct {
-	URL               string              `json:"url"`
-	TransportAddress  string              `json:"transportAddress,omitempty"`
-	DurationMs        float64             `json:"durationMs,omitempty"`
-	StatusCode        int                 `json:"statusCode"`
-	Status            string              `json:"status,omitempty"`
-	Error             string              `json:"error,omitempty"`
-	Headers           map[string][]string `json:"headers,omitempty"`
-	Body              string              `json:"body,omitempty"`
-	ContentType       string              `json:"contentType,omitempty"`
-	BodyRegexpMatched *bool               `json:"bodyRegexpMatched,omitempty"`
-	TransferredBytes  int64               `json:"transferredBytes,omitempty"`
-	TLS               *ResponseTLSResult  `json:"tls,omitempty"`
+	URL                      string              `json:"url"`
+	TransportAddress         string              `json:"transportAddress,omitempty"`
+	DurationMs               float64             `json:"durationMs,omitempty"`
+	StatusCode               int                 `json:"statusCode"`
+	Status                   string              `json:"status,omitempty"`
+	Error                    string              `json:"error,omitempty"`
+	Headers                  map[string][]string `json:"headers,omitempty"`
+	Body                     string              `json:"body,omitempty"`
+	ContentType              string              `json:"contentType,omitempty"`
+	BodyRegexpMatched        *bool               `json:"bodyRegexpMatched,omitempty"`
+	BodyFailRegexpMatched    *bool               `json:"bodyFailRegexpMatched,omitempty"`
+	HeaderMatchRegexpMatched *bool               `json:"headerMatchRegexpMatched,omitempty"`
+	HeaderFailRegexpMatched  *bool               `json:"headerFailRegexpMatched,omitempty"`
+	ValidStatusCodes         []int               `json:"validStatusCodes,omitempty"`
+	TransferredBytes         int64               `json:"transferredBytes,omitempty"`
+	TLS                      *ResponseTLSResult  `json:"tls,omitempty"`
 }
 
 // ResponseTLSResult holds negotiated TLS parameters and certificate details.
@@ -100,6 +104,30 @@ func buildRequestResult(reqCfg RequestConfig, rdList []ResponseData) RequestResu
 	return reqRes
 }
 
+func populateValidationResults(respRes *ResponseResult, rd ResponseData) {
+	if rd.Request.ResponseBodyMatchRegexp != "" {
+		matched := rd.ResponseBodyRegexpMatched
+		respRes.BodyRegexpMatched = &matched
+	}
+
+	if rd.Request.ResponseBodyFailRegexp != "" {
+		matched := rd.ResponseBodyFailRegexpMatched
+		respRes.BodyFailRegexpMatched = &matched
+	}
+
+	if len(rd.Request.ResponseHeaderMatchRegexp) > 0 {
+		respRes.HeaderMatchRegexpMatched = rd.ResponseHeaderMatchRegexpMatched
+	}
+
+	if len(rd.Request.ResponseHeaderFailRegexp) > 0 {
+		respRes.HeaderFailRegexpMatched = rd.ResponseHeaderFailRegexpMatched
+	}
+
+	if len(rd.Request.ValidStatusCodes) > 0 {
+		respRes.ValidStatusCodes = rd.Request.ValidStatusCodes
+	}
+}
+
 func buildResponseResult(rd ResponseData) ResponseResult {
 	respRes := ResponseResult{
 		URL:              rd.URL,
@@ -124,10 +152,7 @@ func buildResponseResult(rd ResponseData) ResponseResult {
 			respRes.Headers = filterHeadersMap(rd.Response.Header, rd.Request.ResponseHeadersFilter)
 		}
 
-		if rd.Request.ResponseBodyMatchRegexp != "" {
-			matched := rd.ResponseBodyRegexpMatched
-			respRes.BodyRegexpMatched = &matched
-		}
+		populateValidationResults(&respRes, rd)
 
 		if rd.Request.PrintResponseBody {
 			respRes.Body = rd.ResponseBody

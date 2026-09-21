@@ -307,3 +307,105 @@ func TestMetrics_RecordRun_TLSFallbackFromResponse(t *testing.T) {
 		"Cert valid metric should be generated from response fallback",
 	)
 }
+
+func assertProbeSuccessVal(
+	t *testing.T,
+	statusCode int,
+	reqConfig requests.RequestConfig,
+	respResult requests.ResponseResult,
+	expected float64,
+) {
+	t.Helper()
+
+	m := NewMetrics(MetricsFilterConfig{})
+	res := &requests.Result{
+		Requests: []requests.RequestResult{
+			{
+				Name: "test-probe",
+				Responses: []requests.ResponseResult{
+					{
+						URL:                      "https://example.com/check",
+						TransportAddress:         "127.0.0.1:443",
+						StatusCode:               statusCode,
+						ValidStatusCodes:         respResult.ValidStatusCodes,
+						BodyFailRegexpMatched:    respResult.BodyFailRegexpMatched,
+						HeaderMatchRegexpMatched: respResult.HeaderMatchRegexpMatched,
+						HeaderFailRegexpMatched:  respResult.HeaderFailRegexpMatched,
+					},
+				},
+			},
+		},
+	}
+	responseMap := map[string][]requests.ResponseData{
+		"test-probe": {
+			{
+				Request: reqConfig,
+			},
+		},
+	}
+
+	m.RecordRun(res, responseMap, 10*time.Millisecond)
+
+	mfs, err := m.Registry().Gather()
+	require.NoError(t, err)
+
+	probeSuccessMF := findMetricFamily(mfs, "https_wrench_probe_success")
+	require.NotNil(t, probeSuccessMF)
+	require.NotEmpty(t, probeSuccessMF.Metric)
+	assert.InDelta(t, expected, *probeSuccessMF.Metric[0].Gauge.Value, 0.0001)
+}
+
+func TestMetrics_RecordRun_ValidStatusCodes(t *testing.T) {
+	t.Run("404 marked as success when in validStatusCodes", func(t *testing.T) {
+		assertProbeSuccessVal(t, 404,
+			requests.RequestConfig{ValidStatusCodes: []int{404}},
+			requests.ResponseResult{StatusCode: 404, ValidStatusCodes: []int{404}},
+			1.0,
+		)
+	})
+
+	t.Run("200 marked as failure when only 404 in validStatusCodes", func(t *testing.T) {
+		assertProbeSuccessVal(t, 200,
+			requests.RequestConfig{ValidStatusCodes: []int{404}},
+			requests.ResponseResult{StatusCode: 200, ValidStatusCodes: []int{404}},
+			0.0,
+		)
+	})
+}
+
+func TestMetrics_RecordRun_RegexValidations(t *testing.T) {
+	trueVal := true
+	falseVal := false
+
+	t.Run("failure when body fail regex matches", func(t *testing.T) {
+		assertProbeSuccessVal(t, 200,
+			requests.RequestConfig{ResponseBodyFailRegexp: "error"},
+			requests.ResponseResult{StatusCode: 200, BodyFailRegexpMatched: &trueVal},
+			0.0,
+		)
+	})
+
+	t.Run("success when body fail regex does not match", func(t *testing.T) {
+		assertProbeSuccessVal(t, 200,
+			requests.RequestConfig{ResponseBodyFailRegexp: "error"},
+			requests.ResponseResult{StatusCode: 200, BodyFailRegexpMatched: &falseVal},
+			1.0,
+		)
+	})
+
+	t.Run("failure when header match regex fails", func(t *testing.T) {
+		assertProbeSuccessVal(t, 200,
+			requests.RequestConfig{ResponseHeaderMatchRegexp: map[string]string{"Content-Type": "json"}},
+			requests.ResponseResult{StatusCode: 200, HeaderMatchRegexpMatched: &falseVal},
+			0.0,
+		)
+	})
+
+	t.Run("failure when header fail regex matches", func(t *testing.T) {
+		assertProbeSuccessVal(t, 200,
+			requests.RequestConfig{ResponseHeaderFailRegexp: map[string]string{"Server": "apache"}},
+			requests.ResponseResult{StatusCode: 200, HeaderFailRegexpMatched: &trueVal},
+			0.0,
+		)
+	})
+}

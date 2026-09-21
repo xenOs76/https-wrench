@@ -260,6 +260,15 @@ func (rd *ResponseData) ImportResponseBody() {
 		}
 	}
 
+	if rd.Request.ResponseBodyFailRegexp != "" {
+		re, err := regexp.Compile(rd.Request.ResponseBodyFailRegexp)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseBodyFailRegexp: %w", err))
+		} else if re.Match(body) {
+			rd.ResponseBodyFailRegexpMatched = true
+		}
+	}
+
 	rd.ResponseContentType, rd.ResponseBody = formatResponseBody(body, rd.Response.Header.Get("Content-Type"))
 }
 
@@ -363,4 +372,83 @@ func RenderTLSData(w io.Writer, r *http.Response, filter ...[]map[int][]string) 
 	}
 
 	_ = view.Render(w, doc, view.Options{ForceColor: true})
+}
+
+// getHeaderValues retrieves all values for a header key, checking both canonical key and case-insensitively.
+func getHeaderValues(h http.Header, key string) []string {
+	if vals := h.Values(key); len(vals) > 0 {
+		return vals
+	}
+
+	for k, v := range h {
+		if strings.EqualFold(k, key) {
+			return v
+		}
+	}
+
+	return nil
+}
+
+func headerValuesMatch(re *regexp.Regexp, values []string) bool {
+	for _, v := range values {
+		if re.MatchString(v) {
+			return true
+		}
+	}
+
+	return re.MatchString(strings.Join(values, ", "))
+}
+
+func evaluateHeaderMatch(header http.Header, rules map[string]string) bool {
+	for headerKey, pattern := range rules {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseHeaderMatchRegexp for header %q: %w", headerKey, err))
+
+			return false
+		}
+
+		values := getHeaderValues(header, headerKey)
+		if len(values) == 0 || !headerValuesMatch(re, values) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func evaluateHeaderFail(header http.Header, rules map[string]string) bool {
+	for headerKey, pattern := range rules {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Print(fmt.Errorf("unable to compile responseHeaderFailRegexp for header %q: %w", headerKey, err))
+
+			continue
+		}
+
+		values := getHeaderValues(header, headerKey)
+		if len(values) > 0 && headerValuesMatch(re, values) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// EvaluateResponseHeaders checks configured ResponseHeaderMatchRegexp
+// and ResponseHeaderFailRegexp against response headers.
+func (rd *ResponseData) EvaluateResponseHeaders() {
+	if rd.Response == nil {
+		return
+	}
+
+	if len(rd.Request.ResponseHeaderMatchRegexp) > 0 {
+		matchedAll := evaluateHeaderMatch(rd.Response.Header, rd.Request.ResponseHeaderMatchRegexp)
+		rd.ResponseHeaderMatchRegexpMatched = &matchedAll
+	}
+
+	if len(rd.Request.ResponseHeaderFailRegexp) > 0 {
+		matchedAny := evaluateHeaderFail(rd.Response.Header, rd.Request.ResponseHeaderFailRegexp)
+		rd.ResponseHeaderFailRegexpMatched = &matchedAny
+	}
 }
