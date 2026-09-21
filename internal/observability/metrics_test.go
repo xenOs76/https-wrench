@@ -1,6 +1,11 @@
 package observability
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
+	"net/http"
 	"testing"
 	"time"
 
@@ -226,4 +231,79 @@ func TestMetrics_PushTracking(t *testing.T) {
 
 	assert.True(t, names["https_wrench_push_last_timestamp_seconds"])
 	assert.True(t, names["https_wrench_push_errors_total"])
+}
+
+func TestMetrics_RecordRun_TLSFallbackFromResponse(t *testing.T) {
+	t.Parallel()
+
+	cfg := MetricsFilterConfig{
+		IncludeTLS:       true,
+		IncludeCertChain: true,
+	}
+
+	m := NewMetrics(cfg)
+	require.NotNil(t, m)
+
+	mockCert := &x509.Certificate{
+		Subject:      pkix.Name{CommonName: "fallback.example.com"},
+		SerialNumber: big.NewInt(999),
+	}
+
+	res := &requests.Result{
+		Requests: []requests.RequestResult{
+			{
+				Name: "tls-fallback-probe",
+				Responses: []requests.ResponseResult{
+					{
+						URL:              "https://fallback.example.com/status",
+						TransportAddress: "127.0.0.1:8443",
+						StatusCode:       200,
+						TLS:              nil, // printResponseCertificates was false!
+					},
+				},
+			},
+		},
+	}
+
+	responseMap := map[string][]requests.ResponseData{
+		"tls-fallback-probe": {
+			{
+				URL: "https://fallback.example.com/status",
+				Response: &http.Response{
+					StatusCode: 200,
+					TLS: &tls.ConnectionState{
+						Version:          tls.VersionTLS13,
+						CipherSuite:      tls.TLS_AES_128_GCM_SHA256,
+						PeerCertificates: []*x509.Certificate{mockCert},
+					},
+				},
+			},
+		},
+	}
+
+	m.RecordRun(res, responseMap, 50*time.Millisecond)
+
+	mfs, err := m.Registry().Gather()
+	require.NoError(t, err)
+
+	names := make(map[string]bool)
+	for _, mf := range mfs {
+		names[*mf.Name] = true
+	}
+
+	assert.True(
+		t,
+		names["https_wrench_ssl_tls_version_info"],
+		"TLS version info metric should be generated from response fallback",
+	)
+	assert.True(
+		t,
+		names["https_wrench_ssl_cert_days_until_expiry"],
+		"Cert expiry metric should be generated from response fallback",
+	)
+	assert.True(
+		t,
+		names["https_wrench_ssl_cert_valid"],
+		"Cert valid metric should be generated from response fallback",
+	)
 }

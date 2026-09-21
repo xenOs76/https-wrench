@@ -5,6 +5,7 @@ Copyright © 2026 Zeno Belli xeno@os76.xyz
 package requests
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -134,18 +135,26 @@ func buildResponseResult(rd ResponseData) ResponseResult {
 		}
 
 		if rd.Request.PrintResponseCertificates && rd.Response.TLS != nil {
-			respTLS := rd.Response.TLS
-			respRes.TLS = &ResponseTLSResult{
-				Version:            TLSVersionName(respTLS.Version),
-				CipherSuite:        cipherSuiteName(respTLS.CipherSuite),
-				KeyExchange:        respTLS.CurveID.String(),
-				Certificates:       certinfo.CertInfos(respTLS.PeerCertificates),
-				CertificatesFilter: rd.Request.ResponseCertificatesFilter,
-			}
+			respRes.TLS = BuildResponseTLSResult(rd.Response.TLS, rd.Request.ResponseCertificatesFilter)
 		}
 	}
 
 	return respRes
+}
+
+// BuildResponseTLSResult constructs a ResponseTLSResult from a tls.ConnectionState and optional certificates filter.
+func BuildResponseTLSResult(respTLS *tls.ConnectionState, filter []map[int][]string) *ResponseTLSResult {
+	if respTLS == nil {
+		return nil
+	}
+
+	return &ResponseTLSResult{
+		Version:            TLSVersionName(respTLS.Version),
+		CipherSuite:        cipherSuiteName(respTLS.CipherSuite),
+		KeyExchange:        respTLS.CurveID.String(),
+		Certificates:       certinfo.CertInfos(respTLS.PeerCertificates),
+		CertificatesFilter: filter,
+	}
 }
 
 // EncodeJSON writes the result as indented JSON with no ANSI escape sequences.

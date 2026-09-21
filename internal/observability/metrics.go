@@ -289,30 +289,56 @@ func (m *Metrics) recordSingleResponse(
 	m.probeResponseSize.WithLabelValues(reqName, parsedHost, parsedURI).Set(float64(respRes.TransferredBytes))
 	m.probeRequestsTotal.WithLabelValues(reqName, parsedHost, parsedURI, statusCodeStr, resultStr, bodyMatchStr).Inc()
 
-	if respRes.BodyRegexpMatched != nil {
-		matchVal := 0.0
-		if *respRes.BodyRegexpMatched {
-			matchVal = 1.0
-		}
+	m.recordBodyMatch(reqName, parsedHost, parsedURI, respRes, rd)
+	m.recordResponseTLS(reqName, parsedHost, respRes, rd)
+}
 
-		regexpPattern := rd.Request.ResponseBodyMatchRegexp
-		matchedValue := extractMatchedValue(regexpPattern, rd.ResponseBody, respRes.Body)
-
-		m.probeBodyMatches.WithLabelValues(reqName, parsedHost, parsedURI, regexpPattern).Set(matchVal)
-
-		slog.Info(
-			"probe body regex match",
-			"request_name", reqName,
-			"host", parsedHost,
-			"uri", parsedURI,
-			"regexp", regexpPattern,
-			"matched", *respRes.BodyRegexpMatched,
-			"matched_value", matchedValue,
-		)
+func (m *Metrics) recordBodyMatch(
+	reqName, host, uri string,
+	respRes requests.ResponseResult,
+	rd requests.ResponseData,
+) {
+	if respRes.BodyRegexpMatched == nil {
+		return
 	}
 
-	if m.cfg.IncludeTLS && respRes.TLS != nil {
-		m.recordTLSMetrics(reqName, parsedHost, respRes.TLS)
+	matchVal := 0.0
+	if *respRes.BodyRegexpMatched {
+		matchVal = 1.0
+	}
+
+	regexpPattern := rd.Request.ResponseBodyMatchRegexp
+	matchedValue := extractMatchedValue(regexpPattern, rd.ResponseBody, respRes.Body)
+
+	m.probeBodyMatches.WithLabelValues(reqName, host, uri, regexpPattern).Set(matchVal)
+
+	slog.Info(
+		"probe body regex match",
+		"request_name", reqName,
+		"host", host,
+		"uri", uri,
+		"regexp", regexpPattern,
+		"matched", *respRes.BodyRegexpMatched,
+		"matched_value", matchedValue,
+	)
+}
+
+func (m *Metrics) recordResponseTLS(
+	reqName, host string,
+	respRes requests.ResponseResult,
+	rd requests.ResponseData,
+) {
+	if !m.cfg.IncludeTLS {
+		return
+	}
+
+	tlsRes := respRes.TLS
+	if tlsRes == nil && rd.Response != nil && rd.Response.TLS != nil {
+		tlsRes = requests.BuildResponseTLSResult(rd.Response.TLS, rd.Request.ResponseCertificatesFilter)
+	}
+
+	if tlsRes != nil {
+		m.recordTLSMetrics(reqName, host, tlsRes)
 	}
 }
 
