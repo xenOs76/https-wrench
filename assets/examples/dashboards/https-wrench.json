@@ -1309,7 +1309,7 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "https_wrench_ssl_earliest_cert_expiry_seconds{job=~\"$job\", instance=~\"$instance\", target=~\"$target\", request_name=~\"$request_name\", host=~\"$host\"}",
+          "expr": "https_wrench_ssl_earliest_cert_expiry_seconds{job=~\"$job\", instance=~\"$instance\", target=~\"$target\", request_name=~\"$request_name\", host=~\"$host\"} * 1000",
           "format": "table",
           "instant": true,
           "refId": "D"
