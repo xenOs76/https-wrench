@@ -331,6 +331,7 @@ func (m *Metrics) recordSingleResponse(
 	m.recordResponseTLS(reqName, parsedHost, respRes, rd)
 }
 
+// isResponseHealthy determines whether an HTTP probe response meets success criteria.
 func isResponseHealthy(statusCode int, respRes requests.ResponseResult, rd requests.ResponseData) bool {
 	if respRes.Error != "" {
 		return false

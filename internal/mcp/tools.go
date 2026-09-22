@@ -12,15 +12,18 @@ import (
 	"github.com/xenos76/https-wrench/internal/requests"
 )
 
+// validateRequestsConfigInput holds parameters for the validate_requests_config MCP tool.
 type validateRequestsConfigInput struct {
 	ConfigYAML string `json:"configYaml" jsonschema:"YAML content of a https-wrench requests configuration file"`
 }
 
+// validateRequestsConfigOutput returns the structural validity and errors of a requests YAML config.
 type validateRequestsConfigOutput struct {
 	Valid  bool     `json:"valid"`
 	Errors []string `json:"errors,omitempty"`
 }
 
+// requestsConfigTemplateInput contains parameters to scaffold a requests YAML configuration.
 type requestsConfigTemplateInput struct {
 	Hostname             string `json:"hostname" jsonschema:"Application hostname (hosts[].name)"`
 	Paths                string `json:"paths,omitempty" jsonschema:"Comma-separated URI paths starting with /"`
@@ -30,31 +33,37 @@ type requestsConfigTemplateInput struct {
 	RequestName          string `json:"requestName,omitempty" jsonschema:"Display name for the request entry"`
 }
 
+// requestsConfigTemplateOutput returns the generated requests YAML configuration template.
 type requestsConfigTemplateOutput struct {
 	ConfigYAML string `json:"configYaml"`
 }
 
+// buildCLICommandInput specifies a subcommand and flag arguments to format as a CLI command.
 type buildCLICommandInput struct {
 	Command string            `json:"command" jsonschema:"Subcommand: certinfo, jwtinfo, jwks, or requests"`
 	Flags   map[string]string `json:"flags" jsonschema:"Flag names to values (defaults to format: json)"`
 }
 
+// buildCLICommandOutput contains the constructed CLI command string or validation errors.
 type buildCLICommandOutput struct {
 	Command string   `json:"command"`
 	Errors  []string `json:"errors,omitempty"`
 }
 
+// cliCommandDef defines validation constraints for a supported CLI command.
 type cliCommandDef struct {
 	requiredFlags []string
 	oneOfGroups   [][]string
 	allowedFlags  map[string]struct{}
 }
 
+// parsedRequestsConfig holds unmarshaled request configurations and metadata.
 type parsedRequestsConfig struct {
 	Verbose  bool
 	Requests []requests.RequestConfig
 }
 
+// registerTools registers non-executing utility tools on the given MCP server.
 func registerTools(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name: "validate_requests_config",
@@ -78,6 +87,7 @@ func registerTools(server *sdkmcp.Server) {
 	registerExecTools(server)
 }
 
+// validateRequestsConfigHandler is the MCP tool handler validating requests YAML configurations.
 func validateRequestsConfigHandler(
 	_ context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -88,6 +98,7 @@ func validateRequestsConfigHandler(
 	return nil, validateRequestsConfigOutput{Valid: valid, Errors: errs}, nil
 }
 
+// requestsConfigTemplateHandler is the MCP tool handler generating requests YAML templates.
 func requestsConfigTemplateHandler(
 	_ context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -101,6 +112,7 @@ func requestsConfigTemplateHandler(
 	return nil, requestsConfigTemplateOutput{ConfigYAML: yaml}, nil
 }
 
+// buildCLICommandHandler is the MCP tool handler building shell-ready CLI command strings.
 func buildCLICommandHandler(
 	_ context.Context,
 	_ *sdkmcp.CallToolRequest,
@@ -116,6 +128,7 @@ func buildCLICommandHandler(
 	return nil, out, nil
 }
 
+// validateRequestsConfig parses and checks structural validity of requests YAML content.
 func validateRequestsConfig(yamlContent string) (bool, []string) {
 	cfg, verboseSet, err := parseRequestsConfigYAML(yamlContent)
 	if err != nil {
@@ -139,6 +152,7 @@ func validateRequestsConfig(yamlContent string) (bool, []string) {
 	return len(errs) == 0, errs
 }
 
+// parseRequestsConfigYAML unmarshals YAML configuration content using Viper.
 func parseRequestsConfigYAML(yamlContent string) (parsedRequestsConfig, bool, error) {
 	v := viper.New()
 	v.SetConfigType("yaml")
@@ -162,6 +176,7 @@ func parseRequestsConfigYAML(yamlContent string) (parsedRequestsConfig, bool, er
 	}, v.IsSet("verbose"), nil
 }
 
+// validateRequestConfig validates a single RequestConfig entry within the configuration.
 func validateRequestConfig(index int, req requests.RequestConfig) []string {
 	prefix := fmt.Sprintf("requests[%d]", index)
 
@@ -190,6 +205,7 @@ func validateRequestConfig(index int, req requests.RequestConfig) []string {
 	return errs
 }
 
+// validateRequestHost validates a single host entry and its URI list within a request.
 func validateRequestHost(prefix string, index int, host requests.Host) []string {
 	hostPrefix := fmt.Sprintf("%s.hosts[%d]", prefix, index)
 
@@ -210,6 +226,7 @@ func validateRequestHost(prefix string, index int, host requests.Host) []string 
 	return errs
 }
 
+// buildRequestsConfigYAML constructs a formatted requests YAML configuration from template inputs.
 func buildRequestsConfigYAML(input requestsConfigTemplateInput) (string, []string) {
 	var errs []string
 
@@ -267,6 +284,7 @@ func buildRequestsConfigYAML(input requestsConfigTemplateInput) (string, []strin
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
 
+// parsePaths splits a comma-separated list of paths into trimmed URI paths.
 func parsePaths(paths string) []string {
 	paths = strings.TrimSpace(paths)
 	if paths == "" {
@@ -328,6 +346,7 @@ var allowedCLICommands = map[string]cliCommandDef{
 	},
 }
 
+// buildCLICommand validates flags and constructs a shell-escaped CLI command string.
 func buildCLICommand(command string, flags map[string]string) (string, []string) {
 	command = strings.ToLower(strings.TrimSpace(command))
 
@@ -366,6 +385,7 @@ func buildCLICommand(command string, flags map[string]string) (string, []string)
 	return strings.Join(parts, " "), nil
 }
 
+// validateCLIFlags validates required flags, mutually exclusive groups, and unrecognized options.
 func validateCLIFlags(command string, def cliCommandDef, flags map[string]string) []string {
 	var errs []string
 
@@ -390,6 +410,7 @@ func validateCLIFlags(command string, def cliCommandDef, flags map[string]string
 	return errs
 }
 
+// oneOfFlagsSet checks whether at least one flag from a given group is present in the flag map.
 func oneOfFlagsSet(group []string, flags map[string]string) bool {
 	for _, name := range group {
 		if _, set := flags[name]; set {
@@ -400,6 +421,7 @@ func oneOfFlagsSet(group []string, flags map[string]string) bool {
 	return false
 }
 
+// sortedAllowedFlagNames returns sorted flag names from the flags map that are recognized in def.
 func sortedAllowedFlagNames(def cliCommandDef, flags map[string]string) []string {
 	names := make([]string, 0, len(flags))
 	for name := range flags {
@@ -413,6 +435,7 @@ func sortedAllowedFlagNames(def cliCommandDef, flags map[string]string) []string
 	return names
 }
 
+// shellQuote quotes a string with single quotes for POSIX shell compatibility if needed.
 func shellQuote(value string) string {
 	if value == "" {
 		return "''"

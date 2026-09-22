@@ -212,6 +212,7 @@ Examples:
 	},
 }
 
+// init registers flags and adds the requests command to rootCmd.
 func init() {
 	requestsCmd.PersistentFlags().BoolVar(&showSampleConfig,
 		"show-sample-config",

@@ -552,3 +552,13 @@ func decodeStructuredOutput(t *testing.T, res *sdkmcp.CallToolResult) map[string
 
 	return out
 }
+
+func TestMCPServer_Run_ContextCanceled(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := mcpserver.Run(ctx, "test-version")
+	require.Error(t, err)
+}

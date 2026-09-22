@@ -64,6 +64,7 @@ func BuildDoc(r *Result) view.Doc {
 	return view.Doc{Nodes: nodes}
 }
 
+// privateKeySection formats private key metadata into a styled Section.
 func privateKeySection(pk *PrivateKeyInfo) view.Node {
 	kids := []view.Node{
 		view.KV{Key: "PrivateKey file", Value: pk.FilePath, Tone: view.ToneValue},
@@ -87,6 +88,7 @@ func privateKeySection(pk *PrivateKeyInfo) view.Node {
 	return view.Section{Title: "PrivateKey", Level: 1, Kids: kids}
 }
 
+// attrOrder sorts attribute keys with preferred properties appearing first.
 func attrOrder(attrs map[string]string) []string {
 	prefer := []string{"Key Size", "Curve", "Parameters"}
 
@@ -110,6 +112,7 @@ func attrOrder(attrs map[string]string) []string {
 	return out
 }
 
+// certsSectionDoc renders a collection of certificates into a styled document section.
 func certsSectionDoc(
 	title, primaryKey, primaryVal, serverName string,
 	sec *CertsSection,
@@ -140,6 +143,7 @@ func certsSectionDoc(
 	return []view.Node{view.Section{Title: title, Level: 1, Kids: kids}}
 }
 
+// certInfoTables transforms a slice of CertInfo structs into view.Table nodes.
 func certInfoTables(certs []CertInfo) []view.Node {
 	nodes := make([]view.Node, 0, len(certs))
 	for _, c := range certs {
@@ -149,6 +153,7 @@ func certInfoTables(certs []CertInfo) []view.Node {
 	return nodes
 }
 
+// certFieldSpec defines how an individual certificate property is extracted and styled.
 type certFieldSpec struct {
 	names []string
 	key   string
@@ -156,10 +161,13 @@ type certFieldSpec struct {
 	tone  func(CertInfo) view.Tone
 }
 
+// valueTone returns the standard ToneValue style.
 func valueTone(CertInfo) view.Tone { return view.ToneValue }
 
+// noticeTone returns the ToneNotice style for highlighted values.
 func noticeTone(CertInfo) view.Tone { return view.ToneNotice }
 
+// expTone selects an expiration warning or critical tone based on days until expiry.
 func expTone(c CertInfo) view.Tone {
 	switch expiryTone(c.DaysUntilExpiry) {
 	case "warn":
@@ -259,6 +267,7 @@ var certFields = []certFieldSpec{
 	},
 }
 
+// certInfoTable builds a table node for a single certificate with requested fields.
 func certInfoTable(c CertInfo, fields []string) view.Node {
 	header := fmt.Sprintf("Certificate %d", c.Index)
 	rows := make([][]view.Cell, 0, 14)
@@ -277,6 +286,7 @@ func certInfoTable(c CertInfo, fields []string) view.Node {
 	return view.Table{Headers: []string{header}, Rows: rows}
 }
 
+// fieldRequested checks whether any of the candidate field names are included in fields.
 func fieldRequested(fields []string, names ...string) bool {
 	if len(fields) == 0 {
 		return true
@@ -336,6 +346,7 @@ func CertInfosDoc(certs []CertInfo, filter ...[]map[int][]string) view.Doc {
 	return view.Doc{Nodes: nodes}
 }
 
+// tlsInfoNodes generates view nodes for negotiated TLS connection and protocol scans.
 func tlsInfoNodes(info *TLSInfoSection) []view.Node {
 	nodes := []view.Node{negotiatedTLSSection(info)}
 
@@ -348,6 +359,7 @@ func tlsInfoNodes(info *TLSInfoSection) []view.Node {
 	return append(nodes, protocolSupportSection(info), cipherSuiteSection(info))
 }
 
+// negotiatedTLSSection formats the negotiated TLS protocol, cipher, and curve into a Section.
 func negotiatedTLSSection(info *TLSInfoSection) view.Node {
 	return view.Section{
 		Title: "Negotiated TLS Connection",
@@ -362,6 +374,7 @@ func negotiatedTLSSection(info *TLSInfoSection) view.Node {
 	}
 }
 
+// kvRow builds a two-cell key/value row for a table.
 func kvRow(key, val string) []view.Cell {
 	return []view.Cell{
 		{Text: key, Tone: view.ToneKey},
@@ -369,6 +382,7 @@ func kvRow(key, val string) []view.Cell {
 	}
 }
 
+// protocolSupportSection formats the supported TLS protocol versions into a Section.
 func protocolSupportSection(info *TLSInfoSection) view.Node {
 	protoRows := make([][]view.Cell, 0, 4)
 
@@ -393,6 +407,7 @@ func protocolSupportSection(info *TLSInfoSection) view.Node {
 	}
 }
 
+// cipherSuiteSection formats supported cipher suites into an informational table Section.
 func cipherSuiteSection(info *TLSInfoSection) view.Node {
 	cipherRows := make([][]view.Cell, 0)
 

@@ -37,6 +37,7 @@ Configure in Cursor or Claude Desktop:
 	},
 }
 
+// init adds the mcp command to rootCmd.
 func init() {
 	rootCmd.AddCommand(mcpCmd)
 }

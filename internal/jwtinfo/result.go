@@ -85,6 +85,7 @@ func EncodeJSON(r *Result) ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
 }
 
+// tokenSection builds a TokenSection from header and claims raw JSON bytes.
 func tokenSection(header, claims []byte, name string) (*TokenSection, error) {
 	timeClaims, err := unmarshalTokenTimeClaims(claims)
 	if err != nil {
@@ -99,6 +100,7 @@ func tokenSection(header, claims []byte, name string) (*TokenSection, error) {
 	}, nil
 }
 
+// asRawMessage wraps valid JSON bytes or marshals arbitrary strings into a json.RawMessage.
 func asRawMessage(b []byte) json.RawMessage {
 	if json.Valid(b) {
 		return json.RawMessage(append([]byte(nil), b...))

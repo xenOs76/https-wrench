@@ -98,6 +98,7 @@ func Execute() error {
 	return nil
 }
 
+// init registers persistent CLI flags and sets up configuration initialization.
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -116,6 +117,7 @@ func init() {
 	bindViperFlags()
 }
 
+// bindViperFlags binds cobra command flags to viper keys.
 func bindViperFlags() {
 	if err := viper.BindPFlag("version", rootCmd.PersistentFlags().Lookup("version")); err != nil {
 		fmt.Printf("Error binding version flag: %v\n", err)
@@ -138,6 +140,7 @@ func bindViperFlags() {
 	}
 }
 
+// initConfig reads in the configuration file from disk or default locations.
 func initConfig() {
 	if isMCPCommand() {
 		return
@@ -174,6 +177,7 @@ func LoadConfig() (*HTTPSWrenchConfig, error) {
 	return config, nil
 }
 
+// isMCPCommand reports whether the active command is the MCP server subcommand.
 func isMCPCommand() bool {
 	for _, arg := range os.Args[1:] {
 		if arg == "mcp" {
@@ -184,15 +188,18 @@ func isMCPCommand() bool {
 	return false
 }
 
+// addCaBundleFlag attaches the --ca-bundle flag to a command.
 func addCaBundleFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&caBundlePath, "ca-bundle", "", `Path to bundle file with CA certificates 
 to use for validation`)
 }
 
+// addCertBundleFlag attaches the --cert-bundle flag to a command.
 func addCertBundleFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&certBundlePath, "cert-bundle", "", "Path to PEM Certificate bundle file")
 }
 
+// addKeyFileFlag attaches the --key-file flag to a command.
 func addKeyFileFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&keyFilePath, "key-file", "", "Path to PEM Key file")
 }

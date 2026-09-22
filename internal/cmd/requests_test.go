@@ -366,3 +366,69 @@ func TestApplyObservabilityOverrides_Logging(t *testing.T) {
 	assert.Equal(t, "debug", obsCfg.Logging.Level)
 	assert.Equal(t, "json", obsCfg.Logging.Format)
 }
+
+func TestLoadAndBuildObservabilityConfigs(t *testing.T) {
+	t.Parallel()
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Int("concurrency", 0, "")
+	cmd.Flags().Duration("interval", 0, "")
+	cmd.Flags().String("listen", "", "")
+
+	// 1. Non-existent file
+	_, _, err := loadAndBuildObservabilityConfigs("/non/existent/path.yaml", cmd, fileReader)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to read config file")
+
+	// 2. Invalid YAML syntax
+	tmpDir := t.TempDir()
+	badYAML := filepath.Join(tmpDir, "bad.yaml")
+	require.NoError(t, os.WriteFile(badYAML, []byte("invalid: yaml: ["), 0o600))
+
+	_, _, err = loadAndBuildObservabilityConfigs(badYAML, cmd, fileReader)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to read config file")
+
+	// 3. Valid YAML with requests & observability
+	goodYAML := filepath.Join(tmpDir, "good.yaml")
+	content := `
+concurrency: 4
+requests:
+  - name: test-req
+    hosts:
+      - name: example.com
+        uriList:
+          - /
+observability:
+  interval: 5s
+  pull:
+    enabled: true
+    address: "127.0.0.1:9090"
+`
+	require.NoError(t, os.WriteFile(goodYAML, []byte(content), 0o600))
+
+	obsCfg, reqMeta, err := loadAndBuildObservabilityConfigs(goodYAML, cmd, fileReader)
+	require.NoError(t, err)
+	require.NotNil(t, obsCfg)
+	require.NotNil(t, reqMeta)
+	assert.Equal(t, 4, reqMeta.Concurrency)
+	assert.Len(t, reqMeta.Requests, 1)
+
+	// 4. Invalid Observability config (validation fails)
+	invalidObsYAML := filepath.Join(tmpDir, "invalid_obs.yaml")
+	invContent := `
+observability:
+  interval: 5s
+  pull:
+    enabled: false
+  push:
+    prometheus:
+      enabled: false
+    otlp:
+      enabled: false
+`
+	require.NoError(t, os.WriteFile(invalidObsYAML, []byte(invContent), 0o600))
+
+	_, _, err = loadAndBuildObservabilityConfigs(invalidObsYAML, cmd, fileReader)
+	require.Error(t, err)
+}

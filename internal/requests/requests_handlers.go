@@ -389,6 +389,7 @@ func getHeaderValues(h http.Header, key string) []string {
 	return nil
 }
 
+// headerValuesMatch checks if any individual header value or the joined comma-separated values match the regex.
 func headerValuesMatch(re *regexp.Regexp, values []string) bool {
 	for _, v := range values {
 		if re.MatchString(v) {
@@ -399,6 +400,7 @@ func headerValuesMatch(re *regexp.Regexp, values []string) bool {
 	return re.MatchString(strings.Join(values, ", "))
 }
 
+// evaluateHeaderMatch verifies that all configured header match rules match response headers.
 func evaluateHeaderMatch(header http.Header, rules map[string]string) bool {
 	for headerKey, pattern := range rules {
 		re, err := regexp.Compile(pattern)
@@ -417,6 +419,7 @@ func evaluateHeaderMatch(header http.Header, rules map[string]string) bool {
 	return true
 }
 
+// evaluateHeaderFail checks if any configured header fail rules match response headers.
 func evaluateHeaderFail(header http.Header, rules map[string]string) bool {
 	for headerKey, pattern := range rules {
 		re, err := regexp.Compile(pattern)

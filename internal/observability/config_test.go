@@ -39,6 +39,12 @@ func TestConfig_DefaultsAndValidation(t *testing.T) {
 		err := cfg.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "push.prometheus.remoteWriteUrl is required")
+
+		// sets default timeout when timeout <= 0
+		cfg.Push.Prometheus.RemoteWriteURL = "http://localhost:9090/api/v1/write"
+		cfg.Push.Prometheus.Timeout = 0
+		require.NoError(t, cfg.Validate())
+		assert.Equal(t, DefaultPushTimeout, cfg.Push.Prometheus.Timeout)
 	})
 
 	t.Run("requires endpoint when otlp push is enabled", func(t *testing.T) {

@@ -61,6 +61,7 @@ type Section struct {
 	Kids  []Node
 }
 
+// viewNode marks Section as a renderable document node.
 func (Section) viewNode() {}
 
 // KV is a key/value line with an optional value tone.
@@ -69,4 +70,5 @@ type KV struct {
 	Tone       Tone
 }
 
+// viewNode marks KV as a renderable document node.
 func (KV) viewNode() {}

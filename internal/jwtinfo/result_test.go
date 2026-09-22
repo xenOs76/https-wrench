@@ -105,6 +105,26 @@ func TestEncodeJSON_NilResult(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestBuildDoc_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	// 1. Nil result
+	nilDoc := BuildDoc(nil)
+	require.NotEmpty(t, nilDoc.Nodes)
+
+	// 2. TokenSection with false validity and invalid JSON
+	falseVal := false
+	res := &Result{
+		RefreshToken: &TokenSection{
+			Valid:  &falseVal,
+			Header: json.RawMessage("invalid-json"),
+			Claims: json.RawMessage("invalid-json"),
+		},
+	}
+	doc := BuildDoc(res)
+	require.NotEmpty(t, doc.Nodes)
+}
+
 func mustClaim(t *testing.T, raw json.RawMessage, key string) string {
 	t.Helper()
 

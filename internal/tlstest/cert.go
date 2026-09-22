@@ -112,6 +112,7 @@ func GenerateCert(tpl Template) ([]byte, *x509.Certificate, error) {
 	return certPEM, certificate, nil
 }
 
+// validateTemplate verifies that necessary keys and parent certificates are present in the template.
 func validateTemplate(tpl Template) error {
 	if tpl.Key == nil {
 		return errors.New("missing certificate private key")

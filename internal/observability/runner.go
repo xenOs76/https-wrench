@@ -297,6 +297,8 @@ func (r *Runner) checkFileModification() {
 
 	currentHash := sha256.Sum256(content)
 	if currentHash == lastHash {
+		r.Logger().Debug("config file unchanged", "path", path)
+
 		return
 	}
 
@@ -504,10 +506,17 @@ func (r *Runner) dispatchPushes(
 			exportCtx, expCancel := context.WithTimeout(ctx, timeout)
 			defer expCancel()
 
+			start := time.Now()
+
 			if err := e.Export(exportCtx, mfs); err != nil {
 				r.Logger().Error("push exporter error", "exporter", e.Name(), "error", err)
 				r.metrics.RecordPushError(e.Name())
 			} else {
+				r.Logger().Debug(
+					"push exporter completed",
+					"exporter", e.Name(),
+					"duration_ms", time.Since(start).Milliseconds(),
+				)
 				r.metrics.RecordPushSuccess(e.Name(), time.Now())
 			}
 		})

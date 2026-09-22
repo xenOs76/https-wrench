@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xenos76/https-wrench/internal/requests"
@@ -414,4 +417,122 @@ func TestRunner_LoggingAndDynamicReload(t *testing.T) {
 
 	textOutput := buf.String()
 	assert.Contains(t, textOutput, `msg="probe cycle completed"`)
+}
+
+type mockExporter struct {
+	name   string
+	err    error
+	closed bool
+}
+
+func (m *mockExporter) Name() string { return m.name }
+
+func (m *mockExporter) Export(_ context.Context, _ []*dto.MetricFamily) error {
+	return m.err
+}
+
+func (m *mockExporter) Close() error {
+	m.closed = true
+	return nil
+}
+
+func TestRunner_GettersAndSetters(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		Enabled:  true,
+		Interval: 50 * time.Millisecond,
+		Timeout:  25 * time.Millisecond,
+		Pull: PullConfig{
+			Enabled: true,
+			Address: "127.0.0.1:0",
+			Path:    "/metrics",
+		},
+	}
+	reqMeta := &requests.RequestsMetaConfig{
+		Requests: []requests.RequestConfig{{Name: "probe"}},
+	}
+
+	r, err := NewRunner(cfg, reqMeta)
+	require.NoError(t, err)
+	require.NotNil(t, r.Server())
+	require.NotNil(t, r.Server().Logger())
+
+	// Default output is os.Stdout when out is nil
+	r.out = nil
+	require.Equal(t, os.Stdout, r.output())
+
+	// SetLogger
+	customLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	r.SetLogger(customLogger)
+	require.Equal(t, customLogger, r.Logger())
+}
+
+func TestRunner_DispatchPushes(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		Enabled:  true,
+		Interval: 50 * time.Millisecond,
+		Timeout:  25 * time.Millisecond,
+		Pull: PullConfig{
+			Enabled: true,
+			Address: "127.0.0.1:0",
+			Path:    "/metrics",
+		},
+	}
+	reqMeta := &requests.RequestsMetaConfig{
+		Requests: []requests.RequestConfig{{Name: "probe"}},
+	}
+
+	r, err := NewRunner(cfg, reqMeta)
+	require.NoError(t, err)
+
+	expGood := &mockExporter{name: "good"}
+	expBad := &mockExporter{name: "bad", err: errors.New("push failure")}
+
+	mfs, err := r.Metrics().Registry().Gather()
+	require.NoError(t, err)
+
+	r.dispatchPushes(context.Background(), []Exporter{expGood, expBad}, mfs, time.Second)
+
+	// Verify metrics were recorded
+	updatedMfs, err := r.Metrics().Registry().Gather()
+	require.NoError(t, err)
+	require.NotEmpty(t, updatedMfs)
+}
+
+func TestRunner_UpdateExporters(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		Enabled:  true,
+		Interval: 50 * time.Millisecond,
+		Timeout:  25 * time.Millisecond,
+		Pull: PullConfig{
+			Enabled: true,
+			Address: "127.0.0.1:0",
+			Path:    "/metrics",
+		},
+	}
+	reqMeta := &requests.RequestsMetaConfig{}
+
+	r, err := NewRunner(cfg, reqMeta)
+	require.NoError(t, err)
+
+	oldExp := &mockExporter{name: "old"}
+	r.exporters = []Exporter{oldExp}
+
+	// Update with new push config
+	newPush := PushConfig{
+		Prometheus: PushPrometheusConfig{
+			Enabled:        true,
+			RemoteWriteURL: "http://127.0.0.1:9090/api/v1/write",
+		},
+	}
+	r.updateExporters(newPush)
+
+	require.True(t, oldExp.closed)
+	require.Len(t, r.exporters, 1)
+	require.Equal(t, "prometheus_remote_write", r.exporters[0].Name())
 }
