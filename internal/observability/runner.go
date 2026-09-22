@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,6 +30,7 @@ type Runner struct {
 	server         *Server
 	exporters      []Exporter
 	out            io.Writer
+	logger         atomic.Pointer[slog.Logger]
 	configPath     string
 	lastConfigHash [32]byte
 	reloadFn       func() (*Config, *requests.RequestsMetaConfig, error)
@@ -40,11 +43,12 @@ func NewRunner(cfg Config, reqMeta *requests.RequestsMetaConfig) (*Runner, error
 		return nil, err
 	}
 
-	metrics := NewMetrics(cfg.Metrics)
+	logger := cfg.Logging.BuildLogger(nil)
+	metrics := NewMetrics(cfg.Metrics, logger)
 
 	var server *Server
 	if cfg.Pull.Enabled {
-		server = NewServer(cfg.Pull, metrics.Registry())
+		server = NewServer(cfg.Pull, metrics.Registry(), logger)
 	}
 
 	var exporters []Exporter
@@ -56,14 +60,17 @@ func NewRunner(cfg Config, reqMeta *requests.RequestsMetaConfig) (*Runner, error
 		exporters = append(exporters, NewOTLPExporter(cfg.Push.OTLP))
 	}
 
-	return &Runner{
+	r := &Runner{
 		cfg:        cfg,
 		reqMeta:    reqMeta,
 		metrics:    metrics,
 		server:     server,
 		exporters:  exporters,
 		intervalCh: make(chan time.Duration, 1),
-	}, nil
+	}
+	r.logger.Store(logger)
+
+	return r, nil
 }
 
 // output returns the designated output writer or falls back to os.Stdout.
@@ -75,9 +82,48 @@ func (r *Runner) output() io.Writer {
 	return os.Stdout
 }
 
-// SetOutput configures a custom output writer for runner log messages.
+// SetOutput configures a custom output writer for runner log messages and rebuilds internal loggers.
 func (r *Runner) SetOutput(w io.Writer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.out = w
+	newLogger := r.cfg.Logging.BuildLogger(w)
+	r.logger.Store(newLogger)
+
+	if r.metrics != nil {
+		r.metrics.SetLogger(newLogger)
+	}
+
+	if r.server != nil {
+		r.server.SetLogger(newLogger)
+	}
+}
+
+// Logger returns the active structured logger.
+func (r *Runner) Logger() *slog.Logger {
+	if l := r.logger.Load(); l != nil {
+		return l
+	}
+
+	return slog.Default()
+}
+
+// SetLogger configures a custom logger for the runner and updates internal components.
+func (r *Runner) SetLogger(l *slog.Logger) {
+	if l == nil {
+		l = slog.Default()
+	}
+
+	r.logger.Store(l)
+
+	if r.metrics != nil {
+		r.metrics.SetLogger(l)
+	}
+
+	if r.server != nil {
+		r.server.SetLogger(l)
+	}
 }
 
 // SetReloader configures the dynamic reload function and the path of the config file to watch.
@@ -106,12 +152,12 @@ func (r *Runner) Reload() error {
 
 	newCfg, newReqMeta, err := r.reloadFn()
 	if err != nil {
-		fmt.Fprintf(r.output(), "observability: reload failed: %v\n", err)
+		r.Logger().Error("configuration reload failed", "error", err)
 		return err
 	}
 
 	if err := r.applyNewConfig(newCfg, newReqMeta); err != nil {
-		fmt.Fprintf(r.output(), "observability: reload failed: %v\n", err)
+		r.Logger().Error("configuration reload failed", "error", err)
 		return err
 	}
 
@@ -121,29 +167,55 @@ func (r *Runner) Reload() error {
 		}
 	}
 
-	fmt.Fprintln(r.output(), "observability: configuration reloaded successfully")
+	r.Logger().Info("configuration reloaded successfully")
 
 	return nil
+}
+
+// validateReloadConfig ensures the new configuration is valid and does not alter immutable settings.
+func (r *Runner) validateReloadConfig(newCfg *Config) error {
+	if err := newCfg.Validate(); err != nil {
+		return fmt.Errorf("observability: invalid reload config: %w", err)
+	}
+
+	if !isPullConfigEqual(r.cfg.Pull, newCfg.Pull) {
+		return errors.New(
+			"observability: reload does not support modifying pull configuration (address, path, enabled)",
+		)
+	}
+
+	if !isMetricsConfigEqual(r.cfg.Metrics, newCfg.Metrics) {
+		return errors.New(
+			"observability: reload does not support modifying metrics configuration (labels, filters)",
+		)
+	}
+
+	return nil
+}
+
+// applyLoggingUpdate rebuilds and disseminates new loggers if logging settings changed.
+func (r *Runner) applyLoggingUpdate(newLogging LoggingConfig) {
+	if isLoggingConfigEqual(r.cfg.Logging, newLogging) {
+		return
+	}
+
+	newLogger := newLogging.BuildLogger(r.out)
+	r.logger.Store(newLogger)
+	r.metrics.SetLogger(newLogger)
+
+	if r.server != nil {
+		r.server.SetLogger(newLogger)
+	}
 }
 
 // applyNewConfig validates and applies reloaded configuration, rejecting runtime modifications to immutable settings.
 func (r *Runner) applyNewConfig(newCfg *Config, newReqMeta *requests.RequestsMetaConfig) error {
 	if newCfg != nil {
-		if err := newCfg.Validate(); err != nil {
-			return fmt.Errorf("observability: invalid reload config: %w", err)
+		if err := r.validateReloadConfig(newCfg); err != nil {
+			return err
 		}
 
-		if !isPullConfigEqual(r.cfg.Pull, newCfg.Pull) {
-			return errors.New(
-				"observability: reload does not support modifying pull configuration (address, path, enabled)",
-			)
-		}
-
-		if !isMetricsConfigEqual(r.cfg.Metrics, newCfg.Metrics) {
-			return errors.New(
-				"observability: reload does not support modifying metrics configuration (labels, filters)",
-			)
-		}
+		r.applyLoggingUpdate(newCfg.Logging)
 
 		oldInterval := r.cfg.Interval
 		r.cfg = *newCfg
@@ -229,9 +301,9 @@ func (r *Runner) checkFileModification() {
 	}
 
 	if err := r.Reload(); err != nil {
-		fmt.Fprintf(
-			r.output(),
-			"observability: config file changed on disk but failed to reload: %v (retaining current configuration)\n",
+		r.Logger().Warn(
+			"configuration file changed on disk but failed to reload; retaining current configuration",
+			"error",
 			err,
 		)
 	}
@@ -268,16 +340,17 @@ func (r *Runner) Run(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Fprintf(
-			r.output(),
-			"observability: scrape server listening on http://%s%s\n",
+		r.Logger().Info(
+			"scrape server listening",
+			"address",
 			r.server.Addr(),
+			"path",
 			r.cfg.Pull.Path,
 		)
 	}
 
 	for _, exp := range r.Exporters() {
-		fmt.Fprintf(r.output(), "observability: push exporter %q registered\n", exp.Name())
+		r.Logger().Info("push exporter registered", "exporter", exp.Name())
 	}
 
 	r.mu.RLock()
@@ -285,11 +358,12 @@ func (r *Runner) Run(ctx context.Context) error {
 	timeout := r.cfg.Timeout
 	r.mu.RUnlock()
 
-	fmt.Fprintf(
-		r.output(),
-		"observability: starting probe loop with interval %s (timeout: %s)\n",
-		interval,
-		timeout,
+	r.Logger().Info(
+		"starting probe loop",
+		"interval",
+		interval.String(),
+		"timeout",
+		timeout.String(),
 	)
 
 	// Immediate initial execution
@@ -306,18 +380,18 @@ func (r *Runner) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(r.output(), "observability: stopping runner...")
+			r.Logger().Info("stopping runner")
 			r.shutdown()
 
 			return nil
 
 		case <-hupCh:
-			fmt.Fprintln(r.output(), "observability: SIGHUP received, reloading configuration...")
+			r.Logger().Info("SIGHUP received, reloading configuration")
 			_ = r.Reload()
 
 		case newInterval := <-r.intervalCh:
 			ticker.Reset(newInterval)
-			fmt.Fprintf(r.output(), "observability: probe interval updated to %s\n", newInterval)
+			r.Logger().Info("probe interval updated", "interval", newInterval.String())
 
 		case <-ticker.C:
 			r.ExecuteCycle(ctx)
@@ -343,10 +417,11 @@ func (r *Runner) ExecuteCycle(ctx context.Context) {
 	duration := time.Since(start)
 
 	if err != nil {
-		fmt.Fprintf(r.output(), "observability: probe cycle returned error: %v\n", err)
+		r.Logger().Warn("probe cycle returned error", "error", err)
 	}
 
 	r.metrics.RecordRun(result, responseMap, duration)
+	r.logCycleSummary(result, responseMap, duration)
 
 	if len(exporters) == 0 {
 		return
@@ -354,11 +429,63 @@ func (r *Runner) ExecuteCycle(ctx context.Context) {
 
 	mfs, gatherErr := r.metrics.Registry().Gather()
 	if gatherErr != nil {
-		fmt.Fprintf(r.output(), "observability: failed to gather metrics: %v\n", gatherErr)
+		r.Logger().Error("failed to gather metrics", "error", gatherErr)
 		return
 	}
 
 	r.dispatchPushes(ctx, exporters, mfs, timeout)
+}
+
+// logCycleSummary logs an aggregated cycle summary at Info level and target failures at Debug level.
+func (r *Runner) logCycleSummary(
+	result *requests.Result,
+	responseMap map[string][]requests.ResponseData,
+	duration time.Duration,
+) {
+	if result == nil {
+		return
+	}
+
+	totalReqs := len(result.Requests)
+	totalResps := 0
+	successes := 0
+	failures := 0
+
+	for _, reqRes := range result.Requests {
+		rdList := responseMap[reqRes.Name]
+
+		for i, respRes := range reqRes.Responses {
+			totalResps++
+
+			var rd requests.ResponseData
+			if i < len(rdList) {
+				rd = rdList[i]
+			}
+
+			if isResponseHealthy(respRes.StatusCode, respRes, rd) {
+				successes++
+			} else {
+				failures++
+
+				r.Logger().Debug(
+					"probe target failure",
+					"request_name", reqRes.Name,
+					"url", respRes.URL,
+					"status_code", respRes.StatusCode,
+					"error", respRes.Error,
+				)
+			}
+		}
+	}
+
+	r.Logger().Info(
+		"probe cycle completed",
+		"requests", totalReqs,
+		"responses", totalResps,
+		"successes", successes,
+		"failures", failures,
+		"duration_ms", duration.Milliseconds(),
+	)
 }
 
 // dispatchPushes concurrently exports metric families to all registered push destinations with a per-exporter timeout.
@@ -378,7 +505,7 @@ func (r *Runner) dispatchPushes(
 			defer expCancel()
 
 			if err := e.Export(exportCtx, mfs); err != nil {
-				fmt.Fprintf(r.output(), "observability: push exporter %q error: %v\n", e.Name(), err)
+				r.Logger().Error("push exporter error", "exporter", e.Name(), "error", err)
 				r.metrics.RecordPushError(e.Name())
 			} else {
 				r.metrics.RecordPushSuccess(e.Name(), time.Now())
@@ -396,7 +523,7 @@ func (r *Runner) shutdown() {
 		defer cancel()
 
 		if err := r.server.Shutdown(shutdownCtx); err != nil {
-			fmt.Fprintf(r.output(), "observability: server shutdown error: %v\n", err)
+			r.Logger().Error("server shutdown error", "error", err)
 		}
 	}
 

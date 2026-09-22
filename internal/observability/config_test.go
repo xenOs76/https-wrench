@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -226,4 +227,94 @@ func TestPullConfig_ReloadAuthToken(t *testing.T) {
 			assert.Equal(t, tt.expected, tt.cfg.ReloadAuthToken())
 		})
 	}
+}
+
+func TestConfig_LoggingValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default config has info and text logging", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		require.NoError(t, cfg.Validate())
+		assert.Equal(t, DefaultLogLevel, cfg.Logging.Level)
+		assert.Equal(t, DefaultLogFormat, cfg.Logging.Format)
+	})
+
+	t.Run("accepts valid log levels and formats", func(t *testing.T) {
+		for _, lvl := range []string{"debug", "DEBUG", "info", "warn", "warning", "error"} {
+			for _, fmtStr := range []string{"text", "json", "TEXT", "JSON"} {
+				cfg := DefaultConfig()
+				cfg.Enabled = true
+				cfg.Logging.Level = lvl
+				cfg.Logging.Format = fmtStr
+				require.NoError(t, cfg.Validate())
+			}
+		}
+	})
+
+	t.Run("rejects invalid log level", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Logging.Level = "verbose"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid logging.level")
+	})
+
+	t.Run("rejects invalid log format", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Enabled = true
+		cfg.Logging.Format = "yaml"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid logging.format")
+	})
+}
+
+func TestLoggingConfig_BuildLogger(t *testing.T) {
+	t.Parallel()
+
+	t.Run("builds text handler with level filtering", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		logCfg := LoggingConfig{Level: "info", Format: "text"}
+		logger := logCfg.BuildLogger(buf)
+
+		logger.Debug("debug message")
+		assert.Empty(t, buf.String())
+
+		logger.Info("info message")
+		assert.Contains(t, buf.String(), "msg=\"info message\"")
+	})
+
+	t.Run("builds json handler with debug level", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		logCfg := LoggingConfig{Level: "debug", Format: "json"}
+		logger := logCfg.BuildLogger(buf)
+
+		logger.Debug("debug payload", "probe", "https://example.com")
+
+		out := buf.String()
+		assert.Contains(t, out, `"level":"DEBUG"`)
+		assert.Contains(t, out, `"msg":"debug payload"`)
+		assert.Contains(t, out, `"probe":"https://example.com"`)
+	})
+}
+
+func TestLoggingConfig_Equality(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, isLoggingConfigEqual(
+		LoggingConfig{Level: "info", Format: "text"},
+		LoggingConfig{Level: "INFO", Format: "TEXT"},
+	))
+
+	assert.False(t, isLoggingConfigEqual(
+		LoggingConfig{Level: "info", Format: "text"},
+		LoggingConfig{Level: "debug", Format: "text"},
+	))
+
+	assert.False(t, isLoggingConfigEqual(
+		LoggingConfig{Level: "info", Format: "text"},
+		LoggingConfig{Level: "info", Format: "json"},
+	))
 }

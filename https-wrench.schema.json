@@ -299,6 +299,9 @@
         },
         "metrics": {
           "$ref": "#/definitions/ObservabilityMetrics"
+        },
+        "logging": {
+          "$ref": "#/definitions/ObservabilityLogging"
         }
       }
     },
@@ -448,6 +451,33 @@
             "type": "string"
           },
           "description": "Static custom labels to append to all exported metrics."
+        }
+      }
+    },
+    "ObservabilityLogging": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Structured logging configuration for observability mode.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Minimum log severity level to output."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "text",
+            "json"
+          ],
+          "default": "text",
+          "description": "Format for structured log output."
         }
       }
     }

@@ -16,6 +16,14 @@
 
 ### Feat
 
+    Observability: modernize logging architecture with Go 1.21+ `log/slog`, adding `logging` configuration (`level`: debug, info, warn, error; `format`: text, json) and CLI flags (`--log-level`, `--log-format`).
+
+    Observability: emit a single structured summary line per probe cycle at Info level and demote detailed per-probe inspection evaluations to Debug level.
+
+    Observability: support lock-free thread-safe logger updates on dynamic configuration reloads and SIGHUP.
+
+    Schema: add JSON schema validation for `logging` configuration in `https-wrench.schema.json` and MCP schema assets.
+
     Requests: add `validStatusCodes` configuration to define acceptable HTTP status codes for probe success (falling back to 200..399 when omitted).
 
     Requests: add `responseBodyFailRegexp` to fail probes when matching regex patterns against response bodies (negative body matching).

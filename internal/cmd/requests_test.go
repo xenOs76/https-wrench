@@ -13,8 +13,10 @@ import (
 	"time"
 
 	_ "github.com/breml/rootcerts"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xenos76/https-wrench/internal/observability"
 )
 
 //nolint:revive
@@ -347,5 +349,20 @@ func TestRequestsCmd_Observability(t *testing.T) {
 		t.Fatal("timed out waiting for requestsCmd to exit")
 	}
 
-	assert.Contains(t, stdout.String(), "observability: scrape server listening on")
+	assert.Contains(t, stdout.String(), "scrape server listening")
+}
+
+func TestApplyObservabilityOverrides_Logging(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().StringVar(&observeLogLevel, "log-level", "", "")
+	cmd.Flags().StringVar(&observeLogFormat, "log-format", "", "")
+
+	require.NoError(t, cmd.Flags().Set("log-level", "debug"))
+	require.NoError(t, cmd.Flags().Set("log-format", "json"))
+
+	base := observability.DefaultConfig()
+	obsCfg := applyObservabilityOverrides(base, cmd)
+
+	assert.Equal(t, "debug", obsCfg.Logging.Level)
+	assert.Equal(t, "json", obsCfg.Logging.Format)
 }

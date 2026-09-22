@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -359,4 +360,58 @@ func TestRunner_FileModificationReload(t *testing.T) {
 	runner.mu.RLock()
 	assert.Equal(t, "req-v2", runner.reqMeta.Requests[0].Name)
 	runner.mu.RUnlock()
+}
+
+func TestRunner_LoggingAndDynamicReload(t *testing.T) {
+	t.Parallel()
+
+	buf := new(bytes.Buffer)
+	cfg := Config{
+		Enabled:  true,
+		Interval: 50 * time.Millisecond,
+		Timeout:  25 * time.Millisecond,
+		Pull: PullConfig{
+			Enabled: true,
+			Address: "127.0.0.1:0",
+			Path:    "/metrics",
+		},
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "json",
+		},
+	}
+	reqMeta := &requests.RequestsMetaConfig{
+		Requests: []requests.RequestConfig{
+			{Name: "log-test-probe"},
+		},
+	}
+
+	runner, err := NewRunner(cfg, reqMeta)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+
+	runner.SetOutput(buf)
+
+	// ExecuteCycle writes cycle summary at info level formatted as JSON
+	ctx := context.Background()
+	runner.ExecuteCycle(ctx)
+
+	logOutput := buf.String()
+	assert.Contains(t, logOutput, `"msg":"probe cycle completed"`)
+	assert.Contains(t, logOutput, `"requests":1`)
+
+	// Now dynamic reload changing level to debug and format to text
+	buf.Reset()
+
+	newCfg := cfg
+	newCfg.Logging.Level = "debug"
+	newCfg.Logging.Format = "text"
+
+	err = runner.applyNewConfig(&newCfg, reqMeta)
+	require.NoError(t, err)
+
+	runner.ExecuteCycle(ctx)
+
+	textOutput := buf.String()
+	assert.Contains(t, textOutput, `msg="probe cycle completed"`)
 }

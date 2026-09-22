@@ -5,7 +5,10 @@ package observability
 import (
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -22,6 +25,10 @@ const (
 	DefaultPullPath = "/metrics"
 	// DefaultPushTimeout is the default HTTP request timeout for push exporters.
 	DefaultPushTimeout = 10 * time.Second
+	// DefaultLogLevel is the default logging level in observability mode.
+	DefaultLogLevel = "info"
+	// DefaultLogFormat is the default logging format in observability mode.
+	DefaultLogFormat = "text"
 )
 
 // Config holds all configuration for continuous observability mode.
@@ -38,6 +45,16 @@ type Config struct {
 	Push PushConfig `mapstructure:"push"`
 	// Metrics controls metric filtering and custom labels.
 	Metrics MetricsFilterConfig `mapstructure:"metrics"`
+	// Logging controls structured logging level and output format.
+	Logging LoggingConfig `mapstructure:"logging"`
+}
+
+// LoggingConfig configures structured logging for observability mode.
+type LoggingConfig struct {
+	// Level sets the minimum logging severity (debug, info, warn, error).
+	Level string `mapstructure:"level"`
+	// Format sets the log output format (text, json).
+	Format string `mapstructure:"format"`
 }
 
 // PullConfig configures the Prometheus pull HTTP scrape server.
@@ -108,6 +125,10 @@ func DefaultConfig() Config {
 			IncludeCertChain: false,
 			StripQuery:       true,
 		},
+		Logging: LoggingConfig{
+			Level:  DefaultLogLevel,
+			Format: DefaultLogFormat,
+		},
 	}
 }
 
@@ -128,6 +149,10 @@ func (c *Config) Validate() error {
 	}
 
 	if err := c.validateCustomLabels(); err != nil {
+		return err
+	}
+
+	if err := c.validateLogging(); err != nil {
 		return err
 	}
 
@@ -290,4 +315,71 @@ func (c *Config) validateCustomLabels() error {
 	}
 
 	return nil
+}
+
+// validateLogging sets defaults and ensures valid values for logging configuration.
+func (c *Config) validateLogging() error {
+	c.Logging.Level = strings.ToLower(strings.TrimSpace(c.Logging.Level))
+	if c.Logging.Level == "" {
+		c.Logging.Level = DefaultLogLevel
+	}
+
+	switch c.Logging.Level {
+	case "debug", "info", "warn", "warning", "error":
+	default:
+		return fmt.Errorf(
+			"observability: invalid logging.level %q (expected debug, info, warn, or error)",
+			c.Logging.Level,
+		)
+	}
+
+	c.Logging.Format = strings.ToLower(strings.TrimSpace(c.Logging.Format))
+	if c.Logging.Format == "" {
+		c.Logging.Format = DefaultLogFormat
+	}
+
+	switch c.Logging.Format {
+	case "text", "json":
+	default:
+		return fmt.Errorf("observability: invalid logging.format %q (expected text or json)", c.Logging.Format)
+	}
+
+	return nil
+}
+
+// BuildLogger constructs an *slog.Logger configured with the receiver's Level and Format.
+// If w is nil, os.Stdout is used as the destination writer.
+func (c LoggingConfig) BuildLogger(w io.Writer) *slog.Logger {
+	if w == nil {
+		w = os.Stdout
+	}
+
+	var level slog.Level
+
+	switch strings.ToLower(strings.TrimSpace(c.Level)) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn", "warning":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	if strings.ToLower(strings.TrimSpace(c.Format)) == "json" {
+		return slog.New(slog.NewJSONHandler(w, opts))
+	}
+
+	return slog.New(slog.NewTextHandler(w, opts))
+}
+
+// isLoggingConfigEqual compares two LoggingConfig instances for case-insensitive equality.
+func isLoggingConfigEqual(a, b LoggingConfig) bool {
+	return strings.EqualFold(strings.TrimSpace(a.Level), strings.TrimSpace(b.Level)) &&
+		strings.EqualFold(strings.TrimSpace(a.Format), strings.TrimSpace(b.Format))
 }
