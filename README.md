@@ -162,7 +162,7 @@ https-wrench requests --config https-wrench-observability-httpbin.yaml --observe
   - `responseHeaderMatchRegexp`: Key/value regular expression rules that response headers must satisfy.
   - `responseHeaderFailRegexp`: Key/value regular expression rules that fail the probe if matched.
 - **Structured Logging (`log/slog`)**:
-  - Unified structured logging across runner, metrics, and scrape server with zero lock contention.
+  - Unified structured logging across runner, metrics, and scrape server, using atomic operations for logger replacement.
   - Configurable log levels (`debug`, `info`, `warn`, `error`) and output formats (`text`, `json`) via `logging` block or CLI flags (`--log-level`, `--log-format`).
   - Emits concise aggregated cycle summaries at `Info` level while keeping detailed probe evaluations at `Debug` level.
   - Dynamic file reload and `SIGHUP` immediately apply log level and format updates without dropping runner state.
