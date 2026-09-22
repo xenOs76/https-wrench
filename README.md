@@ -131,7 +131,7 @@ https-wrench requests --show-sample-config > https-wrench-sample-config.yaml
 <summary>Sample configuration file</summary>
 
 A comprehensive sample configuration file can be found in the repository at
-[`cmd/embedded/config-example.yaml`](./cmd/embedded/config-example.yaml).
+[`internal/cmd/embedded/config-example.yaml`](./internal/cmd/embedded/config-example.yaml).
 
 </details>
 
