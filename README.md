@@ -107,6 +107,8 @@ Flags:
   -h, --help                      help for requests
       --interval duration         Probe execution interval in observability mode (e.g. 15s, 30s, 1m; overrides config)
       --listen string             Address for the Prometheus metrics scrape server (e.g. :9090; overrides config)
+      --log-format string         Log format in observability mode: text, json (overrides config)
+      --log-level string          Log level in observability mode: debug, info, warn, error (overrides config)
       --observe                   Run in continuous observability mode (executing requests by interval and exporting metrics)
       --otlp-endpoint string      OpenTelemetry OTLP endpoint URL to push metrics to (overrides config)
       --remote-write-url string   Prometheus remote_write endpoint URL to push metrics to (overrides config)
@@ -153,6 +155,17 @@ https-wrench requests --config https-wrench-sample-config.yaml --format json
 https-wrench requests --config https-wrench-observability-httpbin.yaml --observe --interval 30s
 ```
 
+- **Probe Health & Validation Rules**:
+  - `validStatusCodes`: Define custom HTTP status codes considered successful (e.g. `[200, 204, 404]`), falling back to `200..399` when omitted.
+  - `responseBodyMatchRegexp`: Regular expression that must match against the response body.
+  - `responseBodyFailRegexp`: Regular expression that fails the probe if matched against the response body (negative matching).
+  - `responseHeaderMatchRegexp`: Key/value regular expression rules that response headers must satisfy.
+  - `responseHeaderFailRegexp`: Key/value regular expression rules that fail the probe if matched.
+- **Structured Logging (`log/slog`)**:
+  - Unified structured logging across runner, metrics, and scrape server with zero lock contention.
+  - Configurable log levels (`debug`, `info`, `warn`, `error`) and output formats (`text`, `json`) via `logging` block or CLI flags (`--log-level`, `--log-format`).
+  - Emits concise aggregated cycle summaries at `Info` level while keeping detailed probe evaluations at `Debug` level.
+  - Dynamic file reload and `SIGHUP` immediately apply log level and format updates without dropping runner state.
 - **Prometheus Scrape Server (Pull)**: Exposes metrics at `:9090/metrics` (configurable address and path).
 - **Push Exporters**:
   - **Prometheus `remote_write`**: Pushes Snappy-compressed metrics directly to Prometheus, VictoriaMetrics or Grafana Alloy.
