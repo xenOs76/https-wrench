@@ -234,10 +234,12 @@ func (c *Config) ProbeTLSInfo(ctx context.Context) error {
 //
 //nolint:gocognit,revive,wsl
 func (c *Config) probeCiphersConcurrently(ctx context.Context, suites []*tls.CipherSuite) []ProbedCipher {
+	// job represents a cipher suite probe task.
 	type job struct {
 		suite *tls.CipherSuite
 	}
 
+	// result captures the outcome of a probed cipher suite.
 	type result struct {
 		probed ProbedCipher
 	}

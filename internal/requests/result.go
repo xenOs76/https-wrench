@@ -90,6 +90,7 @@ func BuildResult(responseMap map[string][]ResponseData, cfg *RequestsMetaConfig)
 	return res, nil
 }
 
+// buildRequestResult converts raw response data for a single request configuration into a structured RequestResult.
 func buildRequestResult(reqCfg RequestConfig, rdList []ResponseData) RequestResult {
 	reqRes := RequestResult{
 		Name:                 reqCfg.Name,
@@ -104,6 +105,7 @@ func buildRequestResult(reqCfg RequestConfig, rdList []ResponseData) RequestResu
 	return reqRes
 }
 
+// populateValidationResults copies regex and status validation flags from response data to the response result.
 func populateValidationResults(respRes *ResponseResult, rd ResponseData) {
 	if rd.Request.ResponseBodyMatchRegexp != "" {
 		matched := rd.ResponseBodyRegexpMatched
@@ -128,6 +130,7 @@ func populateValidationResults(respRes *ResponseResult, rd ResponseData) {
 	}
 }
 
+// buildResponseResult maps ResponseData to a structured ResponseResult.
 func buildResponseResult(rd ResponseData) ResponseResult {
 	respRes := ResponseResult{
 		URL:              rd.URL,
@@ -191,6 +194,7 @@ func EncodeJSON(r *Result) ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
 }
 
+// filterHeadersMap copies headers matching the provided whitelist filter, or all headers if filter is empty.
 func filterHeadersMap(headers map[string][]string, filter []string) map[string][]string {
 	if len(filter) == 0 {
 		out := make(map[string][]string, len(headers))

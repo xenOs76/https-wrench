@@ -7,6 +7,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// registerPrompts registers assist and guidance prompts on the MCP server.
 func registerPrompts(server *sdkmcp.Server) {
 	server.AddPrompt(&sdkmcp.Prompt{
 		Name:        "author_requests_config",
@@ -55,6 +56,7 @@ func registerPrompts(server *sdkmcp.Server) {
 	}, generateJWKSPrompt)
 }
 
+// authorRequestsConfigPrompt provides guidance and starter templates for authoring requests configs.
 func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkmcp.GetPromptResult, error) {
 	args := req.Params.Arguments
 	input := requestsConfigTemplateInput{
@@ -106,6 +108,7 @@ func authorRequestsConfigPrompt(_ context.Context, req *sdkmcp.GetPromptRequest)
 	}, nil
 }
 
+// exampleResourceHints selects relevant example resource URIs based on template input.
 func exampleResourceHints(input requestsConfigTemplateInput) string {
 	var hints []string
 
@@ -127,6 +130,7 @@ func exampleResourceHints(input requestsConfigTemplateInput) string {
 	return strings.Join(hints, "\n")
 }
 
+// inspectCertificatePrompt provides guidance and CLI commands for inspecting TLS certificates.
 func inspectCertificatePrompt(
 	_ context.Context,
 	req *sdkmcp.GetPromptRequest,
@@ -142,34 +146,34 @@ func inspectCertificatePrompt(
 		tlsEndpoint = "example.com:443"
 	}
 
-	cmdParts := []string{"https-wrench certinfo"}
+	var flags []string
 
 	if tlsEndpoint != "" {
-		cmdParts = append(cmdParts, "--tls-endpoint", shellQuote(tlsEndpoint))
+		flags = append(flags, "--tls-endpoint", shellQuote(tlsEndpoint))
 	}
 
 	if certBundle != "" {
-		cmdParts = append(cmdParts, "--cert-bundle", shellQuote(certBundle))
+		flags = append(flags, "--cert-bundle", shellQuote(certBundle))
 	}
 
 	if keyFile != "" {
-		cmdParts = append(cmdParts, "--key-file", shellQuote(keyFile))
+		flags = append(flags, "--key-file", shellQuote(keyFile))
 	}
 
 	if caBundle != "" {
-		cmdParts = append(cmdParts, "--ca-bundle", shellQuote(caBundle))
+		flags = append(flags, "--ca-bundle", shellQuote(caBundle))
 	}
 
 	if tlsInfo {
-		cmdParts = append(cmdParts, "--tls-info")
+		flags = append(flags, "--tls-info")
 	}
 
-	cmdParts = append(cmdParts, "--format json")
+	flags = append(flags, "--format json")
 
-	cmd := strings.Join(cmdParts, " ")
+	cmd := "https-wrench certinfo " + strings.Join(flags, " ")
 
 	text := strings.Join([]string{
-		"Inspect x.509 certificates, keys, or TLS endpoints using the resources below.",
+		"Inspect x.509 certificates and TLS endpoints using the resources below.",
 		"",
 		"Reference resource:",
 		"- " + uriDocsCertinfo,
@@ -192,6 +196,7 @@ func inspectCertificatePrompt(
 	}, nil
 }
 
+// inspectJWTPrompt provides guidance and CLI commands for inspecting and validating JWTs.
 func inspectJWTPrompt(
 	_ context.Context,
 	req *sdkmcp.GetPromptRequest,
@@ -243,6 +248,7 @@ func inspectJWTPrompt(
 	}, nil
 }
 
+// generateJWKSPrompt provides guidance and CLI commands for generating JWKS key sets.
 func generateJWKSPrompt(
 	_ context.Context,
 	req *sdkmcp.GetPromptRequest,

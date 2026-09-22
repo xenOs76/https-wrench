@@ -41,6 +41,7 @@ func Render(w io.Writer, doc Doc, opts Options) error {
 	return nil
 }
 
+// isTerminal reports whether the output writer is a terminal.
 func isTerminal(w io.Writer) bool {
 	f, ok := w.(*os.File)
 	if !ok {
@@ -50,11 +51,13 @@ func isTerminal(w io.Writer) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
 
+// renderer manages writing styled or plain text representations of document nodes.
 type renderer struct {
 	w      io.Writer
 	styled bool
 }
 
+// renderNode dispatches a document node to its dedicated renderer method.
 func (r renderer) renderNode(n Node) error {
 	switch v := n.(type) {
 	case Banner:
@@ -88,6 +91,7 @@ func (r renderer) renderNode(n Node) error {
 	}
 }
 
+// renderBanner formats and prints a banner node.
 func (r renderer) renderBanner(b Banner) error {
 	if r.styled {
 		_, err := fmt.Fprintln(r.w, style.LgSprintf(style.Cmd, "%s", b.Text))
@@ -99,6 +103,7 @@ func (r renderer) renderBanner(b Banner) error {
 	return err
 }
 
+// renderSection formats and prints a section and recursively renders its child nodes.
 func (r renderer) renderSection(s Section) error {
 	pad := sectionPad(s.Level)
 
@@ -130,6 +135,7 @@ func (r renderer) renderSection(s Section) error {
 	return nil
 }
 
+// sectionPad returns the left padding spaces for a given section depth level.
 func sectionPad(level int) int {
 	switch {
 	case level <= 1:
@@ -141,6 +147,7 @@ func sectionPad(level int) int {
 	}
 }
 
+// renderKV formats and prints a key-value line with optional tonal styling.
 func (r renderer) renderKV(kv KV, leftPad int) error {
 	if r.styled {
 		keyStyle := style.CertKeyP4.Bold(true).PaddingLeft(leftPad)
@@ -156,6 +163,7 @@ func (r renderer) renderKV(kv KV, leftPad int) error {
 	return err
 }
 
+// effectiveValueTone resolves ToneDefault to ToneValue or returns the tone unchanged.
 func effectiveValueTone(t Tone) Tone {
 	if t == ToneDefault {
 		return ToneValue
@@ -164,6 +172,7 @@ func effectiveValueTone(t Tone) Tone {
 	return t
 }
 
+// renderTable formats and outputs a table either styled or plain based on renderer configuration.
 func (r renderer) renderTable(t Table) error {
 	if r.styled {
 		return r.renderTableStyled(t)
@@ -172,6 +181,7 @@ func (r renderer) renderTable(t Table) error {
 	return r.renderTablePlain(t)
 }
 
+// renderTableStyled renders a table using lipgloss borders and tone-based column formatting.
 func (r renderer) renderTableStyled(t Table) error {
 	lt := table.New().Border(style.LGDefBorder)
 
@@ -209,6 +219,7 @@ func (r renderer) renderTableStyled(t Table) error {
 	return err
 }
 
+// renderTablePlain prints a tab-delimited plain-text representation of a table.
 func (r renderer) renderTablePlain(t Table) error {
 	if len(t.Headers) > 0 {
 		if _, err := fmt.Fprintln(r.w, strings.Join(t.Headers, "\t")); err != nil {
@@ -230,6 +241,7 @@ func (r renderer) renderTablePlain(t Table) error {
 	return nil
 }
 
+// paint wraps text in lipgloss formatting if styled mode is enabled.
 func (r renderer) paint(text string, tone Tone) string {
 	if !r.styled {
 		return text
@@ -238,6 +250,7 @@ func (r renderer) paint(text string, tone Tone) string {
 	return toneStyle(tone).Render(text)
 }
 
+// toneStyle maps a high-level Tone to a lipgloss.Style token.
 func toneStyle(tone Tone) lipgloss.Style {
 	if st, ok := statusToneStyle(tone); ok {
 		return st
@@ -269,6 +282,7 @@ func toneStyle(tone Tone) lipgloss.Style {
 	}
 }
 
+// statusToneStyle returns the lipgloss.Style matching HTTP status code tone categories.
 func statusToneStyle(tone Tone) (lipgloss.Style, bool) {
 	switch tone {
 	case ToneStatus2xx:

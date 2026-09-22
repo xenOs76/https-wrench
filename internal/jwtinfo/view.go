@@ -34,6 +34,7 @@ func BuildDoc(r *Result) view.Doc {
 	return view.Doc{Nodes: nodes}
 }
 
+// tokenSectionDoc constructs a styled Section node for an AccessToken or RefreshToken.
 func tokenSectionDoc(name string, sec *TokenSection) []view.Node {
 	kids := make([]view.Node, 0, 8)
 
@@ -83,6 +84,7 @@ func tokenSectionDoc(name string, sec *TokenSection) []view.Node {
 	}
 }
 
+// prettyJSON formats raw JSON with two-space indentation, falling back to raw string on error.
 func prettyJSON(raw json.RawMessage) string {
 	var buf bytes.Buffer
 

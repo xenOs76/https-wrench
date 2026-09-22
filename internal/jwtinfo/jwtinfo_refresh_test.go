@@ -151,6 +151,23 @@ func TestJwtTokenData_WriteTokenToFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "initial-token", string(data))
 	require.Contains(t, buf.String(), "Token persisted to")
+
+	// 1. Empty outFileName prints token info to outWriter
+	buf.Reset()
+	jtd.WriteTokenToFile("", &buf)
+	require.Contains(t, buf.String(), "Token Refreshed at")
+
+	// 2. Non-existent directory causes temp file creation failure
+	buf.Reset()
+	jtd.WriteTokenToFile("/non-existent-directory/nested/token.txt", &buf)
+	require.Contains(t, buf.String(), "Failed to create temp token file")
+
+	// 3. Rename failure: destination is an existing directory
+	existingDir := t.TempDir()
+
+	buf.Reset()
+	jtd.WriteTokenToFile(existingDir, &buf)
+	require.Contains(t, buf.String(), "Failed to replace token file")
 }
 
 // TestJwtTokenData_TimingMethods_Errors checks GetExpiration/GetIssuedAt claim failures.

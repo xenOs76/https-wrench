@@ -174,6 +174,7 @@ Examples:
 	},
 }
 
+// init registers flags and adds the certinfo command to rootCmd.
 func init() {
 	certinfoCmd.Flags().StringVar(&tlsEndpoint,
 		"tls-endpoint",

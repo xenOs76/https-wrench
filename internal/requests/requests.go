@@ -284,6 +284,7 @@ func (r *RequestsMetaConfig) Execute(ctx context.Context) (*Result, map[string][
 	return r.ExecuteWithWriter(ctx, io.Discard)
 }
 
+// validateUniqueRequestNames ensures that no two configured requests share the same name.
 func validateUniqueRequestNames(requests []RequestConfig) error {
 	seenNames := make(map[string]struct{}, len(requests))
 	for _, reqCfg := range requests {
@@ -297,11 +298,13 @@ func validateUniqueRequestNames(requests []RequestConfig) error {
 	return nil
 }
 
+// requestLimiter manages concurrency limits and synchronized terminal output.
 type requestLimiter struct {
 	sem      chan struct{}
 	writerMu sync.Mutex
 }
 
+// newRequestLimiter constructs a requestLimiter with a buffered token channel of capacity limit.
 func newRequestLimiter(limit int) *requestLimiter {
 	if limit <= 0 {
 		limit = DefaultRequestsConcurrency
@@ -312,6 +315,7 @@ func newRequestLimiter(limit int) *requestLimiter {
 	}
 }
 
+// acquire requests a concurrency token from the limiter or blocks until available or ctx is canceled.
 func (l *requestLimiter) acquire(ctx context.Context) error {
 	if l == nil {
 		return nil
@@ -325,6 +329,7 @@ func (l *requestLimiter) acquire(ctx context.Context) error {
 	}
 }
 
+// release returns a concurrency token back to the limiter.
 func (l *requestLimiter) release() {
 	if l == nil {
 		return
@@ -333,6 +338,7 @@ func (l *requestLimiter) release() {
 	<-l.sem
 }
 
+// writeOutput safely writes data to w, protecting concurrent writes if limiter is non-nil.
 func (l *requestLimiter) writeOutput(w io.Writer, data []byte) {
 	if l == nil {
 		_, _ = w.Write(data)
@@ -345,6 +351,7 @@ func (l *requestLimiter) writeOutput(w io.Writer, data []byte) {
 	_, _ = w.Write(data)
 }
 
+// limit returns the concurrency capacity of the limiter, or 0 if nil.
 func (l *requestLimiter) limit() int {
 	if l == nil {
 		return 0
@@ -353,11 +360,13 @@ func (l *requestLimiter) limit() int {
 	return cap(l.sem)
 }
 
+// indexedResult pairs a request name with its produced response data slice.
 type indexedResult struct {
 	name string
 	data []ResponseData
 }
 
+// executeRequestsSequentially runs all requests in sequence without concurrency.
 func (r *RequestsMetaConfig) executeRequestsSequentially(
 	ctx context.Context,
 	w io.Writer,
@@ -380,6 +389,7 @@ func (r *RequestsMetaConfig) executeRequestsSequentially(
 	return responseDataMap, nil
 }
 
+// executeRequestsConcurrently runs configured requests concurrently up to concurrency workers.
 func (r *RequestsMetaConfig) executeRequestsConcurrently(
 	ctx context.Context,
 	w io.Writer,

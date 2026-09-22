@@ -8,6 +8,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// registerResources registers static assets, schemas, and markdown cheat sheets on the server.
 func registerResources(server *sdkmcp.Server) {
 	server.AddResource(&sdkmcp.Resource{
 		URI:         uriSchema,
@@ -75,6 +76,7 @@ func registerResources(server *sdkmcp.Server) {
 	}, readExampleResource)
 }
 
+// readStaticResource returns a resource reader closure for embedded assets.
 func readStaticResource(assetPath, uri string) sdkmcp.ResourceHandler {
 	return func(_ context.Context, _ *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
 		data, err := assets.ReadFile(assetPath)
@@ -86,6 +88,7 @@ func readStaticResource(assetPath, uri string) sdkmcp.ResourceHandler {
 	}
 }
 
+// readExampleResource reads an example configuration template asset by name.
 func readExampleResource(_ context.Context, req *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
 	name := strings.TrimPrefix(req.Params.URI, "https-wrench://examples/")
 	if name == req.Params.URI || name == "" {
@@ -105,6 +108,7 @@ func readExampleResource(_ context.Context, req *sdkmcp.ReadResourceRequest) (*s
 	return textResource(req.Params.URI, string(data)), nil
 }
 
+// textResource wraps text content into an MCP ReadResourceResult.
 func textResource(uri, text string) *sdkmcp.ReadResourceResult {
 	return &sdkmcp.ReadResourceResult{
 		Contents: []*sdkmcp.ResourceContents{{

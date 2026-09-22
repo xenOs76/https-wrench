@@ -36,6 +36,7 @@ var manCmd = &cobra.Command{
 	},
 }
 
+// init registers flags and adds the man command to rootCmd.
 func init() {
 	rootCmd.AddCommand(manCmd)
 	manCmd.Flags().StringVar(&manPagesDestDir, "dest-dir",

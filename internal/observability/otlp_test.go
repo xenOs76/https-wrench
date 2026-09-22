@@ -33,7 +33,7 @@ func TestOTLPExporter(t *testing.T) {
 				return
 			}
 
-			if unmarshalErr := proto.Unmarshal(body, &receivedReq); unmarshalErr != nil {
+			if proto.Unmarshal(body, &receivedReq) != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -173,4 +173,39 @@ func TestOTLPExporter_PartialSuccess(t *testing.T) {
 		err := exp.Export(context.Background(), mfs)
 		require.NoError(t, err)
 	})
+}
+
+func TestConvertHistogramToOTLP(t *testing.T) {
+	t.Parallel()
+
+	bound := 1.0
+	cumCount := uint64(5)
+	sampleSum := 3.5
+	sampleCount := uint64(5)
+	labelName := "test_label"
+	labelVal := "val"
+
+	m := &dto.Metric{
+		Label: []*dto.LabelPair{
+			{Name: &labelName, Value: &labelVal},
+		},
+		Histogram: &dto.Histogram{
+			SampleCount: &sampleCount,
+			SampleSum:   &sampleSum,
+			Bucket: []*dto.Bucket{
+				{
+					UpperBound:      &bound,
+					CumulativeCount: &cumCount,
+				},
+			},
+		},
+	}
+
+	hist := convertHistogramToOTLP([]*dto.Metric{m, {}}, 1000)
+	require.NotNil(t, hist)
+	require.Len(t, hist.Histogram.DataPoints, 1)
+	dp := hist.Histogram.DataPoints[0]
+	require.Equal(t, uint64(5), dp.Count)
+	require.InDelta(t, 3.5, *dp.Sum, 1e-9)
+	require.Equal(t, []float64{1.0}, dp.ExplicitBounds)
 }

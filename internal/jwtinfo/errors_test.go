@@ -185,3 +185,23 @@ func TestJwtinfo_errorTypes_AsType(t *testing.T) {
 	require.Equal(t, "JWKS", gotParse.Source)
 	require.Equal(t, "https://example", gotParse.URL)
 }
+
+func TestJwtinfo_ErrorStringsAndBranches(t *testing.T) {
+	t.Parallel()
+
+	// JWTParseError branches
+	require.Equal(t, "unable to parse JWT token from file", (&JWTParseError{Source: "file"}).Error())
+	jwksErr := &JWTParseError{Source: "JWKS", URL: "https://test"}
+	require.Equal(t, "failed to parse the JWT AccessTokenRaw against JWKS URL https://test", jwksErr.Error())
+	require.Equal(t, "unable to parse AccessTokenRaw", (&JWTParseError{Source: "other"}).Error())
+
+	// ClaimError branches
+	require.Equal(t, "exp claim is not a numeric timestamp", (&ClaimError{Claim: "exp", Kind: ClaimNotNumeric}).Error())
+	require.Equal(t, "exp claim missing", (&ClaimError{Claim: "exp", Kind: ClaimMissing}).Error())
+
+	// InvalidJSONPartError Is fallback
+	require.False(t, (&InvalidJSONPartError{Part: "unknown"}).Is(errors.New("other")))
+
+	// InvalidBase64PartError Is fallback
+	require.False(t, (&InvalidBase64PartError{Part: "unknown"}).Is(errors.New("other")))
+}

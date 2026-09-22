@@ -69,6 +69,7 @@ func SingleResponseDoc(resp ResponseResult) view.Doc {
 	return view.Doc{Nodes: responseNodes(resp)}
 }
 
+// responseNodes creates child view nodes for an individual HTTP response result.
 func responseNodes(resp ResponseResult) []view.Node {
 	kids := make([]view.Node, 0, 8)
 
@@ -120,6 +121,7 @@ func responseNodes(resp ResponseResult) []view.Node {
 	return kids
 }
 
+// resolveStatusTone determines the display tone for an HTTP response status code.
 func resolveStatusTone(statusCode int, validCodes []int) view.Tone {
 	if len(validCodes) > 0 {
 		if slices.Contains(validCodes, statusCode) {
@@ -141,6 +143,7 @@ func resolveStatusTone(statusCode int, validCodes []int) view.Tone {
 	}
 }
 
+// statusNodes returns the status code and optional error KV nodes.
 func statusNodes(resp ResponseResult) []view.Node {
 	if resp.Error != "" {
 		return []view.Node{
@@ -163,6 +166,7 @@ func statusNodes(resp ResponseResult) []view.Node {
 	}
 }
 
+// tlsSection renders negotiated TLS protocol details and certificates into a Section.
 func tlsSection(tlsInfo *ResponseTLSResult) view.Node {
 	tlsKids := []view.Node{
 		view.Table{
@@ -184,6 +188,7 @@ func tlsSection(tlsInfo *ResponseTLSResult) view.Node {
 	}
 }
 
+// headerSection converts response headers into an aligned table Section.
 func headerSection(headers map[string][]string) view.Node {
 	headerRows := make([][]view.Cell, 0, len(headers))
 	keys := make([]string, 0, len(headers))
@@ -209,6 +214,7 @@ func headerSection(headers map[string][]string) view.Node {
 	}
 }
 
+// bodyRegexpNode renders the BodyRegexpMatch status if regular expression checking was enabled.
 func bodyRegexpNode(resp ResponseResult) view.Node {
 	if resp.BodyRegexpMatched == nil {
 		return nil
@@ -229,6 +235,7 @@ func bodyRegexpNode(resp ResponseResult) view.Node {
 	}
 }
 
+// bodyFailRegexpNode renders the BodyFailRegexpMatch status if fail regular expression checking was enabled.
 func bodyFailRegexpNode(resp ResponseResult) view.Node {
 	if resp.BodyFailRegexpMatched == nil {
 		return nil
@@ -249,6 +256,7 @@ func bodyFailRegexpNode(resp ResponseResult) view.Node {
 	}
 }
 
+// headerMatchRegexpNode renders the HeaderMatchRegexp status if header match regular expression checking was enabled.
 func headerMatchRegexpNode(resp ResponseResult) view.Node {
 	if resp.HeaderMatchRegexpMatched == nil {
 		return nil
@@ -269,6 +277,7 @@ func headerMatchRegexpNode(resp ResponseResult) view.Node {
 	}
 }
 
+// headerFailRegexpNode renders the HeaderFailRegexp status if header fail regular expression checking was enabled.
 func headerFailRegexpNode(resp ResponseResult) view.Node {
 	if resp.HeaderFailRegexpMatched == nil {
 		return nil

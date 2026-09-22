@@ -106,6 +106,48 @@ func TestFormatCause(t *testing.T) {
 	})
 }
 
+// TestFormatCause_TypedErrors checks FormatCause unwrapping across jwtinfo and requests error structs.
+func TestFormatCause_TypedErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("jwtinfo typed errors", func(t *testing.T) {
+		t.Parallel()
+
+		errs := []error{
+			&jwtinfo.InvalidJWTFormatError{Name: "testToken"},
+			&jwtinfo.InvalidJSONPartError{Name: "testToken", Part: "header"},
+			&jwtinfo.InvalidKVError{Value: "invalid-kv"},
+			&jwtinfo.EmptyParamNameError{KV: "=val"},
+			&jwtinfo.InvalidRenewThresholdError{Value: 150.0},
+			&jwtinfo.InvalidBase64PartError{Name: "testToken", Part: "header"},
+			&jwtinfo.JWTParseError{Source: "file"},
+		}
+
+		for _, e := range errs {
+			wrapped := fmt.Errorf("wrap: %w", e)
+			require.Equal(t, e.Error(), FormatCause(wrapped))
+		}
+	})
+
+	t.Run("requests typed errors", func(t *testing.T) {
+		t.Parallel()
+
+		errs := []error{
+			&requests.ServerNameURLError{Value: "https://invalid"},
+			&requests.WrongTransportError{Got: 42},
+			&requests.InvalidTimeoutError{Value: -5},
+			&requests.InvalidURIError{URI: ":bad", Host: "example.com"},
+			&requests.InvalidTransportURLError{URL: "::bad"},
+			&requests.DuplicateRequestNameError{Name: "dup"},
+		}
+
+		for _, e := range errs {
+			wrapped := fmt.Errorf("wrap: %w", e)
+			require.Equal(t, e.Error(), FormatCause(wrapped))
+		}
+	})
+}
+
 // TestFormat checks Format surfaces domain leaves or top label plus cause.
 func TestFormat(t *testing.T) {
 	t.Parallel()

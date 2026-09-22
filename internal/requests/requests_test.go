@@ -2153,3 +2153,133 @@ func BenchmarkExecuteWithWriter(b *testing.B) {
 		})
 	}
 }
+
+// TestProcessHostsConcurrently verifies parallel execution across multiple hosts under one request.
+func TestProcessHostsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	rmc := &RequestsMetaConfig{
+		Concurrency: 2,
+		Requests: []RequestConfig{
+			{
+				Name: "concurrent-hosts",
+				Hosts: []Host{
+					{Name: u.Host, URIList: []URI{"/uri1"}},
+					{Name: u.Host, URIList: []URI{"/uri2"}},
+				},
+				TransportOverrideURL: ts.URL,
+				Insecure:             true,
+			},
+		},
+	}
+
+	res, resps, err := rmc.Execute(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, resps["concurrent-hosts"], 2)
+
+	// Test cancellation in processHostsConcurrently
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err = rmc.Execute(cancelCtx)
+	require.Error(t, err)
+}
+
+// TestRequestConfig_PrintTitle tests request title formatting with and without verbose flags.
+func TestRequestConfig_PrintTitle(t *testing.T) {
+	t.Parallel()
+
+	req := RequestConfig{
+		Name:                 "test-title",
+		TransportOverrideURL: "https://override.example.com",
+	}
+
+	var buf bytes.Buffer
+	req.PrintTitle(&buf, true)
+	require.Contains(t, buf.String(), "Request: test-title")
+	require.Contains(t, buf.String(), "https://override.example.com")
+
+	buf.Reset()
+	req.PrintTitle(&buf, false)
+	require.Empty(t, buf.String())
+
+	// Without transport override
+	req2 := RequestConfig{Name: "simple"}
+
+	buf.Reset()
+	req2.PrintTitle(&buf, true)
+	require.Contains(t, buf.String(), "Request: simple")
+}
+
+func TestRequestLimiter_Methods(t *testing.T) {
+	t.Parallel()
+
+	// Normal limiter
+	l := newRequestLimiter(0)
+	require.Equal(t, DefaultRequestsConcurrency, l.limit())
+
+	require.NoError(t, l.acquire(context.Background()))
+	l.release()
+
+	var buf bytes.Buffer
+	l.writeOutput(&buf, []byte("limiter-write"))
+	require.Equal(t, "limiter-write", buf.String())
+
+	// Context canceled when channel is full
+	fullLimiter := newRequestLimiter(1)
+	require.NoError(t, fullLimiter.acquire(context.Background()))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.ErrorIs(t, fullLimiter.acquire(ctx), context.Canceled)
+
+	// Nil limiter
+	var nilLim *requestLimiter
+	require.Equal(t, 0, nilLim.limit())
+	require.NoError(t, nilLim.acquire(context.Background()))
+	nilLim.release()
+
+	buf.Reset()
+	nilLim.writeOutput(&buf, []byte("nil-write"))
+	require.Equal(t, "nil-write", buf.String())
+}
+
+func TestEvaluateHeaderMatchAndFail_Branches(t *testing.T) {
+	t.Parallel()
+
+	headers := http.Header{
+		"X-Custom-Header": []string{"Alpha", "Beta"},
+	}
+
+	// evaluateHeaderMatch
+	matched := evaluateHeaderMatch(headers, map[string]string{"X-Custom-Header": "^Al.*"})
+	require.True(t, matched)
+
+	mismatched := evaluateHeaderMatch(headers, map[string]string{"X-Custom-Header": "^Gamma$"})
+	require.False(t, mismatched)
+
+	missing := evaluateHeaderMatch(headers, map[string]string{"Non-Existent": ".*"})
+	require.False(t, missing)
+
+	invalid := evaluateHeaderMatch(headers, map[string]string{"X-Custom-Header": "[invalid-regex"})
+	require.False(t, invalid)
+
+	// evaluateHeaderFail
+	failMatched := evaluateHeaderFail(headers, map[string]string{"X-Custom-Header": "^Beta$"})
+	require.True(t, failMatched)
+
+	failNotMatched := evaluateHeaderFail(headers, map[string]string{"X-Custom-Header": "^Omega$"})
+	require.False(t, failNotMatched)
+
+	failInvalid := evaluateHeaderFail(headers, map[string]string{"X-Custom-Header": "[invalid-regex"})
+	require.False(t, failInvalid)
+}

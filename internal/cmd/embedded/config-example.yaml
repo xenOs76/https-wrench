@@ -20,10 +20,55 @@ concurrency: 10
 ## If caBundle is not set, the requests made using this configuration file will fail with a TLS certificate verification error.
 ## Add the content of $CAROOT/rootCA.pem to the variable caBundle to test the sample configuration against the local
 ## webserver.
+
 caBundle: |
   -----BEGIN CERTIFICATE-----
   MIIEbTCCAtWgAwIBAgIQJdy/eKgQx9G54MUxW+ow5zANBgkqhkiG9w0BAQsFADBP
   ...
+
+## observability - Continuous synthetic monitoring mode (interval execution and Prometheus/OTel metrics export).
+#observability:
+#  enabled: true
+#  interval: 30s
+#  timeout: 25s
+#
+#  ## logging - Structured logging configuration for observability runner.
+#  logging:
+#    level: info      # debug, info, warn, error
+#    format: text     # text, json
+#
+#  ## pull - Embedded Prometheus HTTP scrape server configuration.
+#  pull:
+#    enabled: true
+#    address: "127.0.0.1:9090"
+#    path: /metrics
+#    ## reloadToken - Bearer token required for POST /-/reload endpoint.
+#    # reloadToken: "secret-token"
+#
+#  ## push - Remote metrics push destinations (Prometheus remote_write and/or OpenTelemetry OTLP).
+#  push:
+#    prometheus:
+#      enabled: false
+#      remoteWriteUrl: "http://127.0.0.1:9999/api/v1/metrics/write"
+#      timeout: 10s
+#      headers:
+#        X-Source: "https-wrench"
+#
+#    otlp:
+#      enabled: false
+#      endpoint: "http://127.0.0.1:4318/v1/metrics"
+#      protocol: "http/protobuf"
+#      timeout: 10s
+#      headers:
+#        X-Source: "https-wrench"
+#
+#  ## metrics - Filtering options and custom labels for generated metrics.
+#  metrics:
+#    includeTls: true
+#    includeCertChain: false
+#    stripQuery: true
+#    customLabels:
+#      env: "production"
 
 ## requests - List of HTTP requests to execute. Required option.
 requests:
@@ -56,6 +101,23 @@ requests:
 
     ## responseBodyMatchRegexp - A regular expression to match against the response body.
     responseBodyMatchRegexp: ".*https-wrench-agent.*"
+
+    ## responseBodyFailRegexp - A regular expression that causes the probe to fail if matched against the response body (negative matching).
+    # responseBodyFailRegexp: ".*(error|fatal|fail).*"
+
+    ## validStatusCodes - A list of HTTP status codes considered successful (defaults to 200..399 if omitted).
+    # validStatusCodes:
+    #   - 200
+    #   - 204
+    #   - 404
+
+    ## responseHeaderMatchRegexp - Key/value map of response headers that must match the specified regular expressions.
+    # responseHeaderMatchRegexp:
+    #   Content-Type: "^application/json"
+
+    ## responseHeaderFailRegexp - Key/value map of response headers that cause the probe to fail if matched.
+    # responseHeaderFailRegexp:
+    #   X-Error-Code: ".*"
 
     ## printResponseHeaders - If true, prints the headers of the HTTP response.
     printResponseHeaders: true

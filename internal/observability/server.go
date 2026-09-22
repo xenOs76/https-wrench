@@ -7,9 +7,11 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,10 +25,11 @@ type Server struct {
 	mux        *http.ServeMux
 	cfg        PullConfig
 	reg        *prometheus.Registry
+	logger     atomic.Pointer[slog.Logger]
 }
 
 // NewServer initializes an HTTP server for scraping metrics.
-func NewServer(cfg PullConfig, reg *prometheus.Registry) *Server {
+func NewServer(cfg PullConfig, reg *prometheus.Registry, logger ...*slog.Logger) *Server {
 	if cfg.Address == "" {
 		cfg.Address = DefaultPullAddress
 	}
@@ -57,12 +60,40 @@ func NewServer(cfg PullConfig, reg *prometheus.Registry) *Server {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	return &Server{
+	var l *slog.Logger
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0]
+	} else {
+		l = slog.Default()
+	}
+
+	s := &Server{
 		httpServer: srv,
 		mux:        mux,
 		cfg:        cfg,
 		reg:        reg,
 	}
+	s.logger.Store(l)
+
+	return s
+}
+
+// SetLogger updates the logger used by the scrape server.
+func (s *Server) SetLogger(l *slog.Logger) {
+	if l == nil {
+		l = slog.Default()
+	}
+
+	s.logger.Store(l)
+}
+
+// Logger returns the server's configured logger.
+func (s *Server) Logger() *slog.Logger {
+	if l := s.logger.Load(); l != nil {
+		return l
+	}
+
+	return slog.Default()
 }
 
 // RegisterReloadHandler registers an HTTP POST /-/reload endpoint for dynamic configuration reloads.
@@ -158,7 +189,7 @@ func (s *Server) Start() error {
 
 	go func() {
 		if serveErr := s.httpServer.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-			fmt.Printf("observability: scrape server error: %v\n", serveErr)
+			s.Logger().Error("scrape server error", "error", serveErr)
 		}
 	}()
 

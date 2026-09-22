@@ -2,7 +2,7 @@
 
 # https-wrench - changelog
 
-## Unreleased
+## 0.17.0 (2026-09-22)
 
 ### Dependencies
 
@@ -15,6 +15,14 @@
     Devenv: add grafana-alloy package to devenv environment.
 
 ### Feat
+
+    Observability: modernize logging architecture with Go 1.21+ `log/slog`, adding `logging` configuration (`level`: debug, info, warn, error; `format`: text, json) and CLI flags (`--log-level`, `--log-format`).
+
+    Observability: emit a single structured summary line per probe cycle at Info level and demote detailed per-probe inspection evaluations to Debug level.
+
+    Observability: support atomic thread-safe logger updates on dynamic configuration reloads and SIGHUP.
+
+    Schema: add JSON schema validation for `logging` configuration in `https-wrench.schema.json` and MCP schema assets.
 
     Requests: add `validStatusCodes` configuration to define acceptable HTTP status codes for probe success (falling back to 200..399 when omitted).
 
@@ -75,6 +83,14 @@
     Observability: align codebase with `gofumpt` and `gci` formatting standards.
 
     Examples: fix local Alloy example request configuration to route through local Nginx TLS port 9443 for plaintext httpbin backend.
+ 
+    Observability: remove redundant intermediate variable in OTLP test unmarshal error checking.
+
+### Tests
+
+    Coverage: expand statement test coverage to 94.7% across the repository, eliminating package troughs (`internal/view` to 92.0%, `internal/requests` to 96.1%, `internal/errdisp` to 95.6%, `internal/observability` to 94.3%, `internal/cmd` to 85.3%, `internal/jwtinfo` to 89.5%, and `internal/mcp` to 94.0%).
+
+    Docstrings: achieve 100% Go docstring coverage across all exported and internal types, functions, and methods across `internal/` packages (523 declarations verified).
 
 ## 0.16.0 (2026-09-17)
 

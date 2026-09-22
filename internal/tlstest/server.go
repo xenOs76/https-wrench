@@ -121,6 +121,7 @@ func NewServer(cfg ServerConfig) (*httptest.Server, error) {
 	return ts, nil
 }
 
+// validateTLS12CipherSuites checks whether specified cipher suites are valid for TLS 1.0-1.2.
 func validateTLS12CipherSuites(ids []uint16) error {
 	allowed := make(map[uint16]struct{})
 

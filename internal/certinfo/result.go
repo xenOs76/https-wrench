@@ -152,6 +152,8 @@ func EncodeJSON(r *Result) ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
 }
 
+// certsSectionFromBundle constructs a CertsSection from parsed certificates
+// and verifies private key pairing if present.
 func certsSectionFromBundle(
 	filePath, endpoint, serverName string,
 	certs []*x509.Certificate,
@@ -224,6 +226,7 @@ func FromX509(index int, cert *x509.Certificate) CertInfo {
 	}
 }
 
+// privateKeyInfo extracts key type and parameter attributes from a private key.
 func privateKeyInfo(path string, privKey crypto.PrivateKey) *PrivateKeyInfo {
 	info := &PrivateKeyInfo{
 		FilePath:   path,
@@ -263,10 +266,12 @@ func expiryTone(days float64) string {
 	return "default"
 }
 
+// formatBool converts a boolean value to its string representation.
 func formatBool(b bool) string {
 	return strconv.FormatBool(b)
 }
 
+// joinLines joins slice elements separated by newlines.
 func joinLines(vals []string) string {
 	return strings.Join(vals, "\n")
 }

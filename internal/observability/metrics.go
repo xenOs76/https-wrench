@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,10 +41,11 @@ type Metrics struct {
 	collectorDuration prometheus.Gauge
 	pushLastTimestamp *prometheus.GaugeVec
 	pushErrorsTotal   *prometheus.CounterVec
+	logger            atomic.Pointer[slog.Logger]
 }
 
 // NewMetrics initializes an isolated Prometheus registry and metric descriptors.
-func NewMetrics(cfg MetricsFilterConfig) *Metrics {
+func NewMetrics(cfg MetricsFilterConfig, logger ...*slog.Logger) *Metrics {
 	rawReg := prometheus.NewRegistry()
 
 	var reg prometheus.Registerer = rawReg
@@ -57,10 +59,18 @@ func NewMetrics(cfg MetricsFilterConfig) *Metrics {
 		reg = prometheus.WrapRegistererWith(labels, rawReg)
 	}
 
+	var l *slog.Logger
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0]
+	} else {
+		l = slog.Default()
+	}
+
 	m := &Metrics{
 		reg: rawReg,
 		cfg: cfg,
 	}
+	m.logger.Store(l)
 
 	m.initProbeMetrics()
 	m.initSSLMetrics()
@@ -68,6 +78,24 @@ func NewMetrics(cfg MetricsFilterConfig) *Metrics {
 	m.registerAll(reg)
 
 	return m
+}
+
+// SetLogger updates the logger used by Metrics.
+func (m *Metrics) SetLogger(l *slog.Logger) {
+	if l == nil {
+		l = slog.Default()
+	}
+
+	m.logger.Store(l)
+}
+
+// Logger returns the logger used by Metrics.
+func (m *Metrics) Logger() *slog.Logger {
+	if l := m.logger.Load(); l != nil {
+		return l
+	}
+
+	return slog.Default()
 }
 
 // initProbeMetrics initializes Prometheus metrics for synthetic HTTP probe results, latency histograms,
@@ -298,11 +326,12 @@ func (m *Metrics) recordSingleResponse(
 	m.probeRequestsTotal.WithLabelValues(reqName, parsedHost, parsedURI, statusCodeStr, resultStr, bodyMatchStr).Inc()
 
 	m.recordBodyMatch(reqName, parsedHost, parsedURI, respRes, rd)
-	recordBodyFailMatch(reqName, parsedHost, parsedURI, respRes, rd)
-	recordHeaderMatches(reqName, parsedHost, parsedURI, respRes, rd)
+	m.recordBodyFailMatch(reqName, parsedHost, parsedURI, respRes, rd)
+	m.recordHeaderMatches(reqName, parsedHost, parsedURI, respRes, rd)
 	m.recordResponseTLS(reqName, parsedHost, respRes, rd)
 }
 
+// isResponseHealthy determines whether an HTTP probe response meets success criteria.
 func isResponseHealthy(statusCode int, respRes requests.ResponseResult, rd requests.ResponseData) bool {
 	if respRes.Error != "" {
 		return false
@@ -356,7 +385,7 @@ func (m *Metrics) recordBodyMatch(
 
 	m.probeBodyMatches.WithLabelValues(reqName, host, uri, regexpPattern).Set(matchVal)
 
-	slog.Info(
+	m.Logger().Debug(
 		"probe body regex match",
 		"request_name", reqName,
 		"host", host,
@@ -368,7 +397,7 @@ func (m *Metrics) recordBodyMatch(
 }
 
 // recordBodyFailMatch logs details when responseBodyFailRegexp is evaluated.
-func recordBodyFailMatch(
+func (m *Metrics) recordBodyFailMatch(
 	reqName, host, uri string,
 	respRes requests.ResponseResult,
 	rd requests.ResponseData,
@@ -380,7 +409,7 @@ func recordBodyFailMatch(
 	regexpPattern := rd.Request.ResponseBodyFailRegexp
 	matchedValue := extractMatchedValue(regexpPattern, rd.ResponseBody, respRes.Body)
 
-	slog.Info(
+	m.Logger().Debug(
 		"probe body fail regex match",
 		"request_name", reqName,
 		"host", host,
@@ -392,13 +421,13 @@ func recordBodyFailMatch(
 }
 
 // recordHeaderMatches logs details when header match or fail regexps are evaluated.
-func recordHeaderMatches(
+func (m *Metrics) recordHeaderMatches(
 	reqName, host, uri string,
 	respRes requests.ResponseResult,
 	rd requests.ResponseData,
 ) {
 	if respRes.HeaderMatchRegexpMatched != nil {
-		slog.Info(
+		m.Logger().Debug(
 			"probe header match regex",
 			"request_name", reqName,
 			"host", host,
@@ -409,7 +438,7 @@ func recordHeaderMatches(
 	}
 
 	if respRes.HeaderFailRegexpMatched != nil {
-		slog.Info(
+		m.Logger().Debug(
 			"probe header fail regex",
 			"request_name", reqName,
 			"host", host,
@@ -533,7 +562,7 @@ func (m *Metrics) recordSingleCertificate(reqName, host string, cert certinfo.Ce
 		reqName, host, chainIndexStr,
 	).Set(validVal)
 
-	slog.Info(
+	m.Logger().Debug(
 		"certificate subject details",
 		"request_name", reqName,
 		"host", host,

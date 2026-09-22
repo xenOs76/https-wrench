@@ -83,6 +83,7 @@ Examples:
 	},
 }
 
+// init registers flags and adds the jwks command to rootCmd.
 func init() {
 	rootCmd.AddCommand(jwksCmd)
 

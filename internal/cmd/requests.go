@@ -32,6 +32,8 @@ var (
 	observeListen         string
 	observeRemoteWriteURL string
 	observeOTLPEndpoint   string
+	observeLogLevel       string
+	observeLogFormat      string
 )
 
 var requestsCmd = &cobra.Command{
@@ -62,6 +64,8 @@ Examples:
 			observeListen = ""
 			observeRemoteWriteURL = ""
 			observeOTLPEndpoint = ""
+			observeLogLevel = ""
+			observeLogFormat = ""
 		}()
 
 		versionRequested := viper.GetBool("version")
@@ -208,6 +212,7 @@ Examples:
 	},
 }
 
+// init registers flags and adds the requests command to rootCmd.
 func init() {
 	requestsCmd.PersistentFlags().BoolVar(&showSampleConfig,
 		"show-sample-config",
@@ -255,6 +260,18 @@ func init() {
 		"otlp-endpoint",
 		"",
 		"OpenTelemetry OTLP endpoint URL to push metrics to (overrides config)",
+	)
+	requestsCmd.Flags().StringVar(
+		&observeLogLevel,
+		"log-level",
+		"",
+		"Log level in observability mode: debug, info, warn, error (overrides config)",
+	)
+	requestsCmd.Flags().StringVar(
+		&observeLogFormat,
+		"log-format",
+		"",
+		"Log format in observability mode: text, json (overrides config)",
 	)
 	rootCmd.AddCommand(requestsCmd)
 }
@@ -331,6 +348,14 @@ func applyObservabilityOverrides(base observability.Config, cmd *cobra.Command) 
 	if cmd.Flags().Changed("otlp-endpoint") && observeOTLPEndpoint != "" {
 		obsCfg.Push.OTLP.Enabled = true
 		obsCfg.Push.OTLP.Endpoint = observeOTLPEndpoint
+	}
+
+	if cmd.Flags().Changed("log-level") && observeLogLevel != "" {
+		obsCfg.Logging.Level = observeLogLevel
+	}
+
+	if cmd.Flags().Changed("log-format") && observeLogFormat != "" {
+		obsCfg.Logging.Format = observeLogFormat
 	}
 
 	return obsCfg

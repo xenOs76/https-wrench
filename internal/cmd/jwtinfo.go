@@ -55,6 +55,7 @@ type stepFlag struct {
 	kind string
 }
 
+// String returns the string representation of the stepFlag.
 func (*stepFlag) String() string { return "" }
 
 // Set appends the flag's value and its type to the global requestSteps slice.
@@ -63,6 +64,7 @@ func (f *stepFlag) Set(s string) error {
 	return nil
 }
 
+// Type returns the pflag value type identifier.
 func (*stepFlag) Type() string { return "string" }
 
 var jwtinfoCmd = &cobra.Command{
@@ -273,6 +275,7 @@ Examples:
 	},
 }
 
+// init registers the jwtinfo command and its flags with the root command.
 func init() {
 	rootCmd.AddCommand(jwtinfoCmd)
 

@@ -25,11 +25,13 @@ const (
 	certinfoKeyPasswordEnv = "CERTINFO_PKEY_PW"
 )
 
+// execToolOutput encapsulates JSON payload text and any error message from execution tools.
 type execToolOutput struct {
 	Output string `json:"output"`
 	Error  string `json:"error,omitempty"`
 }
 
+// runRequestsInput specifies inline YAML or a file path to execute requests against.
 type runRequestsInput struct {
 	ConfigYAML   string `json:"configYaml,omitempty" jsonschema:"Inline requests YAML configuration"`
 	ConfigPath   string `json:"configPath,omitempty" jsonschema:"Path to requests YAML on the MCP server host"`
@@ -37,6 +39,7 @@ type runRequestsInput struct {
 	TimeoutSec   int    `json:"timeoutSec,omitempty" jsonschema:"Overall operation timeout in seconds (default 60)"`
 }
 
+// certinfoInput holds parameters for certificate, private key, or TLS endpoint inspection.
 type certinfoInput struct {
 	CaBundle      string `json:"caBundle,omitempty" jsonschema:"Optional CA bundle PEM file path"`
 	CertBundle    string `json:"certBundle,omitempty" jsonschema:"PEM certificate bundle file path"`
@@ -48,6 +51,7 @@ type certinfoInput struct {
 	TimeoutSec    int    `json:"timeoutSec,omitempty" jsonschema:"Timeout in seconds (default 60)"`
 }
 
+// jwtinfoInput holds parameters for parsing, verifying, or fetching a JWT token.
 type jwtinfoInput struct {
 	TokenFile     string            `json:"tokenFile,omitempty" jsonschema:"File path containing JWT token string"`
 	RequestURL    string            `json:"requestUrl,omitempty" jsonschema:"OAuth/OIDC token endpoint URL"`
@@ -56,11 +60,13 @@ type jwtinfoInput struct {
 	TimeoutSec    int               `json:"timeoutSec,omitempty" jsonschema:"Timeout in seconds (default 60)"`
 }
 
+// generateJWKSInput specifies a public key file and key ID to construct a JWKS.
 type generateJWKSInput struct {
 	PublicKeyFile string `json:"publicKeyFile" jsonschema:"Path to PEM-encoded public key file"`
 	Kid           string `json:"kid,omitempty" jsonschema:"Optional key ID"`
 }
 
+// loadedRequestsConfig holds unmarshaled requests configuration and execution options.
 type loadedRequestsConfig struct {
 	Debug    bool
 	Verbose  bool
@@ -68,18 +74,23 @@ type loadedRequestsConfig struct {
 	Requests []requests.RequestConfig
 }
 
+// mcpFileReader implements file reading and non-interactive password retrieval for MCP.
 type mcpFileReader struct{}
 
+// ReadFile reads the named file from the filesystem.
 func (mcpFileReader) ReadFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
+// NoPasswordPrompt indicates that interactive password prompts are disabled.
 func (mcpFileReader) NoPasswordPrompt() bool { return true }
 
+// ReadPassword returns an error because interactive terminal prompts are unsupported in MCP.
 func (mcpFileReader) ReadPassword(_ int) ([]byte, error) {
 	return nil, ErrEncryptedKeyNeedsEnv
 }
 
+// registerExecTools registers execution-capable tools on the given MCP server.
 func registerExecTools(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name: "run_requests",
@@ -174,6 +185,7 @@ func generateJWKSHandler(
 	return nil, out, nil
 }
 
+// executeRunRequests executes requests within the provided context.
 func executeRunRequests(ctx context.Context, input runRequestsInput) (execToolOutput, error) {
 	return runWithContext(ctx, func(ctx context.Context) (execToolOutput, error) {
 		if err := ctx.Err(); err != nil {
@@ -184,6 +196,7 @@ func executeRunRequests(ctx context.Context, input runRequestsInput) (execToolOu
 	})
 }
 
+// runRequestsExec validates, parses, and executes the requests configuration.
 func runRequestsExec(ctx context.Context, input runRequestsInput) (execToolOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return execToolOutput{}, err
@@ -217,6 +230,7 @@ func runRequestsExec(ctx context.Context, input runRequestsInput) (execToolOutpu
 	return requestsJSONOutput(result)
 }
 
+// requestsJSONOutput serializes requests results to JSON formatted tool output.
 func requestsJSONOutput(result *requests.Result) (execToolOutput, error) {
 	payload, err := requests.EncodeJSON(result)
 	if err != nil {
@@ -226,6 +240,7 @@ func requestsJSONOutput(result *requests.Result) (execToolOutput, error) {
 	return execToolOutput{Output: string(payload)}, nil
 }
 
+// executeCertinfo runs certificate and TLS endpoint inspection within the provided context.
 func executeCertinfo(ctx context.Context, input certinfoInput) (execToolOutput, error) {
 	return runWithContext(ctx, func(ctx context.Context) (execToolOutput, error) {
 		if err := ctx.Err(); err != nil {
@@ -236,6 +251,7 @@ func executeCertinfo(ctx context.Context, input certinfoInput) (execToolOutput, 
 	})
 }
 
+// certinfoExec configures the certinfo inspector, probes targets, and builds the result.
 func certinfoExec(ctx context.Context, input certinfoInput) (execToolOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return execToolOutput{}, err
@@ -297,6 +313,7 @@ func certinfoExec(ctx context.Context, input certinfoInput) (execToolOutput, err
 	return certinfoJSONOutput(cfg)
 }
 
+// certinfoJSONOutput encodes certinfo results into JSON formatted tool output.
 func certinfoJSONOutput(cfg *certinfo.Config) (execToolOutput, error) {
 	result, err := cfg.BuildResult()
 	if err != nil {
@@ -311,6 +328,7 @@ func certinfoJSONOutput(cfg *certinfo.Config) (execToolOutput, error) {
 	return execToolOutput{Output: string(payload)}, nil
 }
 
+// executeJwtinfo loads and parses JWT token data within the provided context.
 func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, error) {
 	tokenData, err := loadJwtTokenData(ctx, input)
 	if err != nil {
@@ -334,6 +352,7 @@ func executeJwtinfo(ctx context.Context, input jwtinfoInput) (execToolOutput, er
 	return jwtinfoJSONOutput(tokenData)
 }
 
+// jwtinfoJSONOutput serializes JWT analysis results into JSON formatted tool output.
 func jwtinfoJSONOutput(tokenData *jwtinfo.JwtTokenData) (execToolOutput, error) {
 	result, err := tokenData.BuildResult()
 	if err != nil {
@@ -348,6 +367,7 @@ func jwtinfoJSONOutput(tokenData *jwtinfo.JwtTokenData) (execToolOutput, error) 
 	return execToolOutput{Output: string(payload)}, nil
 }
 
+// executeGenerateJWKS loads a public key and generates a JWKS JSON tool output.
 func executeGenerateJWKS(ctx context.Context, input generateJWKSInput) (execToolOutput, error) {
 	if strings.TrimSpace(input.PublicKeyFile) == "" {
 		return execToolOutput{}, &RequiredFieldError{Field: "publicKeyFile"}
@@ -366,6 +386,7 @@ func executeGenerateJWKS(ctx context.Context, input generateJWKSInput) (execTool
 	return execToolOutput{Output: string(payload)}, nil
 }
 
+// loadConfigYAML retrieves configuration content from inline YAML or a local file path.
 func loadConfigYAML(configYAML, configPath string) (string, error) {
 	hasYAML := strings.TrimSpace(configYAML) != ""
 	hasPath := strings.TrimSpace(configPath) != ""
@@ -387,6 +408,7 @@ func loadConfigYAML(configYAML, configPath string) (string, error) {
 	}
 }
 
+// loadRequestsConfigYAML parses requests YAML content and unmarshals it into loadedRequestsConfig.
 func loadRequestsConfigYAML(yamlContent string) (loadedRequestsConfig, bool, error) {
 	v := viper.New()
 	v.SetConfigType("yaml")
@@ -414,6 +436,7 @@ func loadRequestsConfigYAML(yamlContent string) (loadedRequestsConfig, bool, err
 	}, v.IsSet("verbose"), nil
 }
 
+// buildRequestsMetaConfig constructs and configures a RequestsMetaConfig from loaded options.
 func buildRequestsMetaConfig(loaded loadedRequestsConfig, caBundlePath string) (*requests.RequestsMetaConfig, error) {
 	meta, err := requests.NewRequestsMetaConfig()
 	if err != nil {
@@ -435,6 +458,7 @@ func buildRequestsMetaConfig(loaded loadedRequestsConfig, caBundlePath string) (
 	return meta, nil
 }
 
+// loadJwtTokenData obtains JWT token data either by reading a file or performing an HTTP request.
 func loadJwtTokenData(ctx context.Context, input jwtinfoInput) (*jwtinfo.JwtTokenData, error) {
 	hasFile := strings.TrimSpace(input.TokenFile) != ""
 	hasURL := strings.TrimSpace(input.RequestURL) != ""
@@ -457,6 +481,7 @@ func loadJwtTokenData(ctx context.Context, input jwtinfoInput) (*jwtinfo.JwtToke
 	}
 }
 
+// certinfoInputProvided returns true if at least one certificate or TLS input was provided.
 func certinfoInputProvided(input certinfoInput) bool {
 	return input.CaBundle != "" ||
 		input.CertBundle != "" ||
@@ -464,12 +489,14 @@ func certinfoInputProvided(input certinfoInput) bool {
 		input.TLSEndpoint != ""
 }
 
+// toolContext wraps parent with a timeout derived from timeoutSec.
 func toolContext(parent context.Context, timeoutSec int) (context.Context, context.CancelFunc) {
 	timeout := execToolTimeout(timeoutSec)
 
 	return context.WithTimeout(parent, timeout)
 }
 
+// execToolTimeout converts a timeout in seconds to a Duration, falling back to the default.
 func execToolTimeout(timeoutSec int) time.Duration {
 	if timeoutSec <= 0 {
 		return defaultExecToolTimeout
@@ -478,6 +505,7 @@ func execToolTimeout(timeoutSec int) time.Duration {
 	return time.Duration(timeoutSec) * time.Second
 }
 
+// captureOutput runs fn while capturing standard output to a string.
 func captureOutput(fn func(io.Writer) error) (string, error) {
 	var buf bytes.Buffer
 
@@ -488,6 +516,7 @@ func captureOutput(fn func(io.Writer) error) (string, error) {
 	return buf.String(), nil
 }
 
+// runWithContext executes fn in a goroutine, aborting if ctx expires before completion.
 func runWithContext[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {
 	if ctx == nil {
 		ctx = context.Background()
