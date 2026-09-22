@@ -465,6 +465,7 @@
             "debug",
             "info",
             "warn",
+            "warning",
             "error"
           ],
           "default": "info",
