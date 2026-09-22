@@ -33,7 +33,7 @@ func TestOTLPExporter(t *testing.T) {
 				return
 			}
 
-			if unmarshalErr := proto.Unmarshal(body, &receivedReq); unmarshalErr != nil {
+			if proto.Unmarshal(body, &receivedReq) != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
