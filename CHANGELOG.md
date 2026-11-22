@@ -2,6 +2,16 @@
 
 # https-wrench - changelog
 
+## 0.17.2 (2026-11-23)
+
+### CI
+
+    CodeChecks: add Trivy filesystem vulnerability scan (`HIGH,CRITICAL`) after `govulncheck`.
+
+### Dependencies
+
+    update golang.org/x/net to v0.62.0 (resolving CVE-2026-78661) and transitive golang.org/x/crypto v0.58.0, golang.org/x/sync v0.24.0, golang.org/x/sys v0.49.0, golang.org/x/term v0.47.0, golang.org/x/text v0.43.0, golang.org/x/tools v0.51.0.
+
 ## 0.17.1 (2026-11-22)
 
 ### CI
