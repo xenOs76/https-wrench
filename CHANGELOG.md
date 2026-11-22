@@ -2,6 +2,20 @@
 
 # https-wrench - changelog
 
+## 0.17.1 (2026-11-22)
+
+### CI
+
+    switch to Go 1.27.4
+
+### Dependencies
+
+    update golang.org/x/net to v0.60.0 (and transitive golang.org/x/crypto v0.57.0, golang.org/x/sys v0.48.0, golang.org/x/term v0.46.0, golang.org/x/text v0.42.0, golang.org/x/tools v0.49.0).
+
+### Fix
+
+    Cmd: fix revive multiline-if-init in certinfo command.
+
 ## 0.17.0 (2026-09-22)
 
 ### Dependencies

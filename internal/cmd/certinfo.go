@@ -128,11 +128,12 @@ Examples:
 			return
 		}
 
-		if err = certinfoCfg.SetPrivateKeyFromFile(
+		err = certinfoCfg.SetPrivateKeyFromFile(
 			keyFileValue,
 			keyPwEnvVar,
 			fileReader,
-		); err != nil {
+		)
+		if err != nil {
 			cmd.Printf("Error importing key from file: %s", errdisp.FormatCause(err))
 		}
 
