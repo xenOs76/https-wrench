@@ -68,6 +68,16 @@ jobs:
           go-package: ./...
           work-dir: .
 
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          version: v0.76.2
+
   go_tests:
     name: Go tests and build
     runs-on: ubuntu-latest
